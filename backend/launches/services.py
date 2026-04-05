@@ -1,7 +1,7 @@
 """
 Launch Library 2 service layer.
-Fetches from the API and upserts into the local DB cache to avoid
-hammering the external API on every request.
+Fetches from the API and upserts into the local DB cache.
+Cache TTL is 2 hours to avoid hammering the rate-limited API.
 """
 
 import httpx
@@ -10,8 +10,8 @@ from datetime import timedelta
 
 from .models import Launch
 
-LL2_BASE = 'https://ll.thespacedevs.com/2.3.0'
-CACHE_TTL_MINUTES = 15  # re-fetch if data is older than this
+LL2_BASE = 'https://ll.thespacedevs.com/2.2.0'
+CACHE_TTL_MINUTES = 120  # 2 hours — LL2 rate-limits aggressively
 
 
 def _parse_launch(data: dict) -> dict:
@@ -43,11 +43,11 @@ def _parse_launch(data: dict) -> dict:
     image_url = data.get('image', '') or ''
 
     return {
-        'api_id': data['id'],
+        'api_id': str(data['id']),
         'name': data.get('name', ''),
         'rocket': rocket_name,
         'launch_provider': provider_name,
-        'launch_date': data.get('net') or None,       # NET = No Earlier Than
+        'launch_date': data.get('net') or None,
         'status': status_name,
         'mission_description': mission_desc,
         'image_url': image_url,
@@ -58,48 +58,59 @@ def _upsert_launches(results: list) -> list:
     """Upsert a list of raw LL2 launch dicts into the DB and return Launch objects."""
     launches = []
     for raw in results:
-        parsed = _parse_launch(raw)
-        obj, _ = Launch.objects.update_or_create(
-            api_id=parsed['api_id'],
-            defaults=parsed,
-        )
-        launches.append(obj)
+        try:
+            parsed = _parse_launch(raw)
+            obj, _ = Launch.objects.update_or_create(
+                api_id=parsed['api_id'],
+                defaults=parsed,
+            )
+            launches.append(obj)
+        except Exception:
+            continue  # Skip malformed entries
     return launches
 
 
 def get_upcoming_launches(limit: int = 20) -> list:
     """Fetch upcoming launches. Uses DB cache if fresh enough."""
     cutoff = timezone.now() - timedelta(minutes=CACHE_TTL_MINUTES)
-    # Check if we have fresh cached data
     cached = Launch.objects.filter(
         launch_date__gte=timezone.now(),
         last_fetched__gte=cutoff,
-    )
+    ).exclude(api_id__startswith='spacex_')
+
     if cached.exists():
         return list(cached.order_by('launch_date')[:limit])
 
-    # Fetch fresh from API
+    # Try fetching from API
     try:
         resp = httpx.get(
             f'{LL2_BASE}/launch/upcoming/',
             params={'limit': limit, 'mode': 'detailed'},
-            timeout=10,
+            timeout=15,
         )
         resp.raise_for_status()
         results = resp.json().get('results', [])
-        return _upsert_launches(results)
-    except httpx.HTTPError:
-        # Fall back to whatever is cached, even if stale
-        return list(Launch.objects.filter(launch_date__gte=timezone.now()).order_by('launch_date')[:limit])
+        if results:
+            return _upsert_launches(results)
+    except Exception:
+        pass
+
+    # Fall back to any LL2 cached data, even if stale
+    return list(
+        Launch.objects.filter(launch_date__gte=timezone.now())
+        .exclude(api_id__startswith='spacex_')
+        .order_by('launch_date')[:limit]
+    )
 
 
 def get_past_launches(limit: int = 20) -> list:
-    """Fetch recent past launches. Always hits API as past data doesn't change much."""
+    """Fetch recent past launches."""
     cutoff = timezone.now() - timedelta(minutes=CACHE_TTL_MINUTES)
     cached = Launch.objects.filter(
         launch_date__lt=timezone.now(),
         last_fetched__gte=cutoff,
-    )
+    ).exclude(api_id__startswith='spacex_')
+
     if cached.exists():
         return list(cached.order_by('-launch_date')[:limit])
 
@@ -107,13 +118,20 @@ def get_past_launches(limit: int = 20) -> list:
         resp = httpx.get(
             f'{LL2_BASE}/launch/previous/',
             params={'limit': limit, 'mode': 'detailed'},
-            timeout=10,
+            timeout=15,
         )
         resp.raise_for_status()
         results = resp.json().get('results', [])
-        return _upsert_launches(results)
-    except httpx.HTTPError:
-        return list(Launch.objects.filter(launch_date__lt=timezone.now()).order_by('-launch_date')[:limit])
+        if results:
+            return _upsert_launches(results)
+    except Exception:
+        pass
+
+    return list(
+        Launch.objects.filter(launch_date__lt=timezone.now())
+        .exclude(api_id__startswith='spacex_')
+        .order_by('-launch_date')[:limit]
+    )
 
 
 def get_launch_by_api_id(api_id: str) -> Launch | None:
@@ -126,12 +144,15 @@ def get_launch_by_api_id(api_id: str) -> Launch | None:
     except Launch.DoesNotExist:
         pass
 
-    # Fetch from API
     try:
-        resp = httpx.get(f'{LL2_BASE}/launch/{api_id}/', params={'mode': 'detailed'}, timeout=10)
+        resp = httpx.get(
+            f'{LL2_BASE}/launch/{api_id}/',
+            params={'mode': 'detailed'},
+            timeout=15,
+        )
         resp.raise_for_status()
         parsed = _parse_launch(resp.json())
         obj, _ = Launch.objects.update_or_create(api_id=api_id, defaults=parsed)
         return obj
-    except httpx.HTTPError:
+    except Exception:
         return Launch.objects.filter(api_id=api_id).first()
