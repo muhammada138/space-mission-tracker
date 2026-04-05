@@ -68,8 +68,10 @@ def _parse_launch(data: dict) -> dict:
     webcast_url = ''
     try:
         vid_urls = data.get('vidURLs') or data.get('vid_urls') or []
-        if vid_urls and len(vid_urls) > 0:
-            first_vid = vid_urls[0]
+        if vid_urls:
+            # Sort by priority (highest first) and pick the best one
+            sorted_vids = sorted(vid_urls, key=lambda v: v.get('priority', 0) if isinstance(v, dict) else 0, reverse=True)
+            first_vid = sorted_vids[0]
             webcast_url = first_vid.get('url', '') if isinstance(first_vid, dict) else str(first_vid)
     except (KeyError, TypeError, IndexError):
         pass
