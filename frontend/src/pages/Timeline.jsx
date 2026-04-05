@@ -41,30 +41,53 @@ export default function Timeline() {
 
   // Timeline calculations
   const timelineData = useMemo(() => {
-    if (launches.length === 0) return { nodes: [], minTime: 0, maxTime: 0, totalWidth: 0 }
+    if (launches.length === 0) return { nodes: [], totalWidth: 0 }
 
-    const dates = launches.map(l => new Date(l.launch_date).getTime())
-    const minTime = Math.min(...dates)
-    const maxTime = Math.max(...dates)
-    const range = maxTime - minTime || 1
+    // Constants for scaling
+    const MIN_SPACING = 40; // Minimum pixels between any two launches
+    const MAX_SPACING = 300; // Maximum pixels between launches (for massive gaps)
+    const MS_PER_DAY = 24 * 60 * 60 * 1000;
+    const PIXELS_PER_DAY = 6; // e.g., 6px per day
 
-    const MIN_WIDTH = Math.max(1200, launches.length * 60)
-
-    const nodes = launches.map(l => {
+    let currentX = 60; // Starting indent
+    const nodes = launches.map((l, i) => {
       const t = new Date(l.launch_date).getTime()
-      const x = ((t - minTime) / range) * (MIN_WIDTH - 100) + 50
-      return { ...l, x, time: t }
+      if (i === 0) {
+        return { ...l, x: currentX, time: t }
+      }
+      const prevT = new Date(launches[i-1].launch_date).getTime()
+      const diffDays = Math.max(0, t - prevT) / MS_PER_DAY;
+      
+      const spacing = Math.max(MIN_SPACING, Math.min(MAX_SPACING, diffDays * PIXELS_PER_DAY));
+      currentX += spacing;
+      
+      return { ...l, x: currentX, time: t }
     })
 
-    return { nodes, minTime, maxTime, totalWidth: MIN_WIDTH }
+    return { nodes, totalWidth: currentX + 100 }
   }, [launches])
 
-  // Position of "now" marker
+  // Position of "now" marker using interpolation between nodes
   const nowX = useMemo(() => {
-    if (timelineData.totalWidth === 0) return 0
+    if (timelineData.nodes.length === 0) return 0
     const now = Date.now()
-    const range = timelineData.maxTime - timelineData.minTime || 1
-    return ((now - timelineData.minTime) / range) * (timelineData.totalWidth - 100) + 50
+    const { nodes } = timelineData
+    
+    // If before first launch
+    if (now <= nodes[0].time) return nodes[0].x - 50 
+    // If after last launch
+    if (now >= nodes[nodes.length - 1].time) return nodes[nodes.length - 1].x + 50
+    
+    // Interpolate between the bounding launches
+    for (let i = 0; i < nodes.length - 1; i++) {
+        if (now >= nodes[i].time && now <= nodes[i+1].time) {
+            const timeRange = nodes[i+1].time - nodes[i].time
+            if (timeRange === 0) return nodes[i].x
+            const fraction = (now - nodes[i].time) / timeRange
+            return nodes[i].x + fraction * (nodes[i+1].x - nodes[i].x)
+        }
+    }
+    return 0
   }, [timelineData])
 
   // Scroll to "now" on load

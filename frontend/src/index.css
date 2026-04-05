@@ -793,6 +793,118 @@ textarea.input { resize: vertical; min-height: 110px; line-height: 1.6; }
 .search-bar .search-icon { color: var(--text-muted); flex-shrink: 0; }
 
 /* ====================================================================
+   TIMELINE
+   ==================================================================== */
+
+.timeline-container {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 20px;
+  position: relative;
+  /* Cleaner scrollbar specifically for the timeline */
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent) var(--bg-base);
+}
+
+.timeline-container::-webkit-scrollbar {
+  height: 6px;
+}
+.timeline-container::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+}
+.timeline-container::-webkit-scrollbar-thumb {
+  background: var(--accent);
+  border-radius: 3px;
+}
+.timeline-container::-webkit-scrollbar-thumb:hover {
+  background: #fff;
+}
+
+.timeline-track {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.timeline-axis {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--border);
+  transform: translateY(-50%);
+  z-index: 1;
+}
+
+.timeline-now {
+  position: absolute;
+  top: 50%;
+  width: 2px;
+  height: 40px;
+  background: var(--accent);
+  transform: translateY(-50%);
+  z-index: 2;
+  box-shadow: 0 0 10px rgba(0, 212, 255, 0.6);
+}
+
+.timeline-node {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 3;
+  cursor: pointer;
+}
+
+.timeline-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid;
+  transition: transform 0.2s, box-shadow 0.2s;
+  background: var(--bg-surface);
+}
+
+.timeline-node:hover .timeline-dot {
+  transform: scale(1.3);
+}
+
+.timeline-tooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-12px);
+  background: var(--bg-card-hover);
+  border: 1px solid var(--border-glow);
+  padding: 8px 12px;
+  border-radius: 6px;
+  box-shadow: var(--shadow-glow);
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s var(--ease-out-expo), transform 0.2s var(--ease-out-expo);
+  pointer-events: none;
+  z-index: 10;
+}
+.timeline-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: var(--border-glow) transparent transparent transparent;
+}
+
+.timeline-node:hover .timeline-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(-16px);
+}
+
+/* ====================================================================
    FOOTER
    ==================================================================== */
 

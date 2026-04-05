@@ -1,23 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet'
-import L from 'leaflet'
-import 'leaflet/dist/leaflet.css'
-
-// Custom ISS marker icon
-const issIcon = new L.DivIcon({
-  html: `<div style="width:28px;height:28px;background:var(--accent);border-radius:50%;border:3px solid #fff;box-shadow:0 0 16px var(--accent);display:flex;align-items:center;justify-content:center;font-size:14px">🛰</div>`,
-  iconSize: [28, 28],
-  iconAnchor: [14, 14],
-  className: '',
-})
-
-function MapUpdater({ position }) {
-  const map = useMap()
-  useEffect(() => {
-    if (position) map.panTo(position, { animate: true, duration: 1 })
-  }, [position, map])
-  return null
-}
+import { useState, useEffect, Suspense } from 'react'
+import Globe from '../components/Globe'
 
 export default function ISS() {
   const [position, setPosition] = useState(null)
@@ -107,35 +89,21 @@ export default function ISS() {
       </div>
 
       {/* Map */}
-      <div className="glass fade-up" style={{ overflow: 'hidden', marginBottom: 24 }}>
+      <div className="glass fade-up" style={{ overflow: 'hidden', marginBottom: 24, padding: 0 }}>
         {position ? (
-          <MapContainer
-            center={position}
-            zoom={3}
-            style={{ height: 450, width: '100%' }}
-            zoomControl={false}
-            attributionControl={false}
-          >
-            <TileLayer
-              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-            />
-            <MapUpdater position={position} />
-            <Marker position={position} icon={issIcon}>
-              <Popup>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>
-                  ISS Position<br />
-                  Lat: {position[0].toFixed(4)}<br />
-                  Lng: {position[1].toFixed(4)}
-                </div>
-              </Popup>
-            </Marker>
-            {track.length > 1 && (
-              <Polyline
-                positions={track}
-                pathOptions={{ color: '#00d4ff', weight: 2, opacity: 0.5, dashArray: '6 4' }}
-              />
-            )}
-          </MapContainer>
+          <div style={{ height: 450, width: '100%', position: 'relative' }}>
+            <Suspense fallback={
+              <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div className="spinner" />
+              </div>
+            }>
+              <Globe issPosition={position} issTrack={track} spin={true} />
+            </Suspense>
+            {/* Overlay hint */}
+            <div style={{ position: 'absolute', bottom: 16, right: 16, fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', pointerEvents: 'none', background: 'rgba(5, 10, 24, 0.7)', padding: '4px 8px', borderRadius: 4 }}>
+              Interactive 3D View (Scroll to zoom)
+            </div>
+          </div>
         ) : (
           <div style={{ height: 450, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div className="spinner" />
