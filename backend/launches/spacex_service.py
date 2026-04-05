@@ -3,13 +3,11 @@ SpaceX API service layer (v5).
 Fetches from the open SpaceX REST API and normalises data into our
 Launch model format.
 
-API Base: https://api.spacexdata.com/v5
-Key endpoints used:
-  - POST /launches/query    (paginated query with filters)
-  - GET  /launches/:id      (single launch)
-  - GET  /launches/upcoming (upcoming launches)
-  - GET  /launches/past     (past launches)
-  - GET  /rockets/:id       (rocket details - for names)
+Base URL: https://api.spacexdata.com/v5
+Endpoints:
+  - GET /launches/upcoming
+  - GET /launches/past
+  - GET /rockets (for resolving rocket names)
 """
 
 import httpx
@@ -19,10 +17,10 @@ from datetime import timedelta
 from .models import Launch
 
 SPACEX_BASE = 'https://api.spacexdata.com/v5'
-CACHE_TTL_MINUTES = 30  # SpaceX data updates less frequently
+CACHE_TTL_MINUTES = 30
 
 
-def _parse_spacex_launch(data: dict, rockets_map: dict = None) -> dict:
+def _parse_spacex_launch(data: dict, rockets_map: dict = None, launchpads_map: dict = None) -> dict:
     """Normalise a SpaceX launch object into our Launch model fields."""
     rocket_id = data.get('rocket', '')
     rocket_name = ''
@@ -37,7 +35,7 @@ def _parse_spacex_launch(data: dict, rockets_map: dict = None) -> dict:
     elif data.get('success') is False:
         status = 'Launch Failure'
 
-    # Try to get a good image
+    # Images - try flickr first, then patch
     image_url = ''
     links = data.get('links', {})
     flickr = links.get('flickr', {})
@@ -48,6 +46,22 @@ def _parse_spacex_launch(data: dict, rockets_map: dict = None) -> dict:
         patch = links.get('patch', {})
         image_url = patch.get('large', patch.get('small', '')) or ''
 
+    # Webcast and wiki
+    webcast_url = links.get('webcast', '') or ''
+    wiki_url = links.get('wikipedia', '') or ''
+
+    # Launchpad info
+    pad_name = ''
+    pad_location = ''
+    launchpad_id = data.get('launchpad', '')
+    if launchpads_map and launchpad_id in launchpads_map:
+        pad_info = launchpads_map[launchpad_id]
+        pad_name = pad_info.get('name', '')
+        pad_location = pad_info.get('locality', '')
+        region = pad_info.get('region', '')
+        if region and pad_location:
+            pad_location = f"{pad_location}, {region}"
+
     return {
         'api_id': f"spacex_{data.get('id', '')}",
         'name': data.get('name', ''),
@@ -57,6 +71,13 @@ def _parse_spacex_launch(data: dict, rockets_map: dict = None) -> dict:
         'status': status,
         'mission_description': data.get('details', '') or '',
         'image_url': image_url,
+        'pad_name': pad_name,
+        'pad_location': pad_location,
+        'orbit': '',
+        'mission_type': '',
+        'webcast_url': webcast_url,
+        'wiki_url': wiki_url,
+        'infographic_url': '',
     }
 
 
@@ -70,16 +91,29 @@ def _get_rockets_map() -> dict:
         return {}
 
 
-def _upsert_spacex_launches(results: list, rockets_map: dict) -> list:
+def _get_launchpads_map() -> dict:
+    """Fetch all SpaceX launchpads and return {id: info} mapping."""
+    try:
+        resp = httpx.get(f'{SPACEX_BASE}/launchpads', timeout=10)
+        resp.raise_for_status()
+        return {p['id']: p for p in resp.json()}
+    except Exception:
+        return {}
+
+
+def _upsert_spacex_launches(results: list, rockets_map: dict, launchpads_map: dict) -> list:
     """Upsert SpaceX launches into the DB."""
     launches = []
     for raw in results:
-        parsed = _parse_spacex_launch(raw, rockets_map)
-        obj, _ = Launch.objects.update_or_create(
-            api_id=parsed['api_id'],
-            defaults=parsed,
-        )
-        launches.append(obj)
+        try:
+            parsed = _parse_spacex_launch(raw, rockets_map, launchpads_map)
+            obj, _ = Launch.objects.update_or_create(
+                api_id=parsed['api_id'],
+                defaults=parsed,
+            )
+            launches.append(obj)
+        except Exception:
+            continue
     return launches
 
 
@@ -96,10 +130,11 @@ def get_spacex_upcoming_launches(limit: int = 20) -> list:
 
     try:
         rockets_map = _get_rockets_map()
+        launchpads_map = _get_launchpads_map()
         resp = httpx.get(f'{SPACEX_BASE}/launches/upcoming', timeout=10)
         resp.raise_for_status()
         results = resp.json()
-        launches = _upsert_spacex_launches(results[:limit], rockets_map)
+        launches = _upsert_spacex_launches(results[:limit], rockets_map, launchpads_map)
         return sorted(launches, key=lambda l: l.launch_date or timezone.now())
     except Exception:
         return list(Launch.objects.filter(
@@ -121,12 +156,12 @@ def get_spacex_past_launches(limit: int = 20) -> list:
 
     try:
         rockets_map = _get_rockets_map()
+        launchpads_map = _get_launchpads_map()
         resp = httpx.get(f'{SPACEX_BASE}/launches/past', timeout=10)
         resp.raise_for_status()
         results = resp.json()
-        # Take the most recent ones
         results = sorted(results, key=lambda x: x.get('date_utc', ''), reverse=True)[:limit]
-        launches = _upsert_spacex_launches(results, rockets_map)
+        launches = _upsert_spacex_launches(results, rockets_map, launchpads_map)
         return sorted(launches, key=lambda l: l.launch_date or timezone.now(), reverse=True)
     except Exception:
         return list(Launch.objects.filter(

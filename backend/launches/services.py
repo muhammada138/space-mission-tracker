@@ -1,7 +1,7 @@
 """
 Launch Library 2 service layer.
 Fetches from the API and upserts into the local DB cache.
-Cache TTL is 2 hours to avoid hammering the rate-limited API.
+Cache TTL is 2 hours to avoid hitting LL2 rate limits.
 """
 
 import httpx
@@ -15,7 +15,7 @@ CACHE_TTL_MINUTES = 120  # 2 hours - LL2 rate-limits aggressively
 
 
 def _parse_launch(data: dict) -> dict:
-    """Extract and normalise fields from a LL2 launch object."""
+    """Extract fields from a LL2 launch object."""
     rocket_name = ''
     try:
         rocket_name = data['rocket']['configuration']['name']
@@ -29,8 +29,14 @@ def _parse_launch(data: dict) -> dict:
         pass
 
     mission_desc = ''
+    mission_type = ''
+    orbit = ''
     try:
-        mission_desc = data['mission']['description'] or ''
+        mission = data.get('mission') or {}
+        mission_desc = mission.get('description', '') or ''
+        mission_type = mission.get('type', '') or ''
+        orbit_data = mission.get('orbit') or {}
+        orbit = orbit_data.get('name', '') if isinstance(orbit_data, dict) else str(orbit_data)
     except (KeyError, TypeError):
         pass
 
@@ -40,7 +46,39 @@ def _parse_launch(data: dict) -> dict:
     except (KeyError, TypeError):
         pass
 
+    # Pad info
+    pad_name = ''
+    pad_location = ''
+    try:
+        pad = data.get('pad') or {}
+        pad_name = pad.get('name', '') or ''
+        loc = pad.get('location') or {}
+        pad_location = loc.get('name', '') or ''
+    except (KeyError, TypeError):
+        pass
+
+    # URLs
     image_url = data.get('image', '') or ''
+    infographic_url = ''
+    try:
+        infographic_url = data.get('infographic', '') or ''
+    except (KeyError, TypeError):
+        pass
+
+    webcast_url = ''
+    try:
+        vid_urls = data.get('vidURLs') or data.get('vid_urls') or []
+        if vid_urls and len(vid_urls) > 0:
+            first_vid = vid_urls[0]
+            webcast_url = first_vid.get('url', '') if isinstance(first_vid, dict) else str(first_vid)
+    except (KeyError, TypeError, IndexError):
+        pass
+
+    wiki_url = ''
+    try:
+        wiki_url = data.get('wiki_url', '') or ''
+    except (KeyError, TypeError):
+        pass
 
     return {
         'api_id': str(data['id']),
@@ -51,11 +89,18 @@ def _parse_launch(data: dict) -> dict:
         'status': status_name,
         'mission_description': mission_desc,
         'image_url': image_url,
+        'pad_name': pad_name,
+        'pad_location': pad_location,
+        'orbit': orbit,
+        'mission_type': mission_type,
+        'webcast_url': webcast_url,
+        'wiki_url': wiki_url,
+        'infographic_url': infographic_url,
     }
 
 
 def _upsert_launches(results: list) -> list:
-    """Upsert a list of raw LL2 launch dicts into the DB and return Launch objects."""
+    """Upsert LL2 launch dicts into the DB."""
     launches = []
     for raw in results:
         try:
@@ -66,7 +111,7 @@ def _upsert_launches(results: list) -> list:
             )
             launches.append(obj)
         except Exception:
-            continue  # Skip malformed entries
+            continue
     return launches
 
 
@@ -81,7 +126,6 @@ def get_upcoming_launches(limit: int = 20) -> list:
     if cached.exists():
         return list(cached.order_by('launch_date')[:limit])
 
-    # Try fetching from API
     try:
         resp = httpx.get(
             f'{LL2_BASE}/launch/upcoming/',
@@ -95,7 +139,6 @@ def get_upcoming_launches(limit: int = 20) -> list:
     except Exception:
         pass
 
-    # Fall back to any LL2 cached data, even if stale
     return list(
         Launch.objects.filter(launch_date__gte=timezone.now())
         .exclude(api_id__startswith='spacex_')
@@ -135,7 +178,7 @@ def get_past_launches(limit: int = 20) -> list:
 
 
 def get_launch_by_api_id(api_id: str) -> Launch | None:
-    """Fetch a single launch by its LL2 api_id, refreshing cache if needed."""
+    """Fetch a single launch by LL2 api_id, refreshing cache if stale."""
     cutoff = timezone.now() - timedelta(minutes=CACHE_TTL_MINUTES)
     try:
         obj = Launch.objects.get(api_id=api_id)
