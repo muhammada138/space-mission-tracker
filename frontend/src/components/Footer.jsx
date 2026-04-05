@@ -1,4 +1,4 @@
-import { Rocket, Github, ExternalLink } from 'lucide-react'
+import { Rocket, Code2, ExternalLink } from 'lucide-react'
 
 export default function Footer() {
   return (
@@ -22,7 +22,7 @@ export default function Footer() {
             </a>
             <a href="https://github.com" target="_blank" rel="noopener noreferrer"
               style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-              <Github size={12} /> Source
+              <Code2 size={12} /> Source
             </a>
           </div>
         </div>
