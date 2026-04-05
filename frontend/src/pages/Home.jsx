@@ -39,23 +39,28 @@ export default function Home() {
           <button className={`tab ${tab === 'upcoming' ? 'active' : ''}`} onClick={() => setTab('upcoming')}>
             Upcoming
           </button>
+          <button className={`tab ${tab === 'active' ? 'active' : ''}`} onClick={() => setTab('active')}>
+            In Flight
+          </button>
           <button className={`tab ${tab === 'past' ? 'active' : ''}`} onClick={() => setTab('past')}>
             Past
           </button>
         </div>
 
-        {/* Source filter */}
-        <div className="tabs">
-          <button className={`tab ${source === 'all' ? 'active' : ''}`} onClick={() => setSource('all')}>
-            All Sources
-          </button>
-          <button className={`tab ${source === 'll2' ? 'active' : ''}`} onClick={() => setSource('ll2')}>
-            Launch Library
-          </button>
-          <button className={`tab ${source === 'spacex' ? 'active' : ''}`} onClick={() => setSource('spacex')}>
-            SpaceX
-          </button>
-        </div>
+        {/* Source filter - only for upcoming/past, not active */}
+        {tab !== 'active' && (
+          <div className="tabs">
+            <button className={`tab ${source === 'all' ? 'active' : ''}`} onClick={() => setSource('all')}>
+              All Sources
+            </button>
+            <button className={`tab ${source === 'll2' ? 'active' : ''}`} onClick={() => setSource('ll2')}>
+              Launch Library
+            </button>
+            <button className={`tab ${source === 'spacex' ? 'active' : ''}`} onClick={() => setSource('spacex')}>
+              SpaceX
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Content */}

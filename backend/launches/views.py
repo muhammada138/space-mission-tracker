@@ -75,6 +75,29 @@ class PastLaunchesView(APIView):
         return Response(LaunchSerializer(launches, many=True).data)
 
 
+class ActiveLaunchesView(APIView):
+    """GET /api/launches/active/ - missions currently in flight"""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        # LL2 marks in-flight missions with status containing "In Flight"
+        active = Launch.objects.filter(
+            status__icontains='in flight'
+        ).order_by('-launch_date')
+
+        # If nothing cached, try fetching past launches (which includes in-flight)
+        if not active.exists():
+            try:
+                get_past_launches(limit=40)
+            except Exception:
+                pass
+            active = Launch.objects.filter(
+                status__icontains='in flight'
+            ).order_by('-launch_date')
+
+        return Response(LaunchSerializer(active, many=True).data)
+
+
 class LaunchDetailView(APIView):
     """GET /api/launches/<api_id>/"""
     permission_classes = [permissions.AllowAny]
