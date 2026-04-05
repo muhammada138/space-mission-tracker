@@ -71,8 +71,37 @@ class PastLaunchesView(APIView):
                 launches += get_spacex_past_launches(limit=100)
             except Exception:
                 pass
-        launches.sort(key=lambda l: _to_dt(l.launch_date, _FAR_PAST), reverse=True)
-        return Response(LaunchSerializer(launches, many=True).data)
+                
+        # Serialize model objects to dicts
+        serialized_launches = LaunchSerializer(launches, many=True).data
+
+        # Load deep history statically seeded JSON
+        history = []
+        try:
+            import json, os
+            history_path = os.path.join(os.path.dirname(__file__), 'history.json')
+            if os.path.exists(history_path):
+                with open(history_path, 'r', encoding='utf-8') as f:
+                    history = json.load(f)
+        except Exception:
+            pass
+
+        # De-duplicate by api_id
+        seen = set()
+        final_launches = []
+        
+        for l in serialized_launches:
+            if l.get('api_id') not in seen:
+                final_launches.append(l)
+                seen.add(l.get('api_id'))
+                
+        for l in history:
+            if l.get('api_id') not in seen:
+                final_launches.append(l)
+                seen.add(l.get('api_id'))
+
+        final_launches.sort(key=lambda l: _to_dt(l.get('launch_date'), _FAR_PAST), reverse=True)
+        return Response(final_launches[:2000]) # Cap to ensure we don't blow up browser memory in worst case
 
 
 class ActiveLaunchesView(APIView):
