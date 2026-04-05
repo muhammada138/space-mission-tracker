@@ -17,6 +17,18 @@ function getStatusBadge(status) {
   return 'badge-default'
 }
 
+function getYouTubeId(url) {
+  if (!url) return null
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
+  ]
+  for (const p of patterns) {
+    const match = url.match(p)
+    if (match) return match[1]
+  }
+  return null
+}
+
 export default function LaunchDetail() {
   const { api_id } = useParams()
   const navigate = useNavigate()
@@ -187,8 +199,24 @@ export default function LaunchDetail() {
           )}
         </div>
 
-        {/* Right column - image + actions */}
+        {/* Right column - image + video + actions */}
         <div className="fade-up" style={{ animationDelay: '80ms' }}>
+          {/* YouTube embed */}
+          {(() => {
+            const ytId = getYouTubeId(launch.webcast_url)
+            return ytId ? (
+              <div style={{ position: 'relative', paddingBottom: '56.25%', borderRadius: 12, overflow: 'hidden', marginBottom: 16, background: '#000' }}>
+                <iframe
+                  src={`https://www.youtube.com/embed/${ytId}`}
+                  title="Launch webcast"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
+                />
+              </div>
+            ) : null
+          })()}
+
           {launch.image_url ? (
             <img
               src={launch.image_url}

@@ -1,18 +1,15 @@
 """
 SpaceX API service layer (v5).
-Fetches from the open SpaceX REST API and normalises data into our
-Launch model format.
+Note: The SpaceX API hasn't been actively maintained since late 2022,
+so "upcoming" launches may be outdated. We filter by actual date.
 
 Base URL: https://api.spacexdata.com/v5
-Endpoints:
-  - GET /launches/upcoming
-  - GET /launches/past
-  - GET /rockets (for resolving rocket names)
 """
 
 import httpx
 from django.utils import timezone
 from datetime import timedelta
+from django.utils.dateparse import parse_datetime
 
 from .models import Launch
 
@@ -46,8 +43,9 @@ def _parse_spacex_launch(data: dict, rockets_map: dict = None, launchpads_map: d
         patch = links.get('patch', {})
         image_url = patch.get('large', patch.get('small', '')) or ''
 
-    # Webcast and wiki
+    # Webcast - get YouTube URL and ID
     webcast_url = links.get('webcast', '') or ''
+    youtube_id = links.get('youtube_id', '') or ''
     wiki_url = links.get('wikipedia', '') or ''
 
     # Launchpad info
@@ -61,6 +59,10 @@ def _parse_spacex_launch(data: dict, rockets_map: dict = None, launchpads_map: d
         region = pad_info.get('region', '')
         if region and pad_location:
             pad_location = f"{pad_location}, {region}"
+
+    # Build YouTube embed URL if we have an ID
+    if youtube_id and not webcast_url:
+        webcast_url = f'https://www.youtube.com/watch?v={youtube_id}'
 
     return {
         'api_id': f"spacex_{data.get('id', '')}",
@@ -82,7 +84,6 @@ def _parse_spacex_launch(data: dict, rockets_map: dict = None, launchpads_map: d
 
 
 def _get_rockets_map() -> dict:
-    """Fetch all SpaceX rockets and return {id: name} mapping."""
     try:
         resp = httpx.get(f'{SPACEX_BASE}/rockets', timeout=10)
         resp.raise_for_status()
@@ -92,7 +93,6 @@ def _get_rockets_map() -> dict:
 
 
 def _get_launchpads_map() -> dict:
-    """Fetch all SpaceX launchpads and return {id: info} mapping."""
     try:
         resp = httpx.get(f'{SPACEX_BASE}/launchpads', timeout=10)
         resp.raise_for_status()
@@ -102,7 +102,6 @@ def _get_launchpads_map() -> dict:
 
 
 def _upsert_spacex_launches(results: list, rockets_map: dict, launchpads_map: dict) -> list:
-    """Upsert SpaceX launches into the DB."""
     launches = []
     for raw in results:
         try:
@@ -117,8 +116,19 @@ def _upsert_spacex_launches(results: list, rockets_map: dict, launchpads_map: di
     return launches
 
 
+def _is_actually_future(data: dict) -> bool:
+    """Check if a launch date is actually in the future."""
+    date_str = data.get('date_utc', '')
+    if not date_str:
+        return False
+    parsed = parse_datetime(date_str)
+    if not parsed:
+        return False
+    return parsed > timezone.now()
+
+
 def get_spacex_upcoming_launches(limit: int = 20) -> list:
-    """Fetch upcoming SpaceX launches."""
+    """Fetch upcoming SpaceX launches (filtered to actual future dates)."""
     cutoff = timezone.now() - timedelta(minutes=CACHE_TTL_MINUTES)
     cached = Launch.objects.filter(
         api_id__startswith='spacex_',
@@ -134,6 +144,11 @@ def get_spacex_upcoming_launches(limit: int = 20) -> list:
         resp = httpx.get(f'{SPACEX_BASE}/launches/upcoming', timeout=10)
         resp.raise_for_status()
         results = resp.json()
+        # IMPORTANT: filter to only actual future launches
+        results = [r for r in results if _is_actually_future(r)]
+        if not results:
+            # SpaceX API is stale, no actual future launches
+            return []
         launches = _upsert_spacex_launches(results[:limit], rockets_map, launchpads_map)
         return sorted(launches, key=lambda l: l.launch_date or timezone.now())
     except Exception:
