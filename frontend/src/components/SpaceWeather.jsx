@@ -6,7 +6,7 @@ export default function SpaceWeather() {
 
   useEffect(() => {
     // Try to fetch from our backend proxy, fall back gracefully
-    fetch('/api/space-weather/')
+    fetch(`${import.meta.env.VITE_API_URL}/api/space-weather/`)
       .then(r => r.ok ? r.json() : Promise.reject())
       .then(data => setWeather(data))
       .catch(() => {
