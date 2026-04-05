@@ -1,5 +1,6 @@
 import datetime as dt
 
+from django.utils.dateparse import parse_datetime
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -12,6 +13,23 @@ from .spacex_service import get_spacex_upcoming_launches, get_spacex_past_launch
 # Fallback dates for sorting when launch_date is None
 _FAR_FUTURE = dt.datetime(9999, 1, 1, tzinfo=dt.timezone.utc)
 _FAR_PAST = dt.datetime(1970, 1, 1, tzinfo=dt.timezone.utc)
+
+
+def _to_dt(val, fallback):
+    """Coerce a value to a datetime for safe sorting."""
+    if val is None:
+        return fallback
+    if isinstance(val, dt.datetime):
+        if val.tzinfo is None:
+            return val.replace(tzinfo=dt.timezone.utc)
+        return val
+    if isinstance(val, str):
+        parsed = parse_datetime(val)
+        if parsed:
+            if parsed.tzinfo is None:
+                return parsed.replace(tzinfo=dt.timezone.utc)
+            return parsed
+    return fallback
 
 
 class UpcomingLaunchesView(APIView):
@@ -32,7 +50,7 @@ class UpcomingLaunchesView(APIView):
             except Exception:
                 pass
         # Sort by launch date, None-safe
-        launches.sort(key=lambda l: l.launch_date or _FAR_FUTURE)
+        launches.sort(key=lambda l: _to_dt(l.launch_date, _FAR_FUTURE))
         return Response(LaunchSerializer(launches, many=True).data)
 
 
@@ -53,7 +71,7 @@ class PastLaunchesView(APIView):
                 launches += get_spacex_past_launches(limit=20)
             except Exception:
                 pass
-        launches.sort(key=lambda l: l.launch_date or _FAR_PAST, reverse=True)
+        launches.sort(key=lambda l: _to_dt(l.launch_date, _FAR_PAST), reverse=True)
         return Response(LaunchSerializer(launches, many=True).data)
 
 

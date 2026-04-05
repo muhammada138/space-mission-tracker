@@ -282,3 +282,41 @@ textarea.input { resize: vertical; min-height: 100px; }
   color: var(--text-muted);
 }
 .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+
+/* Detail page layout */
+.detail-layout {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 32px;
+  align-items: start;
+}
+@media (max-width: 768px) {
+  .detail-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.info-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  font-size: 13px;
+}
+.info-label {
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.info-value {
+  color: var(--text-primary);
+  text-align: right;
+  word-break: break-word;
+}
