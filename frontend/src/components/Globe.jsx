@@ -6,7 +6,6 @@ import * as THREE from 'three'
 function Earth() {
   const meshRef = useRef()
 
-  // Create a simple dark earth with grid lines
   const geometry = useMemo(() => new THREE.SphereGeometry(2, 64, 64), [])
 
   return (
@@ -14,18 +13,18 @@ function Earth() {
       {/* Earth sphere */}
       <mesh ref={meshRef} geometry={geometry}>
         <meshStandardMaterial
-          color="#0a1428"
-          roughness={0.8}
-          metalness={0.1}
+          color="#1a2744"
+          roughness={0.7}
+          metalness={0.2}
         />
       </mesh>
       {/* Wireframe overlay for land feel */}
       <mesh geometry={geometry}>
         <meshBasicMaterial
-          color="#1a2744"
+          color="#2a4778"
           wireframe
           transparent
-          opacity={0.15}
+          opacity={0.2}
         />
       </mesh>
       {/* Atmosphere glow */}
@@ -33,7 +32,7 @@ function Earth() {
         <meshBasicMaterial
           color="#00d4ff"
           transparent
-          opacity={0.03}
+          opacity={0.05}
           side={THREE.BackSide}
         />
       </Sphere>
@@ -54,7 +53,8 @@ function LaunchPadDot({ lat, lng, name, count, onClick }) {
 
   return (
     <group position={pos}>
-      <mesh ref={meshRef} onClick={onClick}>
+      {/* Visible dot */}
+      <mesh ref={meshRef}>
         <sphereGeometry args={[0.03, 16, 16]} />
         <meshBasicMaterial color="#00d4ff" transparent opacity={0.9} />
       </mesh>
@@ -62,6 +62,11 @@ function LaunchPadDot({ lat, lng, name, count, onClick }) {
       <mesh>
         <ringGeometry args={[0.04, 0.06, 32]} />
         <meshBasicMaterial color="#00d4ff" transparent opacity={0.3} side={THREE.DoubleSide} />
+      </mesh>
+      {/* Invisible hitbox for easier clicking */}
+      <mesh onClick={(e) => { e.stopPropagation(); onClick(); }} onPointerUp={(e) => { e.stopPropagation(); onClick(); }}>
+        <sphereGeometry args={[0.1, 16, 16]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
     </group>
   )
@@ -79,9 +84,9 @@ function latLngToVec3(lat, lng, radius) {
 
 function RotatingGroup({ children }) {
   const groupRef = useRef()
-  useFrame(() => {
+  useFrame((state, delta) => {
     if (groupRef.current) {
-      groupRef.current.rotation.y += 0.001
+      groupRef.current.rotation.y += delta * 0.05
     }
   })
   return <group ref={groupRef}>{children}</group>
@@ -94,9 +99,9 @@ export default function Globe({ pads = [], onPadClick }) {
       style={{ height: '100%', width: '100%', background: 'transparent' }}
       gl={{ antialias: true }}
     >
-      <ambientLight intensity={0.4} />
-      <pointLight position={[10, 10, 10]} intensity={0.8} />
-      <pointLight position={[-10, -10, -10]} intensity={0.3} color="#7c3aed" />
+      <ambientLight intensity={0.6} />
+      <pointLight position={[10, 10, 10]} intensity={1.5} />
+      <pointLight position={[-10, -10, -10]} intensity={0.5} color="#7c3aed" />
 
       <RotatingGroup>
         <Earth />
