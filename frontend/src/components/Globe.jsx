@@ -6,8 +6,8 @@ import * as THREE from 'three'
 function Earth() {
   const meshRef = useRef()
 
-  // Load a verified local topography map
-  const colorMap = useTexture('/earth.jpg')
+  // Load a verified local topography map (optimized size to prevent WebGL crashes)
+  const colorMap = useTexture('/earth_small.jpg')
 
   const geometry = useMemo(() => new THREE.SphereGeometry(2, 64, 64), [])
 
@@ -17,9 +17,9 @@ function Earth() {
       <mesh ref={meshRef} geometry={geometry} rotation={[0, -Math.PI / 2, 0]}>
         <meshStandardMaterial
           map={colorMap}
-          roughness={0.7}
-          metalness={0.2}
-          color="#8ab4f8" // Tint the map slightly lighter to match the blue theme and avoid harsh blacks
+          roughness={0.8}
+          metalness={0.1}
+          color="#ffffff" // No tint multiplier so the map colors stay bright
         />
       </mesh>
       {/* Atmosphere glow */}
@@ -154,9 +154,10 @@ export default function Globe({ pads = [], onPadClick, issPosition = null, issTr
       style={{ height: '100%', width: '100%', background: 'transparent' }}
       gl={{ antialias: true }}
     >
-      <ambientLight intensity={0.6} />
-      <pointLight position={[10, 10, 10]} intensity={1.5} />
-      <pointLight position={[-10, -10, -10]} intensity={0.5} color="#7c3aed" />
+      <ambientLight intensity={1.5} />
+      <pointLight position={[10, 10, 10]} intensity={2.0} />
+      <pointLight position={[-10, -10, -10]} intensity={1.0} color="#7c3aed" />
+      <directionalLight position={[0, 5, 5]} intensity={1.5} />
 
       <RotatingGroup enableSpin={spin}>
         <Earth />

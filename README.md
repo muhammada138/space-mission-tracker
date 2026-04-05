@@ -14,16 +14,17 @@ Full-stack web app for tracking rocket launches from multiple sources. Browse up
 
 ## What it does
 
-Most space tracking sites dump a wall of launches with no way to personalize anything. This app lets you filter by data source (Launch Library 2 vs SpaceX), save missions you care about, and keep personal notes on launches you followed.
+Most space tracking sites dump a wall of launches with no way to personalize anything. This application has been built from the ground up as a **Mission Control** portal—it has a deep-navy aesthetic, CSS starfields, and advanced visual tools. It lets you filter streams, save missions, track live space events, and keep personal notes.
 
-Key features:
-- **Multi-source launch data** - pulls from both Launch Library 2 (all global launches) and the SpaceX API, with a toggle to filter between them
-- **Rich launch detail pages** - mission description, launch pad location, orbit, provider, live countdown timer for upcoming launches
-- **Watchlist** - save any launch to your personal list, quick-remove from dashboard
-- **Mission logs** - write and edit personal notes/logs for any launch you've followed
-- **JWT authentication** - secure register/login with automatic token refresh
-- **Aggressive caching** - all API data is cached in the local database to avoid rate limits (2hr TTL for LL2, 30min for SpaceX)
-- **Live countdowns** - real-time countdown timers on upcoming launch cards
+### 🚀 Core Features:
+- **Interactive 3D Launch Globe** - A WebGL-powered interactive earth plotting global launch pads.
+- **ISS Live Tracker** - A 3D orbital tracker showing the real-time position of the International Space Station and its current crew manifest.
+- **Space Weather Panel** - Live solar activity and geomagnetic storm updates powered by NASA's DONKI API.
+- **Launch Timeline** - An interactive horizontal timeline tracking past and future launches with chronological spacing.
+- **Multi-Source Data** - Aggregated launch data from both Launch Library 2 and the SpaceX API.
+- **Rocket Encyclopedia & Analytics** - A catalog mapping rocket stats, alongside an interactive charts dashboard (success rates, pads etc).
+- **Mission Briefings & Notifications** - Browser notification alerts for upcoming launches (30m & 5m prior) and custom Share Card generator for exportable images.
+- **Personal Watchlist & Logs** - Save missions to your dashboard timeline and write personal journal logs for events you track.
 
 ## Getting started
 
