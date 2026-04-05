@@ -1,19 +1,28 @@
 import { useEffect, useState } from 'react'
-import { differenceInSeconds } from 'date-fns'
 
-function pad(n) { return String(Math.max(0, n)).padStart(2, '0') }
+function pad(n) {
+  const val = Math.max(0, Math.floor(n))
+  return String(val).padStart(2, '0')
+}
 
-export default function CountdownTimer({ launchDate }) {
-  const target = new Date(launchDate)
-  const [diff, setDiff] = useState(differenceInSeconds(target, new Date()))
+function getSecondsUntil(dateStr) {
+  if (!dateStr) return 0
+  const target = new Date(dateStr)
+  if (isNaN(target.getTime())) return 0
+  return Math.max(0, Math.floor((target.getTime() - Date.now()) / 1000))
+}
+
+export default function CountdownTimer({ targetDate, launchDate }) {
+  const dateStr = targetDate || launchDate
+  const [diff, setDiff] = useState(() => getSecondsUntil(dateStr))
 
   useEffect(() => {
-    const id = setInterval(() => setDiff(differenceInSeconds(target, new Date())), 1000)
+    const id = setInterval(() => setDiff(getSecondsUntil(dateStr)), 1000)
     return () => clearInterval(id)
-  }, [launchDate])
+  }, [dateStr])
 
-  if (diff <= 0) {
-    return <span style={{ color: 'var(--success)', fontWeight: 600, fontSize: 13 }}>🚀 Launched</span>
+  if (!dateStr || diff <= 0) {
+    return <span style={{ color: 'var(--success)', fontWeight: 600, fontSize: 13 }}>Launched</span>
   }
 
   const days    = Math.floor(diff / 86400)
