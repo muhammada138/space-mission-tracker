@@ -201,17 +201,22 @@ function RotatingGroup({ children, enableSpin, groupRef }) {
 }
 
 function ISSController({ lockOnIss, issPosition, controlsRef, groupRef }) {
+  const targetQuat = useMemo(() => new THREE.Quaternion(), [])
+
   useFrame((state, delta) => {
-    if (controlsRef.current && issPosition) {
-      if (lockOnIss) {
-        const localVec = new THREE.Vector3(...latLngToVec3(issPosition[0], issPosition[1], 2.15))
-        if (groupRef.current) {
-          localVec.applyEuler(groupRef.current.rotation)
-        }
-        controlsRef.current.target.lerp(localVec, delta * 3)
-      } else {
-        controlsRef.current.target.lerp(new THREE.Vector3(0, 0, 0), delta * 2)
+    if (lockOnIss && issPosition && groupRef.current) {
+      // Rotate the globe so the ISS position faces the camera
+      const issLocal = new THREE.Vector3(...latLngToVec3(issPosition[0], issPosition[1], 1)).normalize()
+      const cameraDir = state.camera.position.clone().normalize()
+      targetQuat.setFromUnitVectors(issLocal, cameraDir)
+      groupRef.current.quaternion.slerp(targetQuat, delta * 2)
+
+      // Keep orbit target centered so camera doesn't pan
+      if (controlsRef.current) {
+        controlsRef.current.target.set(0, 0, 0)
       }
+    } else if (!lockOnIss && controlsRef.current) {
+      controlsRef.current.target.lerp(new THREE.Vector3(0, 0, 0), delta * 2)
     }
   })
   return null
