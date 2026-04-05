@@ -975,6 +975,7 @@ textarea.input { resize: vertical; min-height: 110px; line-height: 1.6; }
 
 .timeline-container {
   overflow-x: auto;
+  overflow-y: visible;
   padding: 24px 0;
   scrollbar-width: thin;
 }

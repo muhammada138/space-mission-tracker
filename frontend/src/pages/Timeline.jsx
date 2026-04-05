@@ -75,7 +75,23 @@ export default function Timeline() {
       return { ...l, x: currentX, yOffset, time: t }
     })
 
-    return { nodes, totalWidth: currentX + 100 }
+    const spanDays = nodes.length > 0
+      ? (nodes[nodes.length - 1].time - nodes[0].time) / MS_PER_DAY
+      : 0
+    const useYearOnly = spanDays > 365
+
+    const dateMarkers = []
+    let lastMarkerKey = null
+    nodes.forEach(node => {
+      const d = new Date(node.launch_date)
+      const key = useYearOnly ? `${d.getFullYear()}` : `${d.getFullYear()}-${d.getMonth()}`
+      if (key !== lastMarkerKey) {
+        dateMarkers.push({ label: useYearOnly ? `${d.getFullYear()}` : format(d, 'MMM yyyy'), x: node.x })
+        lastMarkerKey = key
+      }
+    })
+
+    return { nodes, totalWidth: currentX + 100, dateMarkers }
   }, [launches])
 
   // Position of "now" marker using interpolation between nodes
@@ -136,7 +152,7 @@ export default function Timeline() {
       {launches.length === 0 ? (
         <div className="empty-state fade-up"><p>No launches with dates found.</p></div>
       ) : (
-        <div className="glass fade-up" style={{ padding: '20px 0', overflow: 'hidden' }}>
+        <div className="glass fade-up" style={{ padding: '20px 0', overflow: 'visible' }}>
           <div className="timeline-container" ref={containerRef}>
             <div className="timeline-track" style={{ width: timelineData.totalWidth, minHeight: 160 }}>
               {/* Axis line */}
@@ -152,6 +168,27 @@ export default function Timeline() {
                   NOW
                 </div>
               </div>
+
+              {/* Date markers below axis */}
+              {timelineData.dateMarkers?.map(({ label, x }) => (
+                <div
+                  key={label}
+                  style={{
+                    position: 'absolute',
+                    left: x,
+                    top: 'calc(50% + 18px)',
+                    transform: 'translateX(-50%)',
+                    fontSize: 10,
+                    color: 'var(--text-muted)',
+                    fontFamily: 'var(--font-mono)',
+                    whiteSpace: 'nowrap',
+                    pointerEvents: 'none',
+                    userSelect: 'none',
+                  }}
+                >
+                  {label}
+                </div>
+              ))}
 
               {/* Launch nodes */}
               {timelineData.nodes.map((node, i) => (

@@ -1,13 +1,18 @@
 import { useRef, useMemo, useEffect, useState } from 'react'
-import { Canvas, useFrame } from '@react-three/fiber'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls, Sphere, Line, useTexture } from '@react-three/drei'
 import * as THREE from 'three'
 
 function Earth() {
   const meshRef = useRef()
 
-  // Load a verified local topography map (optimized size to prevent WebGL crashes)
-  const colorMap = useTexture('/earth_small.jpg')
+  const { gl } = useThree()
+  const colorMap = useTexture('/earth.jpg')
+
+  useEffect(() => {
+    colorMap.anisotropy = gl.capabilities.getMaxAnisotropy()
+    colorMap.needsUpdate = true
+  }, [colorMap, gl])
 
   const geometry = useMemo(() => new THREE.SphereGeometry(2, 64, 64), [])
 

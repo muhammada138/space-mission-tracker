@@ -4,6 +4,7 @@ import Globe from '../components/Globe'
 export default function ISS() {
   const [position, setPosition] = useState(null)
   const [crew, setCrew] = useState([])
+  const [crewError, setCrewError] = useState(false)
   const [track, setTrack] = useState([])
   const [speed] = useState('27,576 km/h')
   const [altitude] = useState('~408 km')
@@ -33,17 +34,14 @@ export default function ISS() {
   }, [])
 
   useEffect(() => {
+    // open-notify only serves HTTP; on HTTPS (production) this is blocked as mixed
+    // content — the catch shows a proper error state instead of a fake crew entry
     fetch('http://api.open-notify.org/astros.json')
-      .then(r => r.json())
+      .then(r => { if (!r.ok) throw new Error(r.status); return r.json() })
       .then(data => {
         if (data.people) setCrew(data.people.filter(p => p.craft === 'ISS'))
       })
-      .catch(() => {
-        // CORS might block this, set sample data
-        setCrew([
-          { name: 'Crew data unavailable', craft: 'ISS' },
-        ])
-      })
+      .catch(() => setCrewError(true))
   }, [])
 
   return (
@@ -141,8 +139,13 @@ export default function ISS() {
       {/* Crew manifest */}
       <div className="glass fade-up" style={{ padding: '22px 26px' }}>
         <h3 style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'var(--font-mono)' }}>
-          Current Crew ({crew.length})
+          Current Crew {!crewError && `(${crew.length})`}
         </h3>
+        {crewError ? (
+          <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)' }}>
+            Crew data unavailable — the open-notify API is HTTP-only and is blocked on secure connections.
+          </p>
+        ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10 }}>
           {crew.map((person, i) => (
             <a 
@@ -178,6 +181,7 @@ export default function ISS() {
             </a>
           ))}
         </div>
+        )}
       </div>
     </div>
   )
