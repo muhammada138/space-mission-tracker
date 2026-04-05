@@ -132,3 +132,90 @@ class LaunchDetailView(APIView):
             pass
 
         return Response({'detail': 'Launch not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+
+class SpaceWeatherView(APIView):
+    """GET /api/space-weather/ - current space weather from NASA DONKI"""
+    permission_classes = [permissions.AllowAny]
+
+    _cache = {'data': None, 'expires': None}
+
+    def get(self, request):
+        import httpx
+        from django.utils import timezone
+
+        now = timezone.now()
+
+        # Check cache (1 hour TTL)
+        if self._cache['data'] and self._cache['expires'] and now < self._cache['expires']:
+            return Response(self._cache['data'])
+
+        try:
+            api_key = 'DEMO_KEY'  # NASA DEMO_KEY works for low rate
+            today = now.strftime('%Y-%m-%d')
+            week_ago = (now - dt.timedelta(days=7)).strftime('%Y-%m-%d')
+
+            # Fetch recent solar flares
+            flr_resp = httpx.get(
+                'https://api.nasa.gov/DONKI/FLR',
+                params={'startDate': week_ago, 'endDate': today, 'api_key': api_key},
+                timeout=10,
+            )
+            flares = flr_resp.json() if flr_resp.status_code == 200 else []
+            if not isinstance(flares, list):
+                flares = []
+
+            # Fetch geomagnetic storms
+            gst_resp = httpx.get(
+                'https://api.nasa.gov/DONKI/GST',
+                params={'startDate': week_ago, 'endDate': today, 'api_key': api_key},
+                timeout=10,
+            )
+            storms = gst_resp.json() if gst_resp.status_code == 200 else []
+            if not isinstance(storms, list):
+                storms = []
+
+            # Determine Kp index from storms
+            kp = 0
+            if storms:
+                for s in storms:
+                    for obs in s.get('allKpIndex', []):
+                        kp = max(kp, obs.get('kpIndex', 0))
+
+            # Determine severity level
+            if kp >= 7 or len(flares) > 5:
+                level = 'severe'
+                label = 'Storm Active'
+            elif kp >= 4 or len(flares) > 2:
+                level = 'moderate'
+                label = 'Moderate Activity'
+            else:
+                level = 'nominal'
+                label = 'Quiet'
+
+            result = {
+                'level': level,
+                'label': label,
+                'kp': kp,
+                'flares': len(flares),
+                'storms': len(storms),
+            }
+
+            # Cache for 1 hour
+            SpaceWeatherView._cache = {
+                'data': result,
+                'expires': now + dt.timedelta(hours=1),
+            }
+
+            return Response(result)
+
+        except Exception:
+            # Return nominal fallback on any error
+            return Response({
+                'level': 'nominal',
+                'label': 'Data Unavailable',
+                'kp': 0,
+                'flares': 0,
+                'storms': 0,
+            })
+

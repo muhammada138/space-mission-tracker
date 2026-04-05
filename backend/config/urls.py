@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.urls import path, include
+from launches.views import SpaceWeatherView
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
@@ -18,4 +19,7 @@ urlpatterns = [
     path('api/auth/', include('users.urls')),
     path('api/launches/', include('launches.urls')),
     path('api/watchlist/', include('watchlist.urls')),
+
+    # Space weather
+    path('api/space-weather/', SpaceWeatherView.as_view(), name='space-weather'),
 ]
