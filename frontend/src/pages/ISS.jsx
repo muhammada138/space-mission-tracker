@@ -118,15 +118,37 @@ export default function ISS() {
         </h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10 }}>
           {crew.map((person, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'rgba(255,255,255,0.02)', borderRadius: 8 }}>
+            <a 
+              key={i} 
+              href={`https://en.wikipedia.org/wiki/${encodeURIComponent(person.name)}`}
+              target="_blank"
+              rel="noreferrer"
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 10, 
+                padding: '8px 12px', 
+                background: 'rgba(255,255,255,0.02)', 
+                borderRadius: 8,
+                textDecoration: 'none',
+                color: 'inherit',
+                cursor: 'pointer',
+                transition: 'background 0.2s ease'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background='rgba(255,255,255,0.06)'}
+              onMouseLeave={(e) => e.currentTarget.style.background='rgba(255,255,255,0.02)'}
+            >
               <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--accent-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>
                 👨‍🚀
               </div>
-              <div>
+              <div style={{ flex: 1 }}>
                 <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>{person.name}</p>
                 <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)' }}>{person.craft}</p>
               </div>
-            </div>
+              <div style={{ opacity: 0.4, fontSize: 12, transform: 'translateY(-2px)' }}>
+                ↗
+              </div>
+            </a>
           ))}
         </div>
       </div>

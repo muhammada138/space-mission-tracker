@@ -1,4 +1,4 @@
-import { useRef, useMemo, useEffect } from 'react'
+import { useRef, useMemo, useEffect, useState } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { OrbitControls, Sphere, Line, useTexture } from '@react-three/drei'
 import * as THREE from 'three'
@@ -14,7 +14,7 @@ function Earth() {
   return (
     <group>
       {/* Earth sphere */}
-      <mesh ref={meshRef} geometry={geometry} rotation={[0, -Math.PI / 2, 0]}>
+      <mesh ref={meshRef} geometry={geometry}>
         <meshStandardMaterial
           map={colorMap}
           roughness={0.8}
@@ -37,29 +37,52 @@ function Earth() {
 
 function LaunchPadDot({ lat, lng, name, count, onClick }) {
   const meshRef = useRef()
+  const ringRef = useRef()
   const pos = useMemo(() => latLngToVec3(lat, lng, 2.02), [lat, lng])
+  const [hovered, setHovered] = useState(false)
 
-  useFrame(({ clock }) => {
+  useEffect(() => {
+    document.body.style.cursor = hovered ? 'pointer' : 'auto'
+    return () => { document.body.style.cursor = 'auto' }
+  }, [hovered])
+
+  useFrame(({ clock }, delta) => {
     if (meshRef.current) {
-      const s = 1 + Math.sin(clock.elapsedTime * 2 + lat) * 0.15
-      meshRef.current.scale.setScalar(s)
+      const breathing = 1 + Math.sin(clock.elapsedTime * 2 + lat) * 0.15
+      const targetScale = hovered ? breathing * 1.8 : breathing
+      meshRef.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), delta * 10)
+    }
+    if (ringRef.current) {
+      const targetRingScale = hovered ? 1.5 : 1
+      ringRef.current.scale.lerp(new THREE.Vector3(targetRingScale, targetRingScale, targetRingScale), delta * 15)
+      ringRef.current.material.opacity = THREE.MathUtils.lerp(
+        ringRef.current.material.opacity,
+        hovered ? 0.7 : 0.3,
+        delta * 10
+      )
     }
   })
 
   return (
-    <group position={pos}>
+    <group 
+      position={pos}
+      onPointerOver={(e) => { e.stopPropagation(); setHovered(true) }}
+      onPointerOut={(e) => { e.stopPropagation(); setHovered(false) }}
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      onPointerUp={(e) => { e.stopPropagation(); onClick(); }}
+    >
       {/* Visible dot */}
       <mesh ref={meshRef}>
         <sphereGeometry args={[0.03, 16, 16]} />
-        <meshBasicMaterial color="#00d4ff" transparent opacity={0.9} />
+        <meshBasicMaterial color={hovered ? "#ffffff" : "#00d4ff"} transparent opacity={0.9} />
       </mesh>
       {/* Glow ring */}
-      <mesh>
+      <mesh ref={ringRef}>
         <ringGeometry args={[0.04, 0.06, 32]} />
-        <meshBasicMaterial color="#00d4ff" transparent opacity={0.3} side={THREE.DoubleSide} />
+        <meshBasicMaterial color={hovered ? "#ffffff" : "#00d4ff"} transparent opacity={0.3} side={THREE.DoubleSide} />
       </mesh>
       {/* Invisible hitbox for easier clicking */}
-      <mesh onClick={(e) => { e.stopPropagation(); onClick(); }} onPointerUp={(e) => { e.stopPropagation(); onClick(); }}>
+      <mesh>
         <sphereGeometry args={[0.1, 16, 16]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
@@ -128,12 +151,12 @@ function ISSTrack({ track }) {
 }
 
 function latLngToVec3(lat, lng, radius) {
-  const phi = (90 - lat) * (Math.PI / 180)
-  const theta = (lng + 180) * (Math.PI / 180)
+  const latRad = lat * (Math.PI / 180)
+  const lngRad = lng * (Math.PI / 180)
   return [
-    -(radius * Math.sin(phi) * Math.cos(theta)),
-    radius * Math.cos(phi),
-    radius * Math.sin(phi) * Math.sin(theta),
+    -radius * Math.cos(latRad) * Math.sin(lngRad),
+    radius * Math.sin(latRad),
+    -radius * Math.cos(latRad) * Math.cos(lngRad),
   ]
 }
 
