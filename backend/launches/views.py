@@ -41,12 +41,12 @@ class UpcomingLaunchesView(APIView):
         launches = []
         if source in ('ll2', 'all'):
             try:
-                launches += get_upcoming_launches(limit=20)
+                launches += get_upcoming_launches(limit=100)
             except Exception:
                 pass  # LL2 may be rate-limited, keep going
         if source in ('spacex', 'all'):
             try:
-                launches += get_spacex_upcoming_launches(limit=20)
+                launches += get_spacex_upcoming_launches(limit=100)
             except Exception:
                 pass
         # Sort by launch date, None-safe
@@ -63,12 +63,12 @@ class PastLaunchesView(APIView):
         launches = []
         if source in ('ll2', 'all'):
             try:
-                launches += get_past_launches(limit=20)
+                launches += get_past_launches(limit=100)
             except Exception:
                 pass
         if source in ('spacex', 'all'):
             try:
-                launches += get_spacex_past_launches(limit=20)
+                launches += get_spacex_past_launches(limit=100)
             except Exception:
                 pass
         launches.sort(key=lambda l: _to_dt(l.launch_date, _FAR_PAST), reverse=True)

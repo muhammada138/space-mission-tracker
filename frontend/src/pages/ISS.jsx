@@ -7,6 +7,7 @@ export default function ISS() {
   const [track, setTrack] = useState([])
   const [speed] = useState('27,576 km/h')
   const [altitude] = useState('~408 km')
+  const [lockOn, setLockOn] = useState(false)
 
   useEffect(() => {
     const fetchPos = () => {
@@ -16,11 +17,11 @@ export default function ISS() {
           const lat = parseFloat(data.latitude)
           const lng = parseFloat(data.longitude)
           if (!isNaN(lat) && !isNaN(lng)) {
-            setPosition([lat, lng])
-            setTrack(prev => {
-              const next = [...prev, [lat, lng]]
-              return next.length > 100 ? next.slice(-100) : next
-            })
+             setPosition([lat, lng])
+             setTrack(prev => {
+               const next = [...prev, [lat, lng]]
+               return next.length > 100 ? next.slice(-100) : next
+             })
           }
         })
         .catch(() => {})
@@ -92,15 +93,41 @@ export default function ISS() {
       <div className="glass fade-up" style={{ overflow: 'hidden', marginBottom: 24, padding: 0 }}>
         {position ? (
           <div style={{ height: 450, width: '100%', position: 'relative' }}>
+            <button 
+              onClick={() => setLockOn(!lockOn)}
+              style={{
+                position: 'absolute',
+                top: 16,
+                right: 16,
+                zIndex: 10,
+                background: lockOn ? 'var(--accent)' : 'rgba(5, 10, 24, 0.7)',
+                color: lockOn ? '#050a18' : '#fff',
+                border: `1px solid ${lockOn ? 'var(--accent)' : 'rgba(255,255,255,0.1)'}`,
+                padding: '6px 12px',
+                borderRadius: 4,
+                fontSize: 12,
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8
+              }}
+            >
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: lockOn ? '#050a18' : 'var(--accent)', boxShadow: `0 0 8px ${lockOn ? '#050a18' : 'var(--accent)'}` }} />
+              {lockOn ? 'UNLOCK CAMERA' : 'LOCK ON ISS'}
+            </button>
+
             <Suspense fallback={
               <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <div className="spinner" />
               </div>
             }>
-              <Globe issPosition={position} issTrack={track} spin={true} />
+              <Globe issPosition={position} issTrack={track} spin={!lockOn} lockOnIss={lockOn} />
             </Suspense>
             {/* Overlay hint */}
-            <div style={{ position: 'absolute', bottom: 16, right: 16, fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', pointerEvents: 'none', background: 'rgba(5, 10, 24, 0.7)', padding: '4px 8px', borderRadius: 4 }}>
+            <div style={{ position: 'absolute', bottom: 16, left: 16, fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', pointerEvents: 'none', background: 'rgba(5, 10, 24, 0.7)', padding: '4px 8px', borderRadius: 4 }}>
               Interactive 3D View (Scroll to zoom)
             </div>
           </div>

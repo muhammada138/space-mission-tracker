@@ -93,6 +93,13 @@ function LaunchPadDot({ lat, lng, name, count, onClick }) {
 function ISSMarker({ lat, lng }) {
   const meshRef = useRef()
   const pos = useMemo(() => latLngToVec3(lat, lng, 2.15), [lat, lng])
+  const [hovered, setHovered] = useState(false)
+
+  // Hover cursor effect
+  useEffect(() => {
+    document.body.style.cursor = hovered ? 'pointer' : 'auto'
+    return () => { document.body.style.cursor = 'auto' }
+  }, [hovered])
 
   // Orient the ISS so its panels face the Earth nicely
   useEffect(() => {
@@ -101,8 +108,20 @@ function ISSMarker({ lat, lng }) {
     }
   }, [pos])
 
+  useFrame((state, delta) => {
+    if (meshRef.current) {
+      const scale = hovered ? 1.5 : 1
+      meshRef.current.scale.lerp(new THREE.Vector3(scale, scale, scale), delta * 10)
+    }
+  })
+
   return (
-    <group position={pos} ref={meshRef}>
+    <group 
+      position={pos} 
+      ref={meshRef}
+      onPointerOver={(e) => { e.stopPropagation(); setHovered(true) }}
+      onPointerOut={(e) => { e.stopPropagation(); setHovered(false) }}
+    >
       {/* Central module */}
       <mesh>
         <cylinderGeometry args={[0.02, 0.02, 0.1, 16]} />
@@ -111,16 +130,20 @@ function ISSMarker({ lat, lng }) {
       {/* Solar Panel Left */}
       <mesh position={[0.05, 0, 0]}>
         <boxGeometry args={[0.08, 0.005, 0.06]} />
-        <meshStandardMaterial color="#00d4ff" metalness={0.8} roughness={0.1} emissive="#00d4ff" emissiveIntensity={0.2} />
+        <meshStandardMaterial color={hovered ? "#ffffff" : "#00d4ff"} metalness={0.8} roughness={0.1} emissive={hovered ? "#ffffff" : "#00d4ff"} emissiveIntensity={0.4} />
       </mesh>
       {/* Solar Panel Right */}
       <mesh position={[-0.05, 0, 0]}>
         <boxGeometry args={[0.08, 0.005, 0.06]} />
-        <meshStandardMaterial color="#00d4ff" metalness={0.8} roughness={0.1} emissive="#00d4ff" emissiveIntensity={0.2} />
+        <meshStandardMaterial color={hovered ? "#ffffff" : "#00d4ff"} metalness={0.8} roughness={0.1} emissive={hovered ? "#ffffff" : "#00d4ff"} emissiveIntensity={0.4} />
       </mesh>
       {/* Outer Glow */}
       <Sphere args={[0.08, 16, 16]}>
-        <meshBasicMaterial color="#ff9f43" transparent opacity={0.4} />
+        <meshBasicMaterial color={hovered ? "#ffffff" : "#ff9f43"} transparent opacity={hovered ? 0.6 : 0.4} />
+      </Sphere>
+      {/* Invisible larger hitbox */}
+      <Sphere args={[0.15, 16, 16]}>
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </Sphere>
     </group>
   )
@@ -153,15 +176,17 @@ function ISSTrack({ track }) {
 function latLngToVec3(lat, lng, radius) {
   const latRad = lat * (Math.PI / 180)
   const lngRad = lng * (Math.PI / 180)
+  
+  // Matches Three.js default SphereGeometry UV mapping natively
+  // Center of texture (Greenwich) maps to +X
   return [
-    -radius * Math.cos(latRad) * Math.sin(lngRad),
+    radius * Math.cos(latRad) * Math.cos(lngRad),
     radius * Math.sin(latRad),
-    -radius * Math.cos(latRad) * Math.cos(lngRad),
+    -radius * Math.cos(latRad) * Math.sin(lngRad),
   ]
 }
 
-function RotatingGroup({ children, enableSpin }) {
-  const groupRef = useRef()
+function RotatingGroup({ children, enableSpin, groupRef }) {
   useFrame((state, delta) => {
     if (groupRef.current && enableSpin) {
       groupRef.current.rotation.y += delta * 0.05
@@ -170,7 +195,27 @@ function RotatingGroup({ children, enableSpin }) {
   return <group ref={groupRef}>{children}</group>
 }
 
-export default function Globe({ pads = [], onPadClick, issPosition = null, issTrack = [], spin = true }) {
+function ISSController({ lockOnIss, issPosition, controlsRef, groupRef }) {
+  useFrame((state, delta) => {
+    if (controlsRef.current && issPosition) {
+      if (lockOnIss) {
+        const localVec = new THREE.Vector3(...latLngToVec3(issPosition[0], issPosition[1], 2.15))
+        if (groupRef.current) {
+          localVec.applyEuler(groupRef.current.rotation)
+        }
+        controlsRef.current.target.lerp(localVec, delta * 3)
+      } else {
+        controlsRef.current.target.lerp(new THREE.Vector3(0, 0, 0), delta * 2)
+      }
+    }
+  })
+  return null
+}
+
+export default function Globe({ pads = [], onPadClick, issPosition = null, issTrack = [], spin = true, lockOnIss = false }) {
+  const controlsRef = useRef()
+  const groupRef = useRef()
+  
   return (
     <Canvas
       camera={{ position: [0, 0, 5.5], fov: 45 }}
@@ -182,7 +227,9 @@ export default function Globe({ pads = [], onPadClick, issPosition = null, issTr
       <pointLight position={[-10, -10, -10]} intensity={1.0} color="#7c3aed" />
       <directionalLight position={[0, 5, 5]} intensity={1.5} />
 
-      <RotatingGroup enableSpin={spin}>
+      <ISSController lockOnIss={lockOnIss} issPosition={issPosition} controlsRef={controlsRef} groupRef={groupRef} />
+
+      <RotatingGroup enableSpin={spin} groupRef={groupRef}>
         <Earth />
         {pads.map((pad, i) => (
           <LaunchPadDot
@@ -199,6 +246,7 @@ export default function Globe({ pads = [], onPadClick, issPosition = null, issTr
       </RotatingGroup>
 
       <OrbitControls
+        ref={controlsRef}
         enablePan={false}
         enableZoom={true}
         minDistance={2.5}
