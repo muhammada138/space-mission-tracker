@@ -163,6 +163,35 @@ class LaunchDetailView(APIView):
         return Response({'detail': 'Launch not found.'}, status=status.HTTP_404_NOT_FOUND)
 
 
+class ISSCrewView(APIView):
+    """GET /api/iss-crew/ - proxy for open-notify astros (HTTP-only, can't be called from browser on HTTPS)"""
+    permission_classes = [permissions.AllowAny]
+
+    _cache = {'data': None, 'expires': None}
+
+    def get(self, request):
+        import httpx
+        from django.utils import timezone
+
+        now = timezone.now()
+
+        if self._cache['data'] and self._cache['expires'] and now < self._cache['expires']:
+            return Response(self._cache['data'])
+
+        try:
+            resp = httpx.get('http://api.open-notify.org/astros.json', timeout=10)
+            resp.raise_for_status()
+            data = resp.json()
+            crew = [p for p in data.get('people', []) if p.get('craft') == 'ISS']
+            result = {'crew': crew}
+
+            ISSCrewView._cache = {'data': result, 'expires': now + dt.timedelta(minutes=15)}
+            return Response(result)
+
+        except Exception:
+            return Response({'crew': []}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+
 class SpaceWeatherView(APIView):
     """GET /api/space-weather/ - current space weather from NASA DONKI"""
     permission_classes = [permissions.AllowAny]

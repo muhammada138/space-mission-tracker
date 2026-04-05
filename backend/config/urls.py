@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.urls import path, include
-from launches.views import SpaceWeatherView
+from launches.views import SpaceWeatherView, ISSCrewView
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
@@ -22,4 +22,7 @@ urlpatterns = [
 
     # Space weather
     path('api/space-weather/', SpaceWeatherView.as_view(), name='space-weather'),
+
+    # ISS crew proxy (open-notify is HTTP-only, blocked by browsers on HTTPS)
+    path('api/iss-crew/', ISSCrewView.as_view(), name='iss-crew'),
 ]

@@ -34,13 +34,9 @@ export default function ISS() {
   }, [])
 
   useEffect(() => {
-    // open-notify only serves HTTP; on HTTPS (production) this is blocked as mixed
-    // content — the catch shows a proper error state instead of a fake crew entry
-    fetch('http://api.open-notify.org/astros.json')
+    fetch('/api/iss-crew/')
       .then(r => { if (!r.ok) throw new Error(r.status); return r.json() })
-      .then(data => {
-        if (data.people) setCrew(data.people.filter(p => p.craft === 'ISS'))
-      })
+      .then(data => setCrew(data.crew ?? []))
       .catch(() => setCrewError(true))
   }, [])
 
@@ -143,7 +139,7 @@ export default function ISS() {
         </h3>
         {crewError ? (
           <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)' }}>
-            Crew data unavailable — the open-notify API is HTTP-only and is blocked on secure connections.
+            Crew data temporarily unavailable.
           </p>
         ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10 }}>
