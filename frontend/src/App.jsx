@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from './context/AuthContext'
+import StarField from './components/StarField'
 import Navbar from './components/Navbar'
 import ProtectedRoute from './components/ProtectedRoute'
 import Home from './pages/Home'
@@ -13,19 +14,21 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <StarField />
         <Toaster
           position="top-right"
           toastOptions={{
             style: {
-              background: '#111827',
+              background: 'rgba(12, 19, 35, 0.95)',
               color: '#f0f4ff',
               border: '1px solid rgba(255,255,255,0.07)',
               borderRadius: '12px',
               fontFamily: 'Outfit, sans-serif',
               fontSize: '14px',
+              backdropFilter: 'blur(12px)',
             },
-            success: { iconTheme: { primary: '#10b981', secondary: '#fff' } },
-            error:   { iconTheme: { primary: '#ef4444', secondary: '#fff' } },
+            success: { iconTheme: { primary: '#34d399', secondary: '#fff' } },
+            error:   { iconTheme: { primary: '#f87171', secondary: '#fff' } },
           }}
         />
         <Navbar />

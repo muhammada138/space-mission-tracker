@@ -1,7 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
 import CountdownTimer from './CountdownTimer'
-import { Rocket } from 'lucide-react'
 
 function statusBadgeClass(status) {
   const s = (status || '').toLowerCase()
@@ -24,27 +23,29 @@ export default function LaunchCard({ launch, showCountdown = true }) {
       tabIndex={0}
       onKeyDown={(e) => e.key === 'Enter' && navigate(`/launch/${launch.api_id}`)}
     >
-      {/* Image */}
-      {launch.image_url ? (
-        <img src={launch.image_url} alt={launch.name} className="card-img" />
-      ) : (
-        <div className="card-img-placeholder">🚀</div>
-      )}
-
-      {/* Content */}
-      <div style={{ padding: '16px' }}>
-        {/* Status badge */}
-        <div style={{ marginBottom: 8 }}>
+      {/* Image with gradient overlay */}
+      <div className="card-img-wrapper">
+        {launch.image_url ? (
+          <img src={launch.image_url} alt={launch.name} className="card-img" loading="lazy" />
+        ) : (
+          <div className="card-img-placeholder">🚀</div>
+        )}
+        <div className="card-img-gradient" />
+        {/* Status badge overlay on image */}
+        <div className="badge-overlay">
           <span className={statusBadgeClass(launch.status)}>{launch.status || 'Unknown'}</span>
         </div>
+      </div>
 
+      {/* Content */}
+      <div className="card-content">
         {/* Name */}
-        <h3 style={{ margin: '0 0 4px', fontSize: 16, lineHeight: 1.3, color: 'var(--text-primary)' }}>
+        <h3 style={{ margin: '0 0 5px', fontSize: 15, lineHeight: 1.35, color: 'var(--text-primary)', fontWeight: 700 }}>
           {launch.name}
         </h3>
 
         {/* Provider + rocket */}
-        <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--text-secondary)' }}>
+        <p style={{ margin: '0 0 14px', fontSize: 12, color: 'var(--text-secondary)' }}>
           {[launch.launch_provider, launch.rocket].filter(Boolean).join(' · ')}
         </p>
 
@@ -52,18 +53,18 @@ export default function LaunchCard({ launch, showCountdown = true }) {
         <div>
           {launch.launch_date ? (
             isPast ? (
-              <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+              <p style={{ margin: 0, fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                 {format(new Date(launch.launch_date), 'MMM d, yyyy HH:mm')} UTC
               </p>
             ) : showCountdown ? (
               <CountdownTimer launchDate={launch.launch_date} />
             ) : (
-              <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+              <p style={{ margin: 0, fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                 {format(new Date(launch.launch_date), 'MMM d, yyyy HH:mm')} UTC
               </p>
             )
           ) : (
-            <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)' }}>Date TBD</p>
+            <p style={{ margin: 0, fontSize: 12, color: 'var(--text-muted)' }}>Date TBD</p>
           )}
         </div>
       </div>

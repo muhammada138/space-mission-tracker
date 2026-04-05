@@ -12,7 +12,7 @@ function getSecondsUntil(dateStr) {
   return Math.max(0, Math.floor((target.getTime() - Date.now()) / 1000))
 }
 
-export default function CountdownTimer({ targetDate, launchDate }) {
+export default function CountdownTimer({ targetDate, launchDate, large = false }) {
   const dateStr = targetDate || launchDate
   const [diff, setDiff] = useState(() => getSecondsUntil(dateStr))
 
@@ -22,7 +22,19 @@ export default function CountdownTimer({ targetDate, launchDate }) {
   }, [dateStr])
 
   if (!dateStr || diff <= 0) {
-    return <span style={{ color: 'var(--success)', fontWeight: 600, fontSize: 13 }}>Launched</span>
+    return (
+      <span style={{
+        color: 'var(--success)',
+        fontWeight: 700,
+        fontSize: large ? 15 : 13,
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+      }}>
+        <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: 'var(--success)' }} />
+        Launched
+      </span>
+    )
   }
 
   const days    = Math.floor(diff / 86400)
@@ -30,8 +42,14 @@ export default function CountdownTimer({ targetDate, launchDate }) {
   const minutes = Math.floor((diff % 3600) / 60)
   const seconds = diff % 60
 
+  // Under 1 hour = urgent
+  const isUrgent = diff < 3600
+
+  const sizeClass = large ? 'countdown-lg' : ''
+  const urgentClass = isUrgent ? 'countdown-urgent' : ''
+
   return (
-    <div className="countdown-grid">
+    <div className={`countdown-grid ${sizeClass} ${urgentClass}`}>
       {days > 0 && (
         <div className="countdown-unit">
           <span className="num">{pad(days)}</span>

@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Rocket } from 'lucide-react'
+import { Rocket, Search, Radio, Globe } from 'lucide-react'
 import api from '../api/axios'
 import LaunchCard from '../components/LaunchCard'
+import SkeletonCard from '../components/SkeletonCard'
 
 export default function Home() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -12,6 +13,7 @@ export default function Home() {
   const [launches, setLaunches] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
 
   const setTab = (t) => setSearchParams({ tab: t, source }, { replace: false })
   const setSource = (s) => setSearchParams({ tab, source: s }, { replace: false })
@@ -25,17 +27,57 @@ export default function Home() {
       .finally(() => setLoading(false))
   }, [tab, source])
 
+  // Client-side search filter
+  const filteredLaunches = useMemo(() => {
+    if (!searchQuery.trim()) return launches
+    const q = searchQuery.toLowerCase()
+    return launches.filter(l =>
+      (l.name || '').toLowerCase().includes(q) ||
+      (l.rocket || '').toLowerCase().includes(q) ||
+      (l.launch_provider || '').toLowerCase().includes(q)
+    )
+  }, [launches, searchQuery])
+
   return (
-    <div className="page-container" style={{ paddingTop: 40, paddingBottom: 80 }}>
-      {/* Hero */}
-      <div style={{ marginBottom: 48 }} className="fade-up">
-        <h1 style={{ fontSize: 'clamp(28px, 5vw, 48px)', margin: '0 0 12px', lineHeight: 1.15, fontWeight: 800 }}>
-          Rocket Launch Tracker
+    <div className="page-container" style={{ paddingBottom: 80 }}>
+      {/* Hero Section */}
+      <div className="hero-section fade-up">
+        <h1 className="hero-title">
+          Track Every <span className="gradient-text">Mission</span> to the Stars
         </h1>
-        <p style={{ margin: 0, maxWidth: 480, color: 'var(--text-secondary)', fontSize: 16, lineHeight: 1.6 }}>
-          Browse upcoming and past launches from Launch Library 2 and SpaceX.
-          Save missions to your watchlist and write personal logs.
+        <p className="hero-desc">
+          Real-time launch data from Launch Library 2 and SpaceX.
+          Save missions, write logs, never miss a launch.
         </p>
+
+        {/* Search bar */}
+        <div className="search-bar">
+          <Search size={16} className="search-icon" />
+          <input
+            type="text"
+            placeholder="Search launches by name, rocket, or provider..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+
+        {/* Stats strip */}
+        {!loading && (
+          <div className="stats-strip fade-in">
+            <div className="stat-item">
+              <Rocket size={14} />
+              <span><span className="stat-num">{launches.length}</span> {tab} launches</span>
+            </div>
+            <div className="stat-item">
+              <Globe size={14} />
+              <span><span className="stat-num">2</span> data sources</span>
+            </div>
+            <div className="stat-item">
+              <Radio size={14} />
+              <span>Live countdown</span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Controls row */}
@@ -71,13 +113,17 @@ export default function Home() {
 
       {/* Content */}
       {loading && (
-        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 80 }}>
-          <div className="spinner" />
+        <div className="launches-grid">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} style={{ animationDelay: `${i * 60}ms` }}>
+              <SkeletonCard />
+            </div>
+          ))}
         </div>
       )}
 
       {error && (
-        <div className="empty-state">
+        <div className="empty-state fade-up">
           <p style={{ color: 'var(--text-secondary)', maxWidth: 400, margin: '0 auto' }}>{error}</p>
           <button className="btn btn-ghost" style={{ marginTop: 16 }} onClick={() => window.location.reload()}>
             Retry
@@ -86,10 +132,12 @@ export default function Home() {
       )}
 
       {!loading && !error && (
-        launches.length === 0 ? (
-          <div className="empty-state">
-            <div className="icon"><Rocket size={40} /></div>
-            {tab === 'active' ? (
+        filteredLaunches.length === 0 ? (
+          <div className="empty-state fade-up">
+            <div className="icon"><Rocket size={44} /></div>
+            {searchQuery ? (
+              <p>No launches matching "{searchQuery}"</p>
+            ) : tab === 'active' ? (
               <>
                 <p>No launches currently in flight.</p>
                 <p style={{ fontSize: 13, color: 'var(--text-muted)', maxWidth: 380, margin: '8px auto 0' }}>
@@ -102,8 +150,8 @@ export default function Home() {
           </div>
         ) : (
           <div className="launches-grid">
-            {launches.map((launch, i) => (
-              <div key={launch.api_id || launch.id} style={{ animationDelay: `${i * 30}ms` }}>
+            {filteredLaunches.map((launch, i) => (
+              <div key={launch.api_id || launch.id} className="fade-up" style={{ animationDelay: `${i * 40}ms` }}>
                 <LaunchCard launch={launch} showCountdown={tab === 'upcoming'} />
               </div>
             ))}
