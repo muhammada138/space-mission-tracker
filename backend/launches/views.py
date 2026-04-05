@@ -80,22 +80,35 @@ class ActiveLaunchesView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        # LL2 marks in-flight missions with status containing "In Flight"
+        from .services import _upsert_launches, _parse_launch
+        import httpx
+
+        # LL2 status ID 6 = "In Flight"
+        # First check DB cache
         active = Launch.objects.filter(
             status__icontains='in flight'
         ).order_by('-launch_date')
 
-        # If nothing cached, try fetching past launches (which includes in-flight)
-        if not active.exists():
-            try:
-                get_past_launches(limit=40)
-            except Exception:
-                pass
-            active = Launch.objects.filter(
-                status__icontains='in flight'
-            ).order_by('-launch_date')
+        if active.exists():
+            return Response(LaunchSerializer(active, many=True).data)
 
-        return Response(LaunchSerializer(active, many=True).data)
+        # Fetch directly from LL2 with status=6 (In Flight)
+        try:
+            resp = httpx.get(
+                'https://ll.thespacedevs.com/2.2.0/launch/',
+                params={'status': 6, 'mode': 'detailed', 'limit': 10},
+                timeout=15,
+            )
+            resp.raise_for_status()
+            results = resp.json().get('results', [])
+            if results:
+                launches = _upsert_launches(results)
+                return Response(LaunchSerializer(launches, many=True).data)
+        except Exception:
+            pass
+
+        # Fallback: no in-flight missions right now
+        return Response([])
 
 
 class LaunchDetailView(APIView):

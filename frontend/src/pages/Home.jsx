@@ -1,14 +1,20 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Rocket } from 'lucide-react'
 import api from '../api/axios'
 import LaunchCard from '../components/LaunchCard'
 
 export default function Home() {
-  const [tab, setTab] = useState('upcoming')
-  const [source, setSource] = useState('all')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tab = searchParams.get('tab') || 'upcoming'
+  const source = searchParams.get('source') || 'all'
+
   const [launches, setLaunches] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+
+  const setTab = (t) => setSearchParams({ tab: t, source }, { replace: false })
+  const setSource = (s) => setSearchParams({ tab, source: s }, { replace: false })
 
   useEffect(() => {
     setLoading(true)
@@ -83,7 +89,16 @@ export default function Home() {
         launches.length === 0 ? (
           <div className="empty-state">
             <div className="icon"><Rocket size={40} /></div>
-            <p>No launches found for this filter.</p>
+            {tab === 'active' ? (
+              <>
+                <p>No launches currently in flight.</p>
+                <p style={{ fontSize: 13, color: 'var(--text-muted)', maxWidth: 380, margin: '8px auto 0' }}>
+                  This tab shows launches during their active flight window. Check back during a launch for live tracking.
+                </p>
+              </>
+            ) : (
+              <p>No launches found for this filter.</p>
+            )}
           </div>
         ) : (
           <div className="launches-grid">
