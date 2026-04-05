@@ -17,11 +17,11 @@ Full-stack web app for tracking rocket launches from multiple sources. Browse up
 Most space tracking sites dump a wall of launches with no way to personalize anything. This application has been built from the ground up as a **Mission Control** portal—it has a deep-navy aesthetic, CSS starfields, and advanced visual tools. It lets you filter streams, save missions, track live space events, and keep personal notes.
 
 ### 🚀 Core Features:
-- **Interactive 3D Launch Globe** - A WebGL-powered interactive earth plotting global launch pads.
-- **ISS Live Tracker** - A 3D orbital tracker showing the real-time position of the International Space Station and its current crew manifest.
+- **Interactive 3D Launch Globe** - A WebGL-powered reactive Earth mapping launch pad cartesian coordinates using perfect trigonometric Spherical-to-XYZ mapping to topography matrices.
+- **ISS Live Tracker** - A fully interpolated 3D tracker hooking into `OrbitControls` targets locally to lock-on to the Station dynamically as external APIs broadcast coordinate permutations telemetry.
 - **Space Weather Panel** - Live solar activity and geomagnetic storm updates powered by NASA's DONKI API.
-- **Launch Timeline** - An interactive horizontal timeline tracking past and future launches with chronological spacing.
-- **Multi-Source Data** - Aggregated launch data from both Launch Library 2 and the SpaceX API.
+- **Launch Timeline** - An organically scaling horizontal timeline utilizing natural pixel-per-day logarithmic spacing and vertical dot collision staggering.
+- **Massive Historical Multi-Source Pipeline** - Synthesizes over 1,000 real global launches since 2022 by bridging a statically archived `.json` mass-data seed with highly available dynamic Launch Library 2 polling endpoints.
 - **Rocket Encyclopedia & Analytics** - A catalog mapping rocket stats, alongside an interactive charts dashboard (success rates, pads etc).
 - **Mission Briefings & Notifications** - Browser notification alerts for upcoming launches (30m & 5m prior) and custom Share Card generator for exportable images.
 - **Personal Watchlist & Logs** - Save missions to your dashboard timeline and write personal journal logs for events you track.
