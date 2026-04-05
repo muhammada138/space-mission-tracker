@@ -19,7 +19,7 @@ export default function Register() {
     setLoading(true)
     try {
       await register(form.username, form.email, form.password, form.password2)
-      toast.success('Account created — welcome aboard! 🚀')
+      toast.success('Account created - welcome aboard! 🚀')
       navigate('/dashboard')
     } catch (err) {
       const data = err.response?.data

@@ -7,7 +7,7 @@ from .models import UserProfile
 
 
 class RegisterView(generics.CreateAPIView):
-    """POST /api/auth/register/ — create a new user account"""
+    """POST /api/auth/register/ - create a new user account"""
     queryset = User.objects.all()
     serializer_class = RegisterSerializer
     permission_classes = [permissions.AllowAny]
@@ -26,7 +26,7 @@ class RegisterView(generics.CreateAPIView):
 
 
 class MeView(APIView):
-    """GET /api/auth/me/ — return the current authenticated user"""
+    """GET /api/auth/me/ - return the current authenticated user"""
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
@@ -34,7 +34,7 @@ class MeView(APIView):
 
 
 class ProfileView(generics.RetrieveUpdateAPIView):
-    """GET/PUT /api/auth/profile/ — view and update profile"""
+    """GET/PUT /api/auth/profile/ - view and update profile"""
     serializer_class = UserProfileSerializer
     permission_classes = [permissions.IsAuthenticated]
 

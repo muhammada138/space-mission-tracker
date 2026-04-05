@@ -11,7 +11,7 @@ from datetime import timedelta
 from .models import Launch
 
 LL2_BASE = 'https://ll.thespacedevs.com/2.2.0'
-CACHE_TTL_MINUTES = 120  # 2 hours — LL2 rate-limits aggressively
+CACHE_TTL_MINUTES = 120  # 2 hours - LL2 rate-limits aggressively
 
 
 def _parse_launch(data: dict) -> dict:

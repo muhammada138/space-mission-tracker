@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react'
-import { Telescope, Rocket } from 'lucide-react'
+import { Rocket } from 'lucide-react'
 import api from '../api/axios'
 import LaunchCard from '../components/LaunchCard'
 
-const TABS = ['upcoming', 'past']
-
 export default function Home() {
   const [tab, setTab] = useState('upcoming')
+  const [source, setSource] = useState('all')
   const [launches, setLaunches] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -14,44 +13,48 @@ export default function Home() {
   useEffect(() => {
     setLoading(true)
     setError(null)
-    api.get(`/launches/${tab}/`)
+    api.get(`/launches/${tab}/`, { params: { source } })
       .then(({ data }) => setLaunches(Array.isArray(data) ? data : data.results ?? []))
-      .catch(() => setError('Could not load launches. The API may be rate-limited — try again in a moment.'))
+      .catch(() => setError('Failed to fetch launches. Try refreshing the page.'))
       .finally(() => setLoading(false))
-  }, [tab])
+  }, [tab, source])
 
   return (
-    <div className="page-container" style={{ paddingTop: 48, paddingBottom: 80 }}>
+    <div className="page-container" style={{ paddingTop: 40, paddingBottom: 80 }}>
       {/* Hero */}
-      <div style={{ textAlign: 'center', marginBottom: 56 }} className="fade-up">
-        <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: 8,
-          background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)',
-          borderRadius: 999, padding: '6px 16px', marginBottom: 20, fontSize: 13,
-          color: 'var(--accent)',
-        }}>
-          <Telescope size={14} />
-          Live data from Launch Library 2 API
-        </div>
-        <h1 style={{ fontSize: 'clamp(32px, 6vw, 60px)', margin: '0 0 16px', lineHeight: 1.1 }}>
-          Track Every<br />
-          <span style={{ background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-            Rocket Launch
-          </span>
+      <div style={{ marginBottom: 48 }} className="fade-up">
+        <h1 style={{ fontSize: 'clamp(28px, 5vw, 48px)', margin: '0 0 12px', lineHeight: 1.15, fontWeight: 800 }}>
+          Rocket Launch Tracker
         </h1>
-        <p style={{ margin: '0 auto', maxWidth: 500, color: 'var(--text-secondary)', fontSize: 17, lineHeight: 1.7 }}>
-          Upcoming missions, live countdowns, and a personal watchlist — all in one place.
+        <p style={{ margin: 0, maxWidth: 480, color: 'var(--text-secondary)', fontSize: 16, lineHeight: 1.6 }}>
+          Browse upcoming and past launches from Launch Library 2 and SpaceX.
+          Save missions to your watchlist and write personal logs.
         </p>
       </div>
 
-      {/* Tabs */}
-      <div style={{ marginBottom: 32, display: 'flex', justifyContent: 'center' }}>
+      {/* Controls row */}
+      <div style={{ display: 'flex', gap: 12, marginBottom: 28, flexWrap: 'wrap', alignItems: 'center' }}>
+        {/* Timeline tabs */}
         <div className="tabs">
-          {TABS.map(t => (
-            <button key={t} className={`tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>
-              {t === 'upcoming' ? '🚀 Upcoming' : '📡 Past'}
-            </button>
-          ))}
+          <button className={`tab ${tab === 'upcoming' ? 'active' : ''}`} onClick={() => setTab('upcoming')}>
+            Upcoming
+          </button>
+          <button className={`tab ${tab === 'past' ? 'active' : ''}`} onClick={() => setTab('past')}>
+            Past
+          </button>
+        </div>
+
+        {/* Source filter */}
+        <div className="tabs">
+          <button className={`tab ${source === 'all' ? 'active' : ''}`} onClick={() => setSource('all')}>
+            All Sources
+          </button>
+          <button className={`tab ${source === 'll2' ? 'active' : ''}`} onClick={() => setSource('ll2')}>
+            Launch Library
+          </button>
+          <button className={`tab ${source === 'spacex' ? 'active' : ''}`} onClick={() => setSource('spacex')}>
+            SpaceX
+          </button>
         </div>
       </div>
 
@@ -64,21 +67,23 @@ export default function Home() {
 
       {error && (
         <div className="empty-state">
-          <div className="icon">⚠️</div>
           <p style={{ color: 'var(--text-secondary)', maxWidth: 400, margin: '0 auto' }}>{error}</p>
+          <button className="btn btn-ghost" style={{ marginTop: 16 }} onClick={() => window.location.reload()}>
+            Retry
+          </button>
         </div>
       )}
 
       {!loading && !error && (
         launches.length === 0 ? (
           <div className="empty-state">
-            <div className="icon"><Rocket size={48} /></div>
-            <p>No launches found.</p>
+            <div className="icon"><Rocket size={40} /></div>
+            <p>No launches found for this filter.</p>
           </div>
         ) : (
           <div className="launches-grid">
             {launches.map((launch, i) => (
-              <div key={launch.api_id || launch.id} style={{ animationDelay: `${i * 40}ms` }}>
+              <div key={launch.api_id || launch.id} style={{ animationDelay: `${i * 30}ms` }}>
                 <LaunchCard launch={launch} showCountdown={tab === 'upcoming'} />
               </div>
             ))}

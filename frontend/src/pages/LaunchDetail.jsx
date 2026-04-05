@@ -96,7 +96,7 @@ export default function LaunchDetail() {
       </button>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 32, alignItems: 'start' }}>
-        {/* Left — main info */}
+        {/* Left - main info */}
         <div className="fade-up">
           {/* Status */}
           <div style={{ marginBottom: 16 }}>
@@ -153,7 +153,7 @@ export default function LaunchDetail() {
           )}
         </div>
 
-        {/* Right — image + actions */}
+        {/* Right - image + actions */}
         <div className="fade-up" style={{ animationDelay: '100ms' }}>
           {launch.image_url ? (
             <img src={launch.image_url} alt={launch.name} style={{ width: '100%', borderRadius: 16, marginBottom: 20, objectFit: 'cover', aspectRatio: '16/9' }} />
