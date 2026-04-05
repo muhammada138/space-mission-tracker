@@ -1,30 +1,24 @@
 import { useRef, useMemo, useEffect } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { OrbitControls, Sphere, Line } from '@react-three/drei'
+import { OrbitControls, Sphere, Line, useTexture } from '@react-three/drei'
 import * as THREE from 'three'
 
 function Earth() {
   const meshRef = useRef()
+
+  // Load a high-res dark earth texture 
+  const colorMap = useTexture('https://unpkg.com/three-globe/example/img/earth-dark.jpg')
 
   const geometry = useMemo(() => new THREE.SphereGeometry(2, 64, 64), [])
 
   return (
     <group>
       {/* Earth sphere */}
-      <mesh ref={meshRef} geometry={geometry}>
+      <mesh ref={meshRef} geometry={geometry} rotation={[0, -Math.PI / 2, 0]}>
         <meshStandardMaterial
-          color="#1a2744"
-          roughness={0.7}
-          metalness={0.2}
-        />
-      </mesh>
-      {/* Wireframe overlay for land feel */}
-      <mesh geometry={geometry}>
-        <meshBasicMaterial
-          color="#2a4778"
-          wireframe
-          transparent
-          opacity={0.2}
+          map={colorMap}
+          roughness={0.6}
+          metalness={0.1}
         />
       </mesh>
       {/* Atmosphere glow */}
