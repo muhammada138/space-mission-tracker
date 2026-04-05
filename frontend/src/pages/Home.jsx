@@ -1,9 +1,11 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Rocket, Search, Radio, Globe } from 'lucide-react'
+import { Search } from 'lucide-react'
 import api from '../api/axios'
 import LaunchCard from '../components/LaunchCard'
+import HeroLaunch from '../components/HeroLaunch'
 import SkeletonCard from '../components/SkeletonCard'
+import SpaceWeather from '../components/SpaceWeather'
 
 export default function Home() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -23,11 +25,10 @@ export default function Home() {
     setError(null)
     api.get(`/launches/${tab}/`, { params: { source } })
       .then(({ data }) => setLaunches(Array.isArray(data) ? data : data.results ?? []))
-      .catch(() => setError('Failed to fetch launches. Try refreshing the page.'))
+      .catch(() => setError('Failed to fetch launches. Is the backend running?'))
       .finally(() => setLoading(false))
   }, [tab, source])
 
-  // Client-side search filter
   const filteredLaunches = useMemo(() => {
     if (!searchQuery.trim()) return launches
     const q = searchQuery.toLowerCase()
@@ -38,75 +39,63 @@ export default function Home() {
     )
   }, [launches, searchQuery])
 
+  // Separate hero launch (first upcoming) from grid
+  const heroLaunch = tab === 'upcoming' && !searchQuery && filteredLaunches.length > 0 ? filteredLaunches[0] : null
+  const gridLaunches = heroLaunch ? filteredLaunches.slice(1) : filteredLaunches
+
   return (
-    <div className="page-container" style={{ paddingBottom: 80 }}>
-      {/* Hero Section */}
-      <div className="hero-section fade-up">
-        <h1 className="hero-title">
-          Track Every <span className="gradient-text">Mission</span> to the Stars
-        </h1>
-        <p className="hero-desc">
-          Real-time launch data from Launch Library 2 and SpaceX.
-          Save missions, write logs, never miss a launch.
-        </p>
-
-        {/* Search bar */}
-        <div className="search-bar">
-          <Search size={16} className="search-icon" />
-          <input
-            type="text"
-            placeholder="Search launches by name, rocket, or provider..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-
-        {/* Stats strip */}
-        {!loading && (
-          <div className="stats-strip fade-in">
-            <div className="stat-item">
-              <Rocket size={14} />
-              <span><span className="stat-num">{launches.length}</span> {tab} launches</span>
-            </div>
-            <div className="stat-item">
-              <Globe size={14} />
-              <span><span className="stat-num">2</span> data sources</span>
-            </div>
-            <div className="stat-item">
-              <Radio size={14} />
-              <span>Live countdown</span>
-            </div>
+    <div className="page-container" style={{ paddingTop: 36, paddingBottom: 80 }}>
+      {/* Page header */}
+      <div className="fade-up" style={{ marginBottom: 28 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' }}>
+          <div>
+            <h1 style={{ margin: '0 0 6px', fontSize: 28, fontWeight: 800, letterSpacing: '-0.03em' }}>
+              Mission <span style={{ color: 'var(--accent)' }}>Control</span>
+            </h1>
+            <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 14 }}>
+              Live launch data from Launch Library 2 and SpaceX
+            </p>
           </div>
-        )}
+
+          {/* Search bar */}
+          <div className="search-bar">
+            <Search size={14} className="search-icon" />
+            <input
+              type="text"
+              placeholder="Search launches..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+        </div>
       </div>
 
-      {/* Controls row */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 28, flexWrap: 'wrap', alignItems: 'center' }}>
-        {/* Timeline tabs */}
+      {/* Space weather widget */}
+      <div style={{ marginBottom: 24 }}>
+        <SpaceWeather />
+      </div>
+
+      {/* Tabs row */}
+      <div style={{ display: 'flex', gap: 24, marginBottom: 24, flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <div className="tabs">
           <button className={`tab ${tab === 'upcoming' ? 'active' : ''}`} onClick={() => setTab('upcoming')}>
             Upcoming
+            {!loading && tab === 'upcoming' && <span className="tab-count">{launches.length}</span>}
           </button>
           <button className={`tab ${tab === 'active' ? 'active' : ''}`} onClick={() => setTab('active')}>
             In Flight
           </button>
           <button className={`tab ${tab === 'past' ? 'active' : ''}`} onClick={() => setTab('past')}>
             Past
+            {!loading && tab === 'past' && <span className="tab-count">{launches.length}</span>}
           </button>
         </div>
 
-        {/* Source filter - only for upcoming/past, not active */}
         {tab !== 'active' && (
           <div className="tabs">
-            <button className={`tab ${source === 'all' ? 'active' : ''}`} onClick={() => setSource('all')}>
-              All Sources
-            </button>
-            <button className={`tab ${source === 'll2' ? 'active' : ''}`} onClick={() => setSource('ll2')}>
-              Launch Library
-            </button>
-            <button className={`tab ${source === 'spacex' ? 'active' : ''}`} onClick={() => setSource('spacex')}>
-              SpaceX
-            </button>
+            <button className={`tab ${source === 'all' ? 'active' : ''}`} onClick={() => setSource('all')}>All</button>
+            <button className={`tab ${source === 'll2' ? 'active' : ''}`} onClick={() => setSource('ll2')}>Launch Library</button>
+            <button className={`tab ${source === 'spacex' ? 'active' : ''}`} onClick={() => setSource('spacex')}>SpaceX</button>
           </div>
         )}
       </div>
@@ -115,7 +104,7 @@ export default function Home() {
       {loading && (
         <div className="launches-grid">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} style={{ animationDelay: `${i * 60}ms` }}>
+            <div key={i} className="fade-up" style={{ animationDelay: `${i * 50}ms` }}>
               <SkeletonCard />
             </div>
           ))}
@@ -125,38 +114,35 @@ export default function Home() {
       {error && (
         <div className="empty-state fade-up">
           <p style={{ color: 'var(--text-secondary)', maxWidth: 400, margin: '0 auto' }}>{error}</p>
-          <button className="btn btn-ghost" style={{ marginTop: 16 }} onClick={() => window.location.reload()}>
-            Retry
-          </button>
+          <button className="btn btn-ghost" style={{ marginTop: 16 }} onClick={() => window.location.reload()}>Retry</button>
         </div>
       )}
 
-      {!loading && !error && (
-        filteredLaunches.length === 0 ? (
-          <div className="empty-state fade-up">
-            <div className="icon"><Rocket size={44} /></div>
-            {searchQuery ? (
-              <p>No launches matching "{searchQuery}"</p>
-            ) : tab === 'active' ? (
-              <>
-                <p>No launches currently in flight.</p>
-                <p style={{ fontSize: 13, color: 'var(--text-muted)', maxWidth: 380, margin: '8px auto 0' }}>
-                  This tab shows launches during their active flight window. Check back during a launch for live tracking.
-                </p>
-              </>
-            ) : (
-              <p>No launches found for this filter.</p>
-            )}
-          </div>
-        ) : (
+      {!loading && !error && filteredLaunches.length === 0 && (
+        <div className="empty-state fade-up">
+          <div className="icon">🚀</div>
+          {searchQuery ? (
+            <p>No launches matching "{searchQuery}"</p>
+          ) : (
+            <p>No launches found for this filter.</p>
+          )}
+        </div>
+      )}
+
+      {!loading && !error && filteredLaunches.length > 0 && (
+        <>
+          {/* Hero launch banner */}
+          {heroLaunch && <HeroLaunch launch={heroLaunch} />}
+
+          {/* Launch grid */}
           <div className="launches-grid">
-            {filteredLaunches.map((launch, i) => (
-              <div key={launch.api_id || launch.id} className="fade-up" style={{ animationDelay: `${i * 40}ms` }}>
+            {gridLaunches.map((launch, i) => (
+              <div key={launch.api_id || launch.id} className="fade-up" style={{ animationDelay: `${i * 35}ms` }}>
                 <LaunchCard launch={launch} showCountdown={tab === 'upcoming'} />
               </div>
             ))}
           </div>
-        )
+        </>
       )}
     </div>
   )
