@@ -44,24 +44,35 @@ export default function Timeline() {
     if (launches.length === 0) return { nodes: [], totalWidth: 0 }
 
     // Constants for scaling
-    const MIN_SPACING = 40; // Minimum pixels between any two launches
-    const MAX_SPACING = 300; // Maximum pixels between launches (for massive gaps)
+    const MAX_SPACING = 250; // Cap for massive multi-year gaps
     const MS_PER_DAY = 24 * 60 * 60 * 1000;
-    const PIXELS_PER_DAY = 6; // e.g., 6px per day
+    const PIXELS_PER_DAY = 15; // Natural spacing scalar
 
     let currentX = 60; // Starting indent
     const nodes = launches.map((l, i) => {
       const t = new Date(l.launch_date).getTime()
-      if (i === 0) {
-        return { ...l, x: currentX, time: t }
+      let yOffset = 0;
+
+      if (i > 0) {
+        const prevT = new Date(launches[i-1].launch_date).getTime()
+        const diffDays = Math.max(0, t - prevT) / MS_PER_DAY;
+        
+        // Base organic spacing
+        let spacing = diffDays * PIXELS_PER_DAY;
+        
+        // If clustered densely (e.g., same day or consecutive days), stagger vertically
+        if (spacing < 14) {
+          // Alternating up/down pattern for tight swarms
+          yOffset = (i % 2 === 0) ? -14 : 14;
+          // Enforce tiny horizontal jitter so identical timestamps don't hide each other entirely
+          spacing = Math.max(6, spacing);
+        }
+
+        spacing = Math.min(MAX_SPACING, spacing);
+        currentX += spacing;
       }
-      const prevT = new Date(launches[i-1].launch_date).getTime()
-      const diffDays = Math.max(0, t - prevT) / MS_PER_DAY;
       
-      const spacing = Math.max(MIN_SPACING, Math.min(MAX_SPACING, diffDays * PIXELS_PER_DAY));
-      currentX += spacing;
-      
-      return { ...l, x: currentX, time: t }
+      return { ...l, x: currentX, yOffset, time: t }
     })
 
     return { nodes, totalWidth: currentX + 100 }
@@ -147,7 +158,7 @@ export default function Timeline() {
                 <div
                   key={node.api_id || i}
                   className="timeline-node"
-                  style={{ left: node.x }}
+                  style={{ left: node.x, top: `calc(50% + ${node.yOffset || 0}px)` }}
                   onClick={() => navigate(`/launch/${node.api_id}`)}
                 >
                   <div
