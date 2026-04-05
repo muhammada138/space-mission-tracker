@@ -853,3 +853,10 @@ textarea.input { resize: vertical; min-height: 110px; line-height: 1.6; }
     font-size: 22px;
   }
 }
+
+@media (max-width: 768px) {
+  .auth-side-panel {
+    display: none !important;
+  }
+}
+

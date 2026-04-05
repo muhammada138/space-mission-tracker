@@ -3,6 +3,7 @@ import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from './context/AuthContext'
 import StarField from './components/StarField'
 import Navbar from './components/Navbar'
+import Footer from './components/Footer'
 import ProtectedRoute from './components/ProtectedRoute'
 import Home from './pages/Home'
 import Login from './pages/Login'
@@ -43,6 +44,7 @@ export default function App() {
             } />
           </Routes>
         </main>
+        <Footer />
       </AuthProvider>
     </BrowserRouter>
   )
