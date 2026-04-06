@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Bookmark, BookmarkCheck, ExternalLink, MapPin, Globe, Radio, Rocket, Play, Share2, Bell, BellOff } from 'lucide-react'
+import { ArrowLeft, Bookmark, BookmarkCheck, ExternalLink, MapPin, Globe, Radio, Rocket, Play, Share2, Bell, BellOff, Activity } from 'lucide-react'
 import { format, formatDistanceToNow } from 'date-fns'
 import api from '../api/axios'
 import { useAuth } from '../context/AuthContext'
@@ -38,6 +38,7 @@ export default function LaunchDetail() {
   const [showShareCard, setShowShareCard] = useState(false)
   const [logs, setLogs] = useState([])
   const [reminded, setReminded] = useState(false)
+  const [updates, setUpdates] = useState([])
 
   useEffect(() => {
     setLoading(true)
@@ -45,6 +46,10 @@ export default function LaunchDetail() {
       .then(({ data }) => {
         setLaunch(data)
         setReminded(hasReminder(api_id))
+        
+        api.get(`/launches/${api_id}/updates/`)
+          .then(res => setUpdates(Array.isArray(res.data) ? res.data : []))
+          .catch(() => {})
       })
       .catch(() => toast.error('Launch not found'))
       .finally(() => setLoading(false))
@@ -162,6 +167,30 @@ export default function LaunchDetail() {
                 )}
               </div>
             </div>
+
+            {/* Live Updates */}
+            {updates.length > 0 && (
+              <div className="glass" style={{ padding: '20px 24px', marginBottom: 18, border: '1px solid var(--accent)' }}>
+                <h3 style={{ margin: '0 0 14px', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Activity size={14} /> Live Updates
+                </h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {updates.map(update => (
+                    <div key={update.id} style={{ borderLeft: '2px solid var(--accent)', paddingLeft: 12 }}>
+                      <p style={{ margin: '0 0 4px', fontSize: 13, lineHeight: 1.5, color: 'var(--text-main)' }}>
+                        {update.comment}
+                      </p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                        <span>{format(new Date(update.created_on), 'MMM d, HH:mm')}</span>
+                        {update.info_url && (
+                          <a href={update.info_url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', textDecoration: 'none' }}>Source</a>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Mission Brief */}
             {launch.mission_description && (

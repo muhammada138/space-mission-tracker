@@ -211,6 +211,28 @@ class LaunchDetailView(APIView):
         return Response({'detail': 'Launch not found.'}, status=status.HTTP_404_NOT_FOUND)
 
 
+class LaunchUpdatesView(APIView):
+    """GET /api/launches/<api_id>/updates/"""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, api_id):
+        import httpx
+        try:
+            # Only LL2 has updates (SpaceX IDs are prefixed with spacex_)
+            if api_id.startswith('spacex_'):
+                return Response([])
+            
+            resp = httpx.get(
+                'https://ll.thespacedevs.com/2.2.0/update/',
+                params={'launch__id': api_id},
+                timeout=15,
+            )
+            resp.raise_for_status()
+            return Response(resp.json().get('results', []))
+        except Exception:
+            return Response([])
+
+
 class ISSCrewView(APIView):
     """GET /api/iss-crew/ - proxy for open-notify astros (HTTP-only, can't be called from browser on HTTPS)"""
     permission_classes = [permissions.AllowAny]

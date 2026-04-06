@@ -83,7 +83,7 @@ export default function Home() {
             {!loading && tab === 'upcoming' && <span className="tab-count">{launches.length}</span>}
           </button>
           <button className={`tab ${tab === 'active' ? 'active' : ''}`} onClick={() => setTab('active')}>
-            In Flight
+            Currently Active
           </button>
           <button className={`tab ${tab === 'past' ? 'active' : ''}`} onClick={() => setTab('past')}>
             Past
