@@ -276,10 +276,35 @@ textarea.input { resize: vertical; min-height: 110px; line-height: 1.6; }
 }
 
 .launch-card:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--shadow-glow);
-  border-color: var(--border-glow);
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: 0 12px 40px rgba(0, 212, 255, 0.15);
+  border-color: var(--accent);
 }
+
+.hover-card {
+  transition: all 0.4s var(--ease-out-expo);
+}
+
+.hover-card:hover {
+  transform: translateY(-5px) scale(1.02);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--accent);
+  box-shadow: 0 10px 30px rgba(0, 212, 255, 0.1);
+  z-index: 10;
+}
+
+.stats-pad-row {
+  padding: 8px;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  cursor: default;
+}
+
+.stats-pad-row:hover {
+  background: rgba(255, 255, 255, 0.03);
+  transform: translateX(4px);
+}
+
 
 /* Status stripe on the left edge */
 .launch-card::before {
