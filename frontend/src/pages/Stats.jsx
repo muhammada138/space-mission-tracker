@@ -36,7 +36,18 @@ export default function Stats() {
     ]).then(([upRes, pastRes]) => {
       const upData = Array.isArray(upRes.data) ? upRes.data : upRes.data?.results ?? []
       const pastData = Array.isArray(pastRes.data) ? pastRes.data : pastRes.data?.results ?? []
-      setLaunches([...upData, ...pastData])
+
+      // Deduplicate by api_id — same launch can come from both LL2 and SpaceX sources
+      const seen = new Set()
+      const unique = []
+      for (const l of [...upData, ...pastData]) {
+        const key = l.api_id || l.id
+        if (key && !seen.has(key)) {
+          seen.add(key)
+          unique.push(l)
+        }
+      }
+      setLaunches(unique)
     }).finally(() => setLoading(false))
   }, [])
 
