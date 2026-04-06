@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Bookmark, BookmarkCheck, ExternalLink, MapPin, Globe, Radio, Rocket, Play, Share2, Bell, BellOff, Activity } from 'lucide-react'
+import { ArrowLeft, Bookmark, BookmarkCheck, ExternalLink, MapPin, Globe, Radio, Rocket, Play, Share2, Bell, BellOff, Activity, ThumbsUp, ThumbsDown, Minus } from 'lucide-react'
 import { format, formatDistanceToNow } from 'date-fns'
 import api from '../api/axios'
 import { useAuth } from '../context/AuthContext'
 import CountdownTimer from '../components/CountdownTimer'
 import LogModal from '../components/LogModal'
 import ShareCard from '../components/ShareCard'
+import WeatherWidget from '../components/WeatherWidget'
 import { useNotifications } from '../hooks/useNotifications'
 import toast from 'react-hot-toast'
 
@@ -24,6 +25,100 @@ function getYouTubeId(url) {
   const m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/)
   return m ? m[1] : null
 }
+
+// ── Prediction Widget ────────────────────────────────────────────────────────
+
+function PredictionWidget({ apiId }) {
+  const { user } = useAuth()
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [voting, setVoting] = useState(false)
+
+  useEffect(() => {
+    api.get(`/watchlist/predictions/${apiId}/`)
+      .then(({ data }) => setData(data))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [apiId])
+
+  const vote = async (prediction) => {
+    if (!user) { toast.error('Sign in to vote'); return }
+    if (voting) return
+    setVoting(true)
+    try {
+      await api.post(`/watchlist/predictions/${apiId}/`, { prediction })
+      // Refetch counts
+      const { data: fresh } = await api.get(`/watchlist/predictions/${apiId}/`)
+      setData(fresh)
+      toast.success('Vote recorded!')
+    } catch {
+      toast.error('Failed to record vote')
+    } finally {
+      setVoting(false)
+    }
+  }
+
+  if (loading || !data) return null
+
+  const total = (data.on_time || 0) + (data.delayed || 0) + (data.scrubbed || 0)
+  const pct = (n) => total > 0 ? Math.round((n / total) * 100) : 0
+
+  const options = [
+    { key: 'on_time', label: 'On Time', icon: <ThumbsUp size={13} />, color: 'var(--success)' },
+    { key: 'delayed', label: 'Delayed', icon: <Minus size={13} />, color: 'var(--amber)' },
+    { key: 'scrubbed', label: 'Scrubbed', icon: <ThumbsDown size={13} />, color: 'var(--danger)' },
+  ]
+
+  return (
+    <div className="glass" style={{ padding: '18px 22px', marginBottom: 18 }}>
+      <h3 style={{ margin: '0 0 4px', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        Community Prediction
+      </h3>
+      <p style={{ margin: '0 0 14px', fontSize: 12, color: 'var(--text-secondary)' }}>
+        Will this launch happen as scheduled?
+        {total > 0 && <span style={{ marginLeft: 6, color: 'var(--text-muted)' }}>({total} vote{total !== 1 ? 's' : ''})</span>}
+      </p>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {options.map(opt => {
+          const count = data[opt.key] || 0
+          const percent = pct(count)
+          const isMyVote = data.user_vote === opt.key
+          return (
+            <button
+              key={opt.key}
+              onClick={() => vote(opt.key)}
+              disabled={voting}
+              style={{
+                position: 'relative',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                padding: '10px 14px',
+                background: isMyVote ? `color-mix(in srgb, ${opt.color} 12%, transparent)` : 'rgba(255,255,255,0.02)',
+                border: `1px solid ${isMyVote ? opt.color : 'var(--border)'}`,
+                borderRadius: 8,
+                cursor: 'pointer',
+                overflow: 'hidden',
+                transition: 'border-color 0.2s',
+                textAlign: 'left',
+              }}
+            >
+              {/* progress fill */}
+              <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${percent}%`, background: `color-mix(in srgb, ${opt.color} 8%, transparent)`, transition: 'width 0.5s ease', pointerEvents: 'none' }} />
+              <span style={{ color: opt.color, flexShrink: 0 }}>{opt.icon}</span>
+              <span style={{ flex: 1, fontSize: 13, fontWeight: isMyVote ? 700 : 400, color: 'var(--text-primary)' }}>{opt.label}</span>
+              <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>{percent}%</span>
+              {isMyVote && <span style={{ fontSize: 10, color: opt.color, fontWeight: 700 }}>✓ Your vote</span>}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── Main Page ────────────────────────────────────────────────────────────────
 
 export default function LaunchDetail() {
   const { api_id } = useParams()
@@ -46,7 +141,7 @@ export default function LaunchDetail() {
       .then(({ data }) => {
         setLaunch(data)
         setReminded(hasReminder(api_id))
-        
+
         api.get(`/launches/${api_id}/updates/`)
           .then(res => setUpdates(Array.isArray(res.data) ? res.data : []))
           .catch(() => {})
@@ -57,16 +152,21 @@ export default function LaunchDetail() {
 
   useEffect(() => {
     if (!user) return
-    api.get('/watchlist/').then(({ data }) => {
-      const items = Array.isArray(data) ? data : data.results ?? []
-      const entry = items.find(e => e.launch?.api_id === api_id)
-      if (entry) setWatchlistId(entry.id)
-    }).catch(() => {})
 
-    api.get('/watchlist/logs/').then(({ data }) => {
-      const items = Array.isArray(data) ? data : data.results ?? []
-      setLogs(items.filter(l => l.launch?.api_id === api_id))
-    }).catch(() => {})
+    // Filter by launch_api_id to avoid pagination issues
+    api.get('/watchlist/', { params: { launch_api_id: api_id } })
+      .then(({ data }) => {
+        const items = Array.isArray(data) ? data : data.results ?? []
+        if (items.length > 0) setWatchlistId(items[0].id)
+      })
+      .catch(() => {})
+
+    api.get('/watchlist/logs/')
+      .then(({ data }) => {
+        const items = Array.isArray(data) ? data : data.results ?? []
+        setLogs(items.filter(l => l.launch?.api_id === api_id))
+      })
+      .catch(() => {})
   }, [user, api_id])
 
   const toggleWatchlist = async () => {
@@ -78,10 +178,18 @@ export default function LaunchDetail() {
         toast.success('Removed from watchlist')
       } else {
         const { data } = await api.post('/watchlist/', { launch_api_id: api_id })
+        // Backend returns {id, already_saved: true} for duplicates OR normal entry
         setWatchlistId(data.id)
-        toast.success('Saved to watchlist')
+        if (data.already_saved) {
+          toast('Already in your watchlist', { icon: '🔖' })
+        } else {
+          toast.success('Saved to watchlist')
+        }
       }
-    } catch { toast.error('Action failed') }
+    } catch (err) {
+      const msg = err?.response?.data?.detail || err?.response?.data?.launch_api_id || 'Action failed'
+      toast.error(typeof msg === 'string' ? msg : 'Action failed')
+    }
   }
 
   const toggleReminder = () => {
@@ -167,6 +275,14 @@ export default function LaunchDetail() {
                 )}
               </div>
             </div>
+
+            {/* Launch pad weather (upcoming only) */}
+            {isUpcoming && (
+              <WeatherWidget apiId={api_id} padName={launch.pad_name} />
+            )}
+
+            {/* Community prediction (upcoming only) */}
+            {isUpcoming && <PredictionWidget apiId={api_id} isUpcoming={isUpcoming} />}
 
             {/* Live Updates */}
             {updates.length > 0 && (
@@ -261,7 +377,11 @@ export default function LaunchDetail() {
 
             {/* Action buttons */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, position: 'sticky', top: 80 }}>
-              <button className={`btn ${watchlistId ? 'btn-primary' : 'btn-ghost'}`} onClick={toggleWatchlist} style={{ width: '100%', justifyContent: 'center', padding: '11px 20px' }}>
+              <button
+                className={`btn ${watchlistId ? 'btn-primary' : 'btn-ghost'}`}
+                onClick={toggleWatchlist}
+                style={{ width: '100%', justifyContent: 'center', padding: '11px 20px' }}
+              >
                 {watchlistId ? <BookmarkCheck size={14} /> : <Bookmark size={14} />}
                 {watchlistId ? 'Saved to Watchlist' : 'Save to Watchlist'}
               </button>
