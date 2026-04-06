@@ -180,10 +180,11 @@ class ActiveLaunchesView(APIView):
             if results:
                 launches = _upsert_launches(results)
                 return Response(LaunchSerializer(launches, many=True).data)
-        except Exception:
-            pass
+        except Exception as e:
+            # Better to return 503 instead of hiding errors so the user knows the API is unavailable/rate-limited rather than 0 in-flight missions
+            return Response({'detail': f'Fetch failed: {str(e)}'}, status=503)
 
-        # Fallback: no in-flight missions right now
+        # Fallback: actually no in-flight missions right now
         return Response([])
 
 
