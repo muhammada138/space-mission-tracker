@@ -32,7 +32,7 @@ export default function Register() {
     if (password.length < 8) return toast.error('Password must be at least 8 characters')
     setLoading(true)
     try {
-      await api.post('/auth/register/', { username, email, password })
+      await api.post('/auth/register/', { username, email, password, password2: password })
       toast.success('Account created! Please log in.')
       navigate('/login')
     } catch (err) {

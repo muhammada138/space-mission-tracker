@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
 import api from '../api/axios'
-import { FiClock, FiMapPin, FiCalendar, FiArrowRight } from 'react-icons/fi'
+import { FiClock, FiMapPin, FiCalendar, FiNavigation } from 'react-icons/fi'
 
 function getStatusColor(status) {
   const s = (status || '').toLowerCase()
@@ -15,9 +15,10 @@ function getStatusColor(status) {
 
 export default function Timeline() {
   const navigate = useNavigate()
+  const nowMarkerRef = useRef(null)
   const [launches, setLaunches] = useState([])
   const [loading, setLoading] = useState(true)
-  const [mode, setMode] = useState('upcoming') // upcoming or all
+  const [mode, setMode] = useState('upcoming')
 
   useEffect(() => {
     setLoading(true)
@@ -34,15 +35,11 @@ export default function Timeline() {
           const d = r.data
           return Array.isArray(d) ? d : d?.results ?? []
         })
-        
-        // Remove exact duplicates by api_id
+
         const unique = []
         const seen = new Set()
         for (const l of all) {
-            if (!seen.has(l.api_id)) {
-                seen.add(l.api_id)
-                unique.push(l)
-            }
+          if (!seen.has(l.api_id)) { seen.add(l.api_id); unique.push(l) }
         }
 
         setLaunches(unique.filter(l => l.launch_date).sort((a, b) => new Date(a.launch_date) - new Date(b.launch_date)))
@@ -50,10 +47,15 @@ export default function Timeline() {
       .finally(() => setLoading(false))
   }, [mode])
 
-  // Timeline nodes compilation
+  const scrollToNow = () => {
+    if (nowMarkerRef.current) {
+      nowMarkerRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }
+
   const timelineNodes = useMemo(() => {
     if (launches.length === 0) return []
-    
+
     const nodes = []
     let lastMonth = null
     let nowInserted = false
@@ -63,36 +65,31 @@ export default function Timeline() {
     launches.forEach((l) => {
       const d = new Date(l.launch_date)
       const t = d.getTime()
-      
-      // Before adding this launch, do we need to insert the "NOW" divider?
+
       if (!nowInserted && t > nowTime) {
-          nodes.push({ type: 'now', id: 'now-marker' })
-          nowInserted = true
-          // Reset month marker after NOW divider for aesthetic freshness
-          lastMonth = null 
+        nodes.push({ type: 'now', id: 'now-marker' })
+        nowInserted = true
+        lastMonth = null
       }
 
-      // Check for month header
       const monthStr = format(d, 'MMMM yyyy')
       if (monthStr !== lastMonth) {
-          nodes.push({ type: 'month', id: `month-${btoa(monthStr)}`, label: monthStr })
-          lastMonth = monthStr
+        nodes.push({ type: 'month', id: `month-${btoa(monthStr)}`, label: monthStr })
+        lastMonth = monthStr
       }
-      
-      nodes.push({ 
-          type: 'launch', 
-          ...l, 
-          // alternate logic
-          side: launchCount % 2 === 0 ? 'left' : 'right' 
+
+      nodes.push({
+        type: 'launch',
+        ...l,
+        side: launchCount % 2 === 0 ? 'left' : 'right'
       })
       launchCount++
     })
 
-    // If we finished processing all launches and all were in the past
     if (!nowInserted && launches.length > 0) {
-        if (new Date(launches[launches.length - 1].launch_date).getTime() < nowTime) {
-            nodes.push({ type: 'now', id: 'now-marker' })
-        }
+      if (new Date(launches[launches.length - 1].launch_date).getTime() < nowTime) {
+        nodes.push({ type: 'now', id: 'now-marker' })
+      }
     }
 
     return nodes
@@ -117,9 +114,38 @@ export default function Timeline() {
               {launches.length} launches plotted chronologically
             </p>
           </div>
-          <div className="tabs" style={{ display: 'flex', gap: 8 }}>
-            <button className={`tab ${mode === 'upcoming' ? 'active' : ''}`} onClick={() => setMode('upcoming')}>Upcoming</button>
-            <button className={`tab ${mode === 'all' ? 'active' : ''}`} onClick={() => setMode('all')}>Full History</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            {/* Jump to Now button — only show in Full History mode */}
+            {mode === 'all' && (
+              <button
+                onClick={scrollToNow}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 7,
+                  padding: '8px 16px', borderRadius: 8,
+                  background: 'rgba(0,212,255,0.1)',
+                  border: '1px solid rgba(0,212,255,0.3)',
+                  color: 'var(--accent)',
+                  fontSize: 13, fontWeight: 700,
+                  cursor: 'pointer',
+                  fontFamily: 'var(--font-body)',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = 'rgba(0,212,255,0.2)'
+                  e.currentTarget.style.boxShadow = '0 0 16px rgba(0,212,255,0.2)'
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = 'rgba(0,212,255,0.1)'
+                  e.currentTarget.style.boxShadow = 'none'
+                }}
+              >
+                <FiNavigation size={14} /> Jump to Now
+              </button>
+            )}
+            <div className="tabs" style={{ display: 'flex', gap: 8 }}>
+              <button className={`tab ${mode === 'upcoming' ? 'active' : ''}`} onClick={() => setMode('upcoming')}>Upcoming</button>
+              <button className={`tab ${mode === 'all' ? 'active' : ''}`} onClick={() => setMode('all')}>Full History</button>
+            </div>
           </div>
         </div>
       </div>
@@ -133,11 +159,11 @@ export default function Timeline() {
       ) : (
         <div className="vertical-timeline fade-up">
           <div className="vt-axis"></div>
-          
+
           {timelineNodes.map((node, i) => {
             if (node.type === 'now') {
               return (
-                <div key={node.id} className="vt-now-marker">
+                <div key={node.id} ref={nowMarkerRef} className="vt-now-marker">
                   <div className="vt-now-line left"></div>
                   <div className="vt-now-pill glass">CURRENT TIME</div>
                   <div className="vt-now-line right"></div>
@@ -153,38 +179,34 @@ export default function Timeline() {
               )
             }
 
-            // Launch Node
             const statusColor = getStatusColor(node.status)
             return (
               <div key={node.api_id || i} className={`vt-item ${node.side}`} onClick={() => navigate(`/launch/${node.api_id}`)}>
-                {/* Central Dot */}
                 <div className="vt-dot-container">
-                    <div className="vt-dot pulse-animation" style={{ 
-                        borderColor: statusColor, 
-                        background: `${statusColor}20`,
-                        boxShadow: `0 0 12px ${statusColor}50` 
-                    }}></div>
+                  <div className="vt-dot pulse-animation" style={{
+                    borderColor: statusColor,
+                    background: `${statusColor}20`,
+                    boxShadow: `0 0 12px ${statusColor}50`
+                  }}></div>
                 </div>
 
-                {/* Card Payload */}
                 <div className="vt-card glass hover-card">
                   <div className="vt-card-header">
                     <span className="vt-badge" style={{ color: statusColor, background: `${statusColor}15` }}>
                       {node.status || 'TBA'}
                     </span>
                     <span className="vt-date">
-                        <FiClock size={12} /> {format(new Date(node.launch_date), 'MMM d, yyyy \u2022 HH:mm z')}
+                      <FiClock size={12} /> {format(new Date(node.launch_date), 'MMM d, yyyy \u2022 HH:mm z')}
                     </span>
                   </div>
-                  
+
                   <div className="vt-card-body">
                     <h3 className="vt-title">{node.name?.split('|')[0]?.trim() || node.name}</h3>
                     {node.name?.includes('|') && (
-                        <h4 className="vt-subtitle">{node.name.split('|').slice(1).join('|').trim()}</h4>
+                      <h4 className="vt-subtitle">{node.name.split('|').slice(1).join('|').trim()}</h4>
                     )}
-                    
                     <div className="vt-provider">
-                        <FiMapPin size={12} /> {node.launch_provider || 'Unknown Provider'}
+                      <FiMapPin size={12} /> {node.launch_provider || 'Unknown Provider'}
                     </div>
                   </div>
                 </div>
@@ -194,7 +216,6 @@ export default function Timeline() {
         </div>
       )}
 
-      {/* Legend */}
       {launches.length > 0 && (
         <div className="fade-up" style={{ marginTop: 40, display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 13, color: 'var(--text-secondary)', justifyContent: 'center' }}>
           {[['Go / Success', '#34d399'], ['Hold', '#ff9f43'], ['TBD', '#00d4ff'], ['Failure', '#f87171']].map(([label, color]) => (
