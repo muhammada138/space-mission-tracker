@@ -25,34 +25,21 @@ class WatchlistListView(generics.ListCreateAPIView):
             qs = qs.filter(launch__api_id=launch_api_id)
         return qs
 
-    def perform_create(self, serializer):
-        api_id = self.request.data.get('launch_api_id')
+    def create(self, request, *args, **kwargs):
+        api_id = request.data.get('launch_api_id')
         if not api_id:
-            raise ValidationError({'launch_api_id': 'This field is required.'})
+            return Response({'launch_api_id': 'This field is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Make sure the launch exists in our DB (fetch + cache if not)
         launch = get_launch_by_api_id(api_id)
         if launch is None:
-            raise ValidationError({'launch_api_id': 'Launch not found in Launch Library API.'})
+            return Response({'launch_api_id': 'Launch not found in Launch Library API.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # If already in watchlist, return existing entry gracefully instead of erroring
-        existing = WatchlistEntry.objects.filter(user=self.request.user, launch=launch).first()
+        existing = WatchlistEntry.objects.filter(user=request.user, launch=launch).first()
         if existing:
-            raise ValidationError({'detail': 'already_in_watchlist', 'id': existing.id})
+            return Response({'id': existing.id, 'already_saved': True}, status=status.HTTP_200_OK)
 
-        serializer.save(user=self.request.user, launch=launch)
-
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=False)
-        try:
-            self.perform_create(serializer)
-        except ValidationError as exc:
-            detail = exc.detail
-            # Return existing entry ID so frontend can sync state
-            if isinstance(detail, dict) and detail.get('detail') == 'already_in_watchlist':
-                return Response({'id': detail['id'], 'already_saved': True}, status=status.HTTP_200_OK)
-            return Response(detail, status=status.HTTP_400_BAD_REQUEST)
+        entry = WatchlistEntry.objects.create(user=request.user, launch=launch)
+        serializer = self.get_serializer(entry)
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
@@ -83,6 +70,9 @@ class MissionLogListView(generics.ListCreateAPIView):
         launch = get_launch_by_api_id(api_id)
         if launch is None:
             raise ValidationError({'launch_api_id': 'Launch not found in Launch Library API.'})
+
+        if 'launch_api_id' in serializer.validated_data:
+            serializer.validated_data.pop('launch_api_id')
 
         serializer.save(user=self.request.user, launch=launch)
 

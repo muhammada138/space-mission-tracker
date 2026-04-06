@@ -1,227 +1,242 @@
-import { useState, useEffect, useMemo, useRef, Suspense } from 'react'
-import { Search, Maximize2, Minimize2 } from 'lucide-react'
-import { Canvas, useFrame } from '@react-three/fiber'
-import { OrbitControls, Text } from '@react-three/drei'
+import { useState, useEffect, useMemo } from 'react'
+import { Search, Plus } from 'lucide-react'
 import api from '../api/axios'
 
-// ── 3D Rocket Comparison Data ───────────────────────────────────────────────
+// ── 2D Rocket Comparison Data ───────────────────────────────────────────────
 
-const COMPARISON_ROCKETS = [
-  { name: 'Saturn V',    height: 110.6, diameter: 10.1, color: '#d4d4d4', payload: '130,000 kg (LEO)', firstFlight: 1967, manufacturer: 'Boeing/NASA' },
-  { name: 'Starship',    height: 121,   diameter: 9.0,  color: '#94a3b8', payload: '100,000+ kg (LEO)', firstFlight: 2023, manufacturer: 'SpaceX' },
-  { name: 'SLS Block 1', height: 98,    diameter: 8.4,  color: '#c7d2fe', payload: '95,000 kg (LEO)', firstFlight: 2022, manufacturer: 'Boeing/NASA' },
-  { name: 'New Glenn',   height: 98,    diameter: 7.0,  color: '#93c5fd', payload: '45,000 kg (LEO)', firstFlight: 2025, manufacturer: 'Blue Origin' },
-  { name: 'Falcon Heavy',height: 70,    diameter: 12.2, color: '#f8fafc', payload: '63,800 kg (LEO)', firstFlight: 2018, manufacturer: 'SpaceX' },
-  { name: 'Ariane 6',   height: 63,    diameter: 5.4,  color: '#3b82f6', payload: '21,650 kg (LEO)', firstFlight: 2024, manufacturer: 'ArianeGroup' },
-  { name: 'Vulcan',      height: 61.6,  diameter: 5.4,  color: '#6366f1', payload: '27,200 kg (LEO)', firstFlight: 2024, manufacturer: 'ULA' },
-  { name: 'Falcon 9',   height: 70,    diameter: 3.7,  color: '#e2e8f0', payload: '22,800 kg (LEO)', firstFlight: 2010, manufacturer: 'SpaceX' },
-]
-
-const SCALE = 0.04   // 1 unit ≈ 25 m
-
-function RocketMesh({ rocket, xPos, maxHeight, selected, onClick }) {
-  const meshRef = useRef()
-  const h = rocket.height * SCALE
-  const r = (rocket.diameter / 2) * SCALE
-  const noseConeH = r * 3.5
-  const bodyH = h - noseConeH
-
-  useFrame((_, delta) => {
-    if (!meshRef.current) return
-    const target = selected ? 1.06 : 1
-    meshRef.current.scale.x += (target - meshRef.current.scale.x) * delta * 8
-    meshRef.current.scale.z += (target - meshRef.current.scale.z) * delta * 8
-  })
-
-  return (
-    <group ref={meshRef} position={[xPos, 0, 0]} onClick={onClick}>
-      {/* Body cylinder */}
-      <mesh position={[0, bodyH / 2, 0]}>
-        <cylinderGeometry args={[r, r * 1.05, bodyH, 20]} />
-        <meshStandardMaterial color={rocket.color} metalness={0.6} roughness={0.35} />
-      </mesh>
-
-      {/* Nose cone */}
-      <mesh position={[0, bodyH + noseConeH / 2, 0]}>
-        <coneGeometry args={[r, noseConeH, 20]} />
-        <meshStandardMaterial color={rocket.color} metalness={0.6} roughness={0.35} />
-      </mesh>
-
-      {/* Engine bell cluster at base */}
-      {[-r * 0.3, r * 0.3].map((ox, i) => (
-        <mesh key={i} position={[ox, -0.03, 0]}>
-          <cylinderGeometry args={[r * 0.22, r * 0.32, 0.14, 10]} />
-          <meshStandardMaterial color="#334155" metalness={0.8} roughness={0.2} />
-        </mesh>
-      ))}
-
-      {/* Height label */}
-      <Text
-        position={[0, h + 0.12, 0]}
-        fontSize={0.11}
-        color={selected ? rocket.color : '#94a3b8'}
-        anchorX="center"
-        anchorY="bottom"
-      >
-        {rocket.height}m
-      </Text>
-
-      {/* Name label at base */}
-      <Text
-        position={[0, -0.22, 0]}
-        fontSize={0.085}
-        color={selected ? rocket.color : '#64748b'}
-        anchorX="center"
-        anchorY="top"
-        maxWidth={0.8}
-      >
-        {rocket.name}
-      </Text>
-    </group>
-  )
+const ROCKET_SPECS = {
+  'saturn v': { height: 110.6, diameter: 10.1, color: '#f8fafc', payload: '130,000 kg', manufacturer: 'NASA/Boeing' },
+  'starship': { height: 121, diameter: 9.0, color: '#94a3b8', payload: '150,000 kg', manufacturer: 'SpaceX' },
+  'falcon 9': { height: 70, diameter: 3.7, color: '#e2e8f0', payload: '22,800 kg', manufacturer: 'SpaceX' },
+  'falcon heavy': { height: 70, diameter: 3.7, boosters: 2, color: '#cbd5e1', payload: '63,800 kg', manufacturer: 'SpaceX' },
+  'sls': { height: 98, diameter: 8.4, boosters: 2, color: '#ffedd5', payload: '95,000 kg', manufacturer: 'NASA/Boeing' },
+  'atlas v': { height: 72, diameter: 5.1, boosters: 2, color: '#fed7aa', payload: '28,370 kg', manufacturer: 'ULA' },
+  'delta iv': { height: 72, diameter: 5.1, boosters: 2, color: '#fdba74', payload: '28,370 kg', manufacturer: 'ULA' },
+  'ariane 5': { height: 54.8, diameter: 5.4, boosters: 2, color: '#e0f2fe', payload: '21,000 kg', manufacturer: 'Arianespace' },
+  'ariane 6': { height: 63, diameter: 5.4, boosters: 2, color: '#bae6fd', payload: '21,650 kg', manufacturer: 'Arianespace' },
+  'soyuz': { height: 46.1, diameter: 2.95, boosters: 4, color: '#d1fae5', payload: '8,200 kg', manufacturer: 'Roscosmos' },
+  'proton': { height: 53, diameter: 7.4, color: '#ccfbf1', payload: '23,000 kg', manufacturer: 'Roscosmos' },
+  'electron': { height: 18, diameter: 1.2, color: '#334155', payload: '300 kg', manufacturer: 'Rocket Lab' },
+  'antares': { height: 42.5, diameter: 3.9, color: '#1e293b', payload: '8,000 kg', manufacturer: 'Northrop Grumman' },
+  'vulcan': { height: 61.6, diameter: 5.4, boosters: 2, color: '#cbd5e1', payload: '27,200 kg', manufacturer: 'ULA' },
+  'new glenn': { height: 98, diameter: 7.0, color: '#93c5fd', payload: '45,000 kg', manufacturer: 'Blue Origin' },
+  'long march 5': { height: 57, diameter: 5.0, boosters: 4, color: '#fecaca', payload: '25,000 kg', manufacturer: 'CASC' },
+  'gslv': { height: 43.4, diameter: 2.8, boosters: 4, color: '#fef08a', payload: '10,000 kg', manufacturer: 'ISRO' },
+  'pslv': { height: 44, diameter: 2.8, boosters: 4, color: '#fde047', payload: '3,800 kg', manufacturer: 'ISRO' }
 }
 
-function Scene({ rockets, selected, onSelect }) {
-  const spread = 1.1
-  const total = rockets.length
-  const startX = -((total - 1) * spread) / 2
-  const maxH = Math.max(...rockets.map(r => r.height)) * SCALE
-
-  return (
-    <>
-      <ambientLight intensity={0.5} />
-      <directionalLight position={[5, 10, 5]} intensity={1.2} castShadow />
-      <directionalLight position={[-5, 5, -5]} intensity={0.4} color="#7c3aed" />
-
-      {/* Launch pad ground plane */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]} receiveShadow>
-        <planeGeometry args={[total * spread + 2, 3]} />
-        <meshStandardMaterial color="#0a1128" metalness={0.2} roughness={0.9} />
-      </mesh>
-
-      {/* Grid lines on ground */}
-      {Array.from({ length: total + 1 }, (_, i) => (
-        <mesh key={i} position={[startX + i * spread - spread / 2, 0, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[0.01, 3]} />
-          <meshStandardMaterial color="#1e3a5f" />
-        </mesh>
-      ))}
-
-      {rockets.map((r, i) => (
-        <RocketMesh
-          key={r.name}
-          rocket={r}
-          xPos={startX + i * spread}
-          maxHeight={maxH}
-          selected={selected === r.name}
-          onClick={() => onSelect(selected === r.name ? null : r.name)}
-        />
-      ))}
-
-      <OrbitControls
-        enablePan={false}
-        minDistance={1.5}
-        maxDistance={8}
-        minPolarAngle={0.1}
-        maxPolarAngle={Math.PI / 2.1}
-      />
-    </>
-  )
+function findSpec(name) {
+  if (!name) return null;
+  const lower = name.toLowerCase();
+  const match = Object.keys(ROCKET_SPECS).find(k => lower.includes(k));
+  return match ? ROCKET_SPECS[match] : null;
 }
 
-function RocketCompare() {
-  const [selected3d, setSelected3d] = useState(null)
-  const [isFullscreen, setIsFullscreen] = useState(false)
-  const selectedRocket = COMPARISON_ROCKETS.find(r => r.name === selected3d)
+function RocketSilhouette({ rocket, spec, isSelected, onClick }) {
+  const scale = 2.5; // 1m = 2.5px
+  const h = spec.height * scale;
+  const w = Math.max(12, spec.diameter * scale * 1.5);
+
+  const boosterW = spec.boosters ? w * 0.5 : 0;
+  const fill = isSelected ? spec.color : `${spec.color}40`;
+  const stroke = isSelected ? '#fff' : spec.color;
+
+  return (
+    <g onClick={onClick} style={{ cursor: 'pointer', transition: 'all 0.3s' }}>
+      {/* Invisible hitbox */}
+      <rect x={-40} y={-h - 20} width={80} height={h + 50} fill="transparent" />
+
+      {/* Boosters */}
+      {spec.boosters > 0 && (
+        <>
+          <path d={`M ${-w / 2 - boosterW + 2} 0 L ${-w / 2 - boosterW + 2} ${-h * 0.55} L ${-w / 2 + 2} ${-h * 0.65} L ${-w / 2 + 2} 0 Z`} fill={fill} stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" />
+          <path d={`M ${w / 2 - 2} 0 L ${w / 2 - 2} ${-h * 0.65} L ${w / 2 + boosterW - 2} ${-h * 0.55} L ${w / 2 + boosterW - 2} 0 Z`} fill={fill} stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" />
+        </>
+      )}
+
+      {/* Core Body */}
+      <path d={`M ${-w / 2} 0 L ${-w / 2} ${-h * 0.85} L 0 ${-h} L ${w / 2} ${-h * 0.85} L ${w / 2} 0 Z`} fill={fill} stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" />
+
+      {/* Engine suggestion */}
+      <path d={`M ${-w / 3} 0 L ${-w / 2} 6 L ${w / 2} 6 L ${w / 3} 0 Z`} fill="#334155" />
+
+      {/* Label Text */}
+      <text y={-h - 12} textAnchor="middle" fill={isSelected ? '#fff' : 'var(--text-secondary)'} fontSize="11" fontWeight="bold" fontFamily="var(--font-mono)">
+        {spec.height}m
+      </text>
+      <text y={24} textAnchor="middle" fill={isSelected ? '#fff' : 'var(--text-secondary)'} fontSize="11" fontWeight="500">
+        {rocket.name.length > 14 ? rocket.name.substring(0, 12) + '...' : rocket.name}
+      </text>
+    </g>
+  );
+}
+
+function RocketCompare({ allRockets }) {
+  const availableRockets = useMemo(() => {
+    return allRockets.filter(r => findSpec(r.name) !== null);
+  }, [allRockets]);
+
+  const [shownNames, setShownNames] = useState([]);
+  const [selectedName, setSelectedName] = useState(null);
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+
+  useEffect(() => {
+    if (availableRockets.length >= 2 && shownNames.length === 0) {
+      setShownNames([availableRockets[0].name, availableRockets[1].name]);
+      setSelectedName(availableRockets[0].name);
+    }
+  }, [availableRockets, shownNames.length]);
+
+  const shownRockets = useMemo(() => {
+    return shownNames.map(name => availableRockets.find(r => r.name === name)).filter(Boolean);
+  }, [shownNames, availableRockets]);
+
+  const unshownRockets = useMemo(() => {
+    return availableRockets.filter(r => !shownNames.includes(r.name));
+  }, [availableRockets, shownNames]);
+
+  const toggleRocket = (name) => {
+    if (shownNames.includes(name)) {
+      setShownNames(prev => prev.filter(n => n !== name));
+      if (selectedName === name) setSelectedName(null);
+    } else {
+      if (shownNames.length < 6) {
+        setShownNames(prev => [...prev, name]);
+        setSelectedName(name);
+      }
+    }
+    setIsPickerOpen(false);
+  };
+
+  const selectedRocket = shownRockets.find(r => r.name === selectedName);
+  const selectedSpec = selectedRocket ? findSpec(selectedRocket.name) : null;
 
   return (
     <div className="glass" style={{ marginBottom: 32, overflow: 'hidden' }}>
       <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <h2 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 800 }}>
-            3D Size <span style={{ color: 'var(--accent)' }}>Comparison</span>
+            Size <span style={{ color: 'var(--accent)' }}>Comparison</span>
           </h2>
           <p style={{ margin: 0, fontSize: 12, color: 'var(--text-secondary)' }}>
-            Drag to rotate · Scroll to zoom · Click a rocket to inspect
+            Actual proportions based on rocket specifications
           </p>
         </div>
-        <button
-          className="btn btn-ghost"
-          style={{ padding: '6px 10px', fontSize: 11 }}
-          onClick={() => setIsFullscreen(p => !p)}
-        >
-          {isFullscreen ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
-          {isFullscreen ? 'Collapse' : 'Expand'}
-        </button>
+        <div style={{ position: 'relative' }}>
+          <button
+            className="btn btn-ghost"
+            style={{ padding: '6px 10px', fontSize: 11 }}
+            onClick={() => setIsPickerOpen(!isPickerOpen)}
+            disabled={shownNames.length >= 6}
+          >
+            <Plus size={13} />
+            Add Rocket
+          </button>
+
+          {isPickerOpen && (
+            <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 8, width: 220, background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 8, zIndex: 50, maxHeight: 300, overflowY: 'auto', boxShadow: 'var(--shadow-md)' }}>
+              {unshownRockets.length === 0 ? (
+                <div style={{ padding: 12, fontSize: 12, color: 'var(--text-muted)' }}>No more rockets available.</div>
+              ) : (
+                unshownRockets.map(r => (
+                  <button
+                    key={r.name}
+                    onClick={() => toggleRocket(r.name)}
+                    style={{ display: 'block', width: '100%', padding: '10px 12px', textAlign: 'left', background: 'none', border: 'none', borderBottom: '1px solid var(--border)', cursor: 'pointer', fontSize: 12, color: 'var(--text-primary)' }}
+                  >
+                    <div style={{ fontWeight: 600 }}>{r.name}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{findSpec(r.name)?.manufacturer}</div>
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: selectedRocket ? '1fr 240px' : '1fr', transition: 'grid-template-columns 0.3s' }}>
-        {/* Canvas */}
-        <div style={{ height: isFullscreen ? 600 : 400 }}>
-          <Canvas
-            camera={{ position: [0, 2, 5], fov: 50 }}
-            style={{ background: 'transparent' }}
-            shadows
-          >
-            <Suspense fallback={null}>
-              <Scene
-                rockets={COMPARISON_ROCKETS}
-                selected={selected3d}
-                onSelect={setSelected3d}
-              />
-            </Suspense>
-          </Canvas>
+        {/* SVG Canvas */}
+        <div style={{ height: 400, position: 'relative', overflowX: 'auto', overflowY: 'hidden' }}>
+          <svg width={Math.max(shownRockets.length * 120, 600)} height="400" style={{ display: 'block', minWidth: '100%' }}>
+            <defs>
+              <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#grid)" />
+
+            {/* Ground line */}
+            <line x1="0" y1="340" x2="100%" y2="340" stroke="var(--border)" strokeWidth="2" />
+
+            {/* Height markers */}
+            <g fill="var(--text-muted)" fontSize="10" fontFamily="var(--font-mono)">
+              <text x="10" y={340 - (50 * 2.5) + 4}>50m</text>
+              <line x1="35" y1={340 - (50 * 2.5)} x2="100%" y2={340 - (50 * 2.5)} stroke="rgba(255,255,255,0.05)" strokeDasharray="4 4" />
+
+              <text x="10" y={340 - (100 * 2.5) + 4}>100m</text>
+              <line x1="40" y1={340 - (100 * 2.5)} x2="100%" y2={340 - (100 * 2.5)} stroke="rgba(255,255,255,0.05)" strokeDasharray="4 4" />
+            </g>
+
+            {shownRockets.map((r, i) => {
+              const spec = findSpec(r.name);
+              const isSelected = selectedName === r.name;
+              const xPos = 80 + (i * 120);
+
+              return (
+                <g key={r.name} transform={`translate(${xPos}, 340)`}>
+                  <RocketSilhouette
+                    rocket={r}
+                    spec={spec}
+                    isSelected={isSelected}
+                    onClick={() => setSelectedName(isSelected ? null : r.name)}
+                  />
+                  {/* Remove button (X) below the name */}
+                  {isSelected && (
+                    <g onClick={(e) => { e.stopPropagation(); toggleRocket(r.name); }} style={{ cursor: 'pointer' }} transform="translate(0, 40)">
+                      <circle r="10" fill="var(--danger-soft)" />
+                      <path d="M-3,-3 L3,3 M-3,3 L3,-3" stroke="var(--danger)" strokeWidth="1.5" />
+                    </g>
+                  )}
+                </g>
+              );
+            })}
+          </svg>
         </div>
 
         {/* Spec panel for selected rocket */}
-        {selectedRocket && (
-          <div style={{ padding: '20px', borderLeft: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {selectedRocket && selectedSpec && (
+          <div style={{ padding: '20px', borderLeft: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 12, background: 'var(--bg-surface)' }}>
             <div>
-              <h3 style={{ margin: '0 0 2px', fontSize: 15, fontWeight: 800 }}>{selectedRocket.name}</h3>
-              <p style={{ margin: 0, fontSize: 11, color: 'var(--text-secondary)' }}>{selectedRocket.manufacturer}</p>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <SpecRow label="Height" value={`${selectedRocket.height} m`} />
-              <SpecRow label="Diameter" value={`${selectedRocket.diameter} m`} />
-              <SpecRow label="Payload (LEO)" value={selectedRocket.payload} />
-              <SpecRow label="First Flight" value={selectedRocket.firstFlight} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <div style={{ width: 12, height: 12, borderRadius: '50%', background: selectedSpec.color }} />
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>{selectedRocket.name}</h3>
+              </div>
+              <p style={{ margin: 0, fontSize: 11, color: 'var(--text-secondary)' }}>{selectedSpec.manufacturer}</p>
             </div>
 
-            {/* Height comparison bar */}
-            <div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
+              <SpecRow label="Height" value={`${selectedSpec.height} m`} />
+              <SpecRow label="Diameter" value={`${selectedSpec.diameter} m`} />
+              <SpecRow label="Payload to LEO" value={selectedSpec.payload} />
+              <SpecRow label="Total Launches" value={selectedRocket.launches?.length || 0} />
+              {selectedSpec.boosters && <SpecRow label="Side Boosters" value={selectedSpec.boosters} />}
+            </div>
+
+            {/* Height comparison bar vs Starship */}
+            <div style={{ marginTop: 'auto' }}>
               <p style={{ margin: '0 0 6px', fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>vs Tallest (Starship 121m)</p>
               <div style={{ height: 4, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: `${(selectedRocket.height / 121) * 100}%`, background: 'var(--accent)', borderRadius: 2 }} />
+                <div style={{ height: '100%', width: `${(selectedSpec.height / 121) * 100}%`, background: 'var(--accent)', borderRadius: 2 }} />
               </div>
               <p style={{ margin: '4px 0 0', fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>
-                {Math.round((selectedRocket.height / 121) * 100)}% of Starship
+                {Math.round((selectedSpec.height / 121) * 100)}% of Starship
               </p>
             </div>
           </div>
         )}
       </div>
-
-      {/* Mini legend */}
-      <div style={{ padding: '12px 24px', borderTop: '1px solid var(--border)', display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-        {COMPARISON_ROCKETS.map(r => (
-          <button
-            key={r.name}
-            onClick={() => setSelected3d(selected3d === r.name ? null : r.name)}
-            style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', gap: 5,
-              fontSize: 11, color: selected3d === r.name ? r.color : 'var(--text-muted)',
-              padding: '2px 0', fontFamily: 'var(--font-mono)',
-              transition: 'color 0.2s',
-            }}
-          >
-            <div style={{ width: 8, height: 8, borderRadius: 2, background: r.color, flexShrink: 0 }} />
-            {r.name}
-          </button>
-        ))}
-      </div>
     </div>
-  )
+  );
 }
 
 // ── Main Page ────────────────────────────────────────────────────────────────
@@ -289,8 +304,8 @@ export default function Rockets() {
         </div>
       </div>
 
-      {/* 3D Comparison */}
-      <RocketCompare />
+      {/* 2D Size Comparison */}
+      <RocketCompare allRockets={filtered} />
 
       {/* Rocket grid */}
       <div style={{ display: 'grid', gridTemplateColumns: selected ? '1fr 400px' : '1fr', gap: 24 }}>
