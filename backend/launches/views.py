@@ -300,6 +300,97 @@ class ISSCrewView(APIView):
             return Response({'crew': []}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
 
+class LaunchPadWeatherView(APIView):
+    """GET /api/launches/<api_id>/pad-weather/ - current weather at the launch pad"""
+    permission_classes = [permissions.AllowAny]
+
+    # Simple in-memory cache: {api_id: (expires, data)}
+    _cache: dict = {}
+
+    def get(self, request, api_id):
+        import httpx, os
+        from django.utils import timezone
+
+        now = timezone.now()
+
+        # Return cached response if fresh (15 min TTL)
+        cached = self._cache.get(api_id)
+        if cached and now < cached[0]:
+            return Response(cached[1])
+
+        try:
+            launch = Launch.objects.get(api_id=api_id)
+        except Launch.DoesNotExist:
+            return Response({'detail': 'Launch not found.'}, status=404)
+
+        lat = launch.pad_latitude
+        lon = launch.pad_longitude
+        if lat is None or lon is None:
+            return Response({'detail': 'No coordinates for this pad.'}, status=404)
+
+        api_key = os.environ.get('OPENWEATHERMAP_API_KEY', '')
+        if not api_key:
+            # Return placeholder when key not configured
+            return Response({
+                'available': False,
+                'reason': 'Weather API key not configured.',
+            })
+
+        try:
+            resp = httpx.get(
+                'https://api.openweathermap.org/data/2.5/weather',
+                params={'lat': lat, 'lon': lon, 'units': 'metric', 'appid': api_key},
+                timeout=10,
+            )
+            resp.raise_for_status()
+            raw = resp.json()
+
+            wind_mps = raw.get('wind', {}).get('speed', 0)
+            wind_knots = wind_mps * 1.94384
+            visibility_m = raw.get('visibility', 10000)
+            visibility_mi = visibility_m / 1609.34
+            temp_c = raw.get('main', {}).get('temp', 20)
+            humidity = raw.get('main', {}).get('humidity', 50)
+            description = raw.get('weather', [{}])[0].get('description', 'clear')
+            icon = raw.get('weather', [{}])[0].get('icon', '01d')
+            thunderstorm = any(
+                w.get('main', '').lower() == 'thunderstorm'
+                for w in raw.get('weather', [])
+            )
+
+            # Go/No-Go rules (simplified NASA flight rules)
+            rules = [
+                {'name': 'Wind Speed', 'value': f'{wind_knots:.1f} kts', 'go': wind_knots < 30, 'limit': '< 30 kts'},
+                {'name': 'Visibility', 'value': f'{visibility_mi:.1f} mi', 'go': visibility_mi >= 5, 'limit': '≥ 5 mi'},
+                {'name': 'Thunderstorm', 'value': 'Clear' if not thunderstorm else 'Active', 'go': not thunderstorm, 'limit': 'None within 10 mi'},
+                {'name': 'Temperature', 'value': f'{temp_c:.0f}°C', 'go': -20 <= temp_c <= 45, 'limit': '-20°C to 45°C'},
+                {'name': 'Humidity', 'value': f'{humidity}%', 'go': humidity < 90, 'limit': '< 90%'},
+            ]
+
+            go_count = sum(1 for r in rules if r['go'])
+            overall = 'GO' if go_count == len(rules) else ('HOLD' if go_count < len(rules) - 1 else 'MARGINAL')
+
+            data = {
+                'available': True,
+                'description': description.title(),
+                'icon': icon,
+                'wind_knots': round(wind_knots, 1),
+                'visibility_mi': round(visibility_mi, 1),
+                'temp_c': round(temp_c, 1),
+                'humidity': humidity,
+                'rules': rules,
+                'overall': overall,
+                'go_count': go_count,
+                'total_rules': len(rules),
+            }
+
+            LaunchPadWeatherView._cache[api_id] = (now + dt.timedelta(minutes=15), data)
+            return Response(data)
+
+        except Exception as e:
+            return Response({'available': False, 'reason': str(e)}, status=503)
+
+
 class SpaceWeatherView(APIView):
     """GET /api/space-weather/ - current space weather from NASA DONKI"""
     permission_classes = [permissions.AllowAny]
