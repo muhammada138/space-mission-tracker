@@ -1018,6 +1018,26 @@ textarea.input { resize: vertical; min-height: 110px; line-height: 1.6; }
 }
 
 /* ====================================================================
+   PAGE TRANSITIONS
+   main[key] triggers a full re-render on route change → animation fires
+   ==================================================================== */
+
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+main {
+  animation: pageEnter 0.3s var(--ease-out-expo) both;
+}
+
+/* ====================================================================
    FOOTER
    ==================================================================== */
 

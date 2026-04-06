@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { Search } from 'lucide-react'
 import api from '../api/axios'
 import LaunchCard from '../components/LaunchCard'
@@ -7,22 +7,23 @@ import HeroLaunch from '../components/HeroLaunch'
 import SkeletonCard from '../components/SkeletonCard'
 import SpaceWeather from '../components/SpaceWeather'
 
-export default function Home() {
-  const [searchParams, setSearchParams] = useSearchParams()
-  const tab = searchParams.get('tab') || 'upcoming'
-  const source = searchParams.get('source') || 'all'
-
+export default function Home({ tab = 'upcoming' }) {
+  const navigate = useNavigate()
+  const [source, setSource] = useState('all')
   const [launches, setLaunches] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
 
-  const setTab = (t) => setSearchParams({ tab: t, source }, { replace: false })
-  const setSource = (s) => setSearchParams({ tab, source: s }, { replace: false })
+  const setTab = (t) => {
+    const routes = { upcoming: '/launches/upcoming', active: '/launches/active', past: '/launches/past' }
+    navigate(routes[t] || '/')
+  }
 
   useEffect(() => {
     setLoading(true)
     setError(null)
+    setLaunches([])
     api.get(`/launches/${tab}/`, { params: { source } })
       .then(({ data }) => setLaunches(Array.isArray(data) ? data : data.results ?? []))
       .catch(() => setError('Failed to fetch launches. Is the backend running?'))

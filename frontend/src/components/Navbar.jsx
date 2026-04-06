@@ -61,7 +61,7 @@ export default function Navbar() {
   const close = () => setDrawerOpen(false)
 
   const links = [
-    { to: '/', label: 'Launches', icon: <Rocket size={14} /> },
+    { to: '/launches/upcoming', label: 'Launches', icon: <Rocket size={14} />, matchPrefix: '/launches' },
     { to: '/map', label: 'Globe', icon: <Globe size={14} /> },
     { to: '/timeline', label: 'Timeline', icon: <Timer size={14} /> },
     { to: '/rockets', label: 'Rockets', icon: <Crosshair size={14} /> },
@@ -86,7 +86,14 @@ export default function Navbar() {
           {/* Desktop nav */}
           <div className="nav-links">
             {links.map(l => (
-              <NavLink key={l.to} to={l.to} end={l.to === '/'} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+              <NavLink
+                key={l.to}
+                to={l.to}
+                className={({ isActive }) => {
+                  const active = isActive || (l.matchPrefix && window.location.pathname.startsWith(l.matchPrefix))
+                  return `nav-link ${active ? 'active' : ''}`
+                }}
+              >
                 {l.icon} {l.label}
               </NavLink>
             ))}
@@ -136,7 +143,16 @@ export default function Navbar() {
               </button>
             </div>
             {links.map(l => (
-              <NavLink key={l.to} to={l.to} end={l.to === '/'} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} onClick={close} style={{ padding: '12px 0' }}>
+              <NavLink
+                key={l.to}
+                to={l.to}
+                className={({ isActive }) => {
+                  const active = isActive || (l.matchPrefix && window.location.pathname.startsWith(l.matchPrefix))
+                  return `nav-link ${active ? 'active' : ''}`
+                }}
+                onClick={close}
+                style={{ padding: '12px 0' }}
+              >
                 {l.icon} {l.label}
               </NavLink>
             ))}
