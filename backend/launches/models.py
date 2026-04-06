@@ -22,6 +22,10 @@ class Launch(models.Model):
     wiki_url = models.URLField(blank=True, default='', max_length=1024)
     infographic_url = models.URLField(blank=True, default='', max_length=1024)
 
+    # Launch pad coordinates (for weather lookups)
+    pad_latitude = models.FloatField(null=True, blank=True)
+    pad_longitude = models.FloatField(null=True, blank=True)
+
     last_fetched = models.DateTimeField(auto_now=True)
 
     class Meta:

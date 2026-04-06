@@ -37,3 +37,28 @@ class MissionLog(models.Model):
 
     def __str__(self):
         return f'{self.user.username}: {self.title}'
+
+
+class LaunchPrediction(models.Model):
+    """Community prediction: will this launch happen on time?"""
+    PREDICTION_CHOICES = [
+        ('on_time', 'On Time'),
+        ('delayed', 'Will Be Delayed'),
+        ('scrubbed', 'Will Be Scrubbed'),
+    ]
+    launch = models.ForeignKey(
+        'launches.Launch', on_delete=models.CASCADE, related_name='predictions'
+    )
+    user = models.ForeignKey(
+        'auth.User', on_delete=models.CASCADE, related_name='predictions'
+    )
+    prediction = models.CharField(max_length=10, choices=PREDICTION_CHOICES)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('user', 'launch')
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        return f'{self.user.username} → {self.launch.name}: {self.prediction}'

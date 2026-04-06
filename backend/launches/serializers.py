@@ -10,5 +10,6 @@ class LaunchSerializer(serializers.ModelSerializer):
             'launch_date', 'status', 'mission_description', 'image_url',
             'pad_name', 'pad_location', 'orbit', 'mission_type',
             'webcast_url', 'wiki_url', 'infographic_url',
+            'pad_latitude', 'pad_longitude',
             'last_fetched',
         ]

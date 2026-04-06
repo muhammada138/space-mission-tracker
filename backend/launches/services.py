@@ -49,12 +49,20 @@ def _parse_launch(data: dict) -> dict:
     # Pad info
     pad_name = ''
     pad_location = ''
+    pad_latitude = None
+    pad_longitude = None
     try:
         pad = data.get('pad') or {}
         pad_name = pad.get('name', '') or ''
         loc = pad.get('location') or {}
         pad_location = loc.get('name', '') or ''
-    except (KeyError, TypeError):
+        lat = pad.get('latitude')
+        lon = pad.get('longitude')
+        if lat:
+            pad_latitude = float(lat)
+        if lon:
+            pad_longitude = float(lon)
+    except (KeyError, TypeError, ValueError):
         pass
 
     # URLs
@@ -93,6 +101,8 @@ def _parse_launch(data: dict) -> dict:
         'image_url': image_url,
         'pad_name': pad_name,
         'pad_location': pad_location,
+        'pad_latitude': pad_latitude,
+        'pad_longitude': pad_longitude,
         'orbit': orbit,
         'mission_type': mission_type,
         'webcast_url': webcast_url,
