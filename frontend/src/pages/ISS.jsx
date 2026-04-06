@@ -34,10 +34,20 @@ export default function ISS() {
   }, [])
 
   useEffect(() => {
-    fetch('/api/iss-crew/')
+    // open-notify supports CORS — call directly to avoid serverless proxy issues
+    fetch('https://api.open-notify.org/astros.json')
       .then(r => { if (!r.ok) throw new Error(r.status); return r.json() })
-      .then(data => setCrew(data.crew ?? []))
-      .catch(() => setCrewError(true))
+      .then(data => {
+        const issCrew = (data.people || []).filter(p => p.craft === 'ISS')
+        setCrew(issCrew)
+      })
+      .catch(() => {
+        // Fallback to backend proxy
+        fetch('/api/iss-crew/')
+          .then(r => { if (!r.ok) throw new Error(r.status); return r.json() })
+          .then(data => setCrew(data.crew ?? []))
+          .catch(() => setCrewError(true))
+      })
   }, [])
 
   return (
