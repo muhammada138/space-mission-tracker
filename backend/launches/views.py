@@ -39,19 +39,40 @@ class UpcomingLaunchesView(APIView):
     def get(self, request):
         source = request.query_params.get('source', 'all')
         launches = []
-        if source in ('ll2', 'all'):
+        
+        # Always fetch from both to ensure we have all data (SpaceX API is dead but keeping logic)
+        if source in ('ll2', 'spacex', 'all'):
             try:
                 launches += get_upcoming_launches(limit=100)
             except Exception:
-                pass  # LL2 may be rate-limited, keep going
+                pass
+                
         if source in ('spacex', 'all'):
             try:
                 launches += get_spacex_upcoming_launches(limit=100)
             except Exception:
                 pass
+                
+        # Serialize model objects
+        serialized = LaunchSerializer(launches, many=True).data
+        
+        # Deduplicate
+        seen = set()
+        final_launches = []
+        for l in serialized:
+            if l.get('api_id') not in seen:
+                final_launches.append(l)
+                seen.add(l.get('api_id'))
+                
+        # Apply source filter in python
+        if source == 'spacex':
+            final_launches = [l for l in final_launches if l.get('launch_provider') and 'SpaceX' in l.get('launch_provider')]
+        elif source == 'll2':
+            final_launches = [l for l in final_launches if not str(l.get('api_id', '')).startswith('spacex_')]
+
         # Sort by launch date, None-safe
-        launches.sort(key=lambda l: _to_dt(l.launch_date, _FAR_FUTURE))
-        return Response(LaunchSerializer(launches, many=True).data)
+        final_launches.sort(key=lambda l: _to_dt(l.get('launch_date'), _FAR_FUTURE))
+        return Response(final_launches)
 
 
 class PastLaunchesView(APIView):
@@ -61,7 +82,7 @@ class PastLaunchesView(APIView):
     def get(self, request):
         source = request.query_params.get('source', 'all')
         launches = []
-        if source in ('ll2', 'all'):
+        if source in ('ll2', 'spacex', 'all'):
             try:
                 launches += get_past_launches(limit=100)
             except Exception:
@@ -71,7 +92,7 @@ class PastLaunchesView(APIView):
                 launches += get_spacex_past_launches(limit=100)
             except Exception:
                 pass
-                
+
         # Serialize model objects to dicts
         serialized_launches = LaunchSerializer(launches, many=True).data
 
@@ -86,17 +107,43 @@ class PastLaunchesView(APIView):
         except Exception:
             pass
 
-        # De-duplicate by api_id
+        import datetime as dt
+        from django.utils import timezone
+        now = timezone.now()
+
+        # De-duplicate by api_id and filter by date/source
         seen = set()
         final_launches = []
         
+        # Filter serialized launches
         for l in serialized_launches:
             if l.get('api_id') not in seen:
+                if source == 'spacex':
+                    if not (l.get('launch_provider') and 'SpaceX' in l.get('launch_provider')):
+                        continue
+                elif source == 'll2':
+                    if str(l.get('api_id', '')).startswith('spacex_'):
+                        continue
+                        
                 final_launches.append(l)
                 seen.add(l.get('api_id'))
                 
+        # Filter history
         for l in history:
             if l.get('api_id') not in seen:
+                # 1. Filter out FUTURE launches
+                ldate = _to_dt(l.get('launch_date'), _FAR_PAST)
+                if ldate >= now:
+                    continue
+                    
+                # 2. Filter by source
+                if source == 'spacex':
+                    if not (l.get('launch_provider') and 'SpaceX' in l.get('launch_provider')):
+                        continue
+                elif source == 'll2':
+                    if str(l.get('api_id', '')).startswith('spacex_'):
+                        continue
+                        
                 final_launches.append(l)
                 seen.add(l.get('api_id'))
 
