@@ -125,7 +125,7 @@ def get_upcoming_launches(limit: int = 20) -> list:
         last_fetched__gte=cutoff,
     ).exclude(api_id__startswith='spacex_')
 
-    if cached.exists():
+    if cached.count() >= 10:
         return list(cached.order_by('launch_date')[:limit])
 
     try:

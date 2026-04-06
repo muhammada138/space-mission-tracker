@@ -135,7 +135,7 @@ def get_spacex_upcoming_launches(limit: int = 20) -> list:
         launch_date__gte=timezone.now(),
         last_fetched__gte=cutoff,
     )
-    if cached.exists():
+    if cached.count() >= 5:
         return list(cached.order_by('launch_date')[:limit])
 
     try:
