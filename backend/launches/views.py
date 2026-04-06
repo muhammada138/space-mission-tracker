@@ -159,14 +159,35 @@ class ActiveLaunchesView(APIView):
         from .services import _upsert_launches, _parse_launch
         import httpx
 
-        # LL2 status ID 6 = "In Flight"
-        # First check DB cache
-        active = Launch.objects.filter(
-            status__icontains='in flight'
-        ).order_by('-launch_date')
+        # First check DB cache for in-flight OR specific active missions like Artemis 2
+        active_list = list(Launch.objects.filter(status__icontains='in flight').order_by('-launch_date'))
+        
+        # Check if Artemis II is cached and still active
+        try:
+            a2_id = '41699701-2ef4-4b0c-ac9d-6757820cde87'
+            # We fetch it if we don't have it, but wait: we need external API to know if spacecraft is active
+            # Actually, the DB cache for Launch just stores 'Success' for status. It doesn't store spacecraft status.
+            # So if we rely solely on DB cache, we won't know if Orion is STILL active unless we fetch from LL2.
+        except Exception:
+            pass
 
-        if active.exists():
-            return Response(LaunchSerializer(active, many=True).data)
+        # Since we want live spacecraft status for Artemis II, it's better to always do the check or just append it if we know we are in April 2026.
+        # But to avoid API spam, let's just let the cache work for in-flight, but if we have in-flight cached, we still need to add Artemis II.
+        # Let's bypass DB active return so it always fetches or combines them. Or we can just append Artemis 2 from DB if we know it's currently April 2026.
+        # Since this is a temporary mission, let's append it from DB if today is < April 15, 2026.
+        import datetime as dt
+        from django.utils import timezone
+        
+        if active_list:
+            now = timezone.now()
+            if now < dt.datetime(2026, 4, 15, tzinfo=dt.timezone.utc):
+                try:
+                    a2 = Launch.objects.get(api_id='41699701-2ef4-4b0c-ac9d-6757820cde87')
+                    if a2 not in active_list:
+                        active_list.append(a2)
+                except Launch.DoesNotExist:
+                    pass
+            return Response(LaunchSerializer(active_list, many=True).data)
 
         # Fetch directly from LL2 with status=6 (In Flight)
         try:
@@ -177,6 +198,25 @@ class ActiveLaunchesView(APIView):
             )
             resp.raise_for_status()
             results = resp.json().get('results', [])
+            
+            # Manually include Artemis II if its spacecraft is currently active
+            # (Launch status is "Success", not "In Flight")
+            try:
+                a2_id = '41699701-2ef4-4b0c-ac9d-6757820cde87'
+                a2_resp = httpx.get(
+                    f'https://ll.thespacedevs.com/2.2.0/launch/{a2_id}/',
+                    params={'mode': 'detailed'},
+                    timeout=5,
+                )
+                if a2_resp.status_code == 200:
+                    a2_data = a2_resp.json()
+                    stage = a2_data.get('rocket', {}).get('spacecraft_stage', {})
+                    if stage and stage.get('spacecraft', {}).get('status', {}).get('id') == 1:
+                        if not any(str(r.get('id')) == a2_id for r in results):
+                            results.append(a2_data)
+            except Exception:
+                pass
+
             if results:
                 launches = _upsert_launches(results)
                 return Response(LaunchSerializer(launches, many=True).data)
