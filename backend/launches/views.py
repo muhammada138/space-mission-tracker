@@ -278,21 +278,57 @@ class ISSCrewView(APIView):
 
     @staticmethod
     def _get_wiki_summary(name):
-        """Fetch a clean Wikipedia extract for an astronaut name."""
+        """Fetch a rich Wikipedia extract and high-res photo for an astronaut."""
         import httpx, urllib.parse
         try:
             slug = urllib.parse.quote(name.replace(' ', '_'))
+            # 1. Start with the REST API for metadata (images, URLs, basic layout)
             resp = httpx.get(
                 f'https://en.wikipedia.org/api/rest_v1/page/summary/{slug}',
                 timeout=8,
                 headers={'User-Agent': 'SpaceTracker/1.0'},
             )
+            
+            wiki_data = {
+                'wiki_extract': '',
+                'wiki_thumbnail': '',
+                'wiki_url': '',
+            }
+
             if resp.status_code == 200:
                 data = resp.json()
-                return {
-                    'wiki_extract': data.get('extract', ''),
-                    'wiki_thumbnail': data.get('thumbnail', {}).get('source', ''),
-                }
+                # Use originalimage for much higher quality photos
+                wiki_data['wiki_thumbnail'] = data.get('originalimage', {}).get('source', '') or \
+                                             data.get('thumbnail', {}).get('source', '')
+                wiki_data['wiki_url'] = data.get('content_urls', {}).get('desktop', {}).get('page', '')
+                # Base extract as backup
+                wiki_data['wiki_extract'] = data.get('extract', '')
+
+            # 2. Use the Action API to get the FULL introductory section (lead section)
+            # This avoids the truncation found in the summary REST endpoint
+            action_resp = httpx.get(
+                'https://en.wikipedia.org/w/api.php',
+                params={
+                    'action': 'query',
+                    'format': 'json',
+                    'prop': 'extracts',
+                    'exintro': True,
+                    'explaintext': True,
+                    'titles': name, # Query API handles spaces better
+                    'redirects': 1,
+                },
+                timeout=8,
+                headers={'User-Agent': 'SpaceTracker/1.0'},
+            )
+            if action_resp.status_code == 200:
+                raw_query = action_resp.json().get('query', {})
+                pages = raw_query.get('pages', {})
+                for page_id in pages:
+                    full_intro = pages[page_id].get('extract', '')
+                    if full_intro and len(full_intro) > len(wiki_data['wiki_extract']):
+                        wiki_data['wiki_extract'] = full_intro
+            
+            return wiki_data
         except Exception:
             pass
         return {}
@@ -335,13 +371,21 @@ class ISSCrewView(APIView):
                 pass
             entry['craft'] = craft
 
-            # Enrich with Wikipedia summary if bio is short
-            if not entry['bio'] or len(entry['bio']) < 100:
-                wiki = ISSCrewView._get_wiki_summary(entry['name'])
-                if wiki.get('wiki_extract'):
-                    entry['bio'] = wiki['wiki_extract']
-                if wiki.get('wiki_thumbnail') and not entry['profile_image']:
+            # Always attempt to enrich with high-res Wikipedia data
+            wiki = ISSCrewView._get_wiki_summary(entry['name'])
+            if wiki:
+                # Prioritize high-res photo over LL2's small ones
+                if wiki.get('wiki_thumbnail'):
                     entry['profile_image'] = wiki['wiki_thumbnail']
+                
+                # Prioritize longer bio from Wikipedia
+                if wiki.get('wiki_extract') and len(wiki['wiki_extract']) > len(entry['bio']):
+                    entry['bio'] = wiki['wiki_extract']
+                
+                # Update wiki URL
+                if wiki.get('wiki_url'):
+                    entry['wiki_url'] = wiki['wiki_url']
+
             crew.append(entry)
         return crew
 
@@ -363,10 +407,13 @@ class ISSCrewView(APIView):
                 'wiki_url': '',
             }
             wiki = ISSCrewView._get_wiki_summary(entry['name'])
-            if wiki.get('wiki_extract'):
-                entry['bio'] = wiki['wiki_extract']
-            if wiki.get('wiki_thumbnail'):
-                entry['profile_image'] = wiki['wiki_thumbnail']
+            if wiki:
+                if wiki.get('wiki_extract'):
+                    entry['bio'] = wiki['wiki_extract']
+                if wiki.get('wiki_thumbnail'):
+                    entry['profile_image'] = wiki['wiki_thumbnail']
+                if wiki.get('wiki_url'):
+                    entry['wiki_url'] = wiki['wiki_url']
             crew.append(entry)
         return crew
 

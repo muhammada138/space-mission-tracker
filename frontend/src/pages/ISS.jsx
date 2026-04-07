@@ -59,72 +59,104 @@ function CrewModal({ person, onClose }) {
 
   return (
     <div
-      style={{ position: 'fixed', inset: 0, background: 'rgba(5, 10, 24, 0.85)', backdropFilter: 'blur(4px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(5, 10, 24, 0.9)', backdropFilter: 'blur(8px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
       onClick={onClose}
     >
       <div
         className="glass fade-up"
-        style={{ maxWidth: 600, width: '100%', maxHeight: '85vh', overflowY: 'auto', position: 'relative', padding: 0 }}
+        style={{ maxWidth: 850, width: '100%', maxHeight: '90vh', overflowY: 'auto', position: 'relative', padding: 0, display: 'flex', flexDirection: 'column', border: '1px solid rgba(255,255,255,0.1)' }}
         onClick={e => e.stopPropagation()}
       >
         <button
           onClick={onClose}
-          style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(0,0,0,0.5)', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 24, width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}
+          style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(0,0,0,0.5)', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 24, width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20, backdropFilter: 'blur(4px)' }}
         >
           <X size={18} />
         </button>
 
-        {person.profile_image ? (
-          <img src={person.profile_image} alt={person.name} style={{ width: '100%', height: 280, objectFit: 'cover', objectPosition: 'center 20%', borderTopLeftRadius: 16, borderTopRightRadius: 16 }} />
-        ) : (
-          <div style={{ width: '100%', height: 200, background: 'linear-gradient(135deg, rgba(0,212,255,0.1), rgba(124,58,237,0.1))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
-            <Users size={64} />
-          </div>
-        )}
-
-        <div style={{ padding: '28px 32px 32px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
-            <div>
-              <h2 style={{ margin: '0 0 6px', fontSize: 26, fontWeight: 800, letterSpacing: '-0.02em' }}>{person.name}</h2>
-              <p style={{ margin: 0, fontSize: 15, color: 'var(--text-secondary)' }}>
-                {getFlag(person.nationality)} {person.nationality || 'Unknown'} • {person.agency?.name || person.agency?.abbrev || 'Astronaut'}
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 300px', width: '100%' }} className="crew-modal-grid">
+          {/* Main Content Area */}
+          <div style={{ padding: '40px', borderRight: '1px solid rgba(255,255,255,0.08)' }}>
+            <div style={{ marginBottom: 32 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                <span style={{ fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--accent)', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>Astronaut Profile</span>
+                {person.status && (
+                  <span className="badge badge-go" style={{ padding: '2px 8px', fontSize: 10 }}>{person.status.name || 'Active'}</span>
+                )}
+              </div>
+              <h2 style={{ margin: '0 0 8px', fontSize: 42, fontWeight: 850, letterSpacing: '-0.04em', lineHeight: 1.1 }}>{person.name}</h2>
+              <p style={{ margin: 0, fontSize: 18, color: 'var(--text-secondary)', fontWeight: 500 }}>
+                {person.agency?.name || 'Independent Astronaut'}
               </p>
             </div>
-            {person.status && (
-              <span className="badge badge-go" style={{ flexShrink: 0 }}>{person.status.name || 'Active'}</span>
-            )}
-          </div>
 
-          {/* Stats row */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 24 }}>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.05)', fontSize: 13 }}>
-              <GlobeIcon size={15} style={{ color: 'var(--accent)' }} />
-              <span style={{ color: 'var(--text-secondary)' }}>Craft:</span>
-              <span style={{ fontWeight: 600, color: 'var(--accent)' }}>{person.craft || 'ISS'}</span>
+            <div style={{ marginBottom: 32 }}>
+              <h3 style={{ fontSize: 14, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700 }}>
+                <Info size={16} /> Biography
+              </h3>
+              <div 
+                style={{ fontSize: 16, lineHeight: 1.8, color: 'var(--text-primary)', whiteSpace: 'pre-wrap', fontFamily: 'Inter, system-ui, sans-serif' }}
+              >
+                {person.bio || 'No detailed biography available.'}
+              </div>
             </div>
-            {person.flights_count != null && (
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.05)', fontSize: 13 }}>
-                <Rocket size={15} style={{ color: 'var(--warning)' }} />
-                <span style={{ color: 'var(--text-secondary)' }}>Flights:</span>
-                <span style={{ fontWeight: 600 }}>{person.flights_count}</span>
-              </div>
-            )}
-            {person.date_of_birth && (
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.05)', fontSize: 13 }}>
-                <Calendar size={15} style={{ color: 'var(--success)' }} />
-                <span style={{ color: 'var(--text-secondary)' }}>Born:</span>
-                <span style={{ fontWeight: 600 }}>{person.date_of_birth}</span>
-              </div>
+
+            {person.wiki_url && (
+              <a 
+                href={person.wiki_url} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="btn btn-secondary"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 20px', borderRadius: 10, textDecoration: 'none', fontSize: 14, fontWeight: 600 }}
+              >
+                <GlobeIcon size={16} /> 
+                View on Wikipedia
+              </a>
             )}
           </div>
 
-          {/* Biography */}
-          <h3 style={{ fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
-            <Info size={15} /> Biography
-          </h3>
-          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.75, color: 'var(--text-primary)' }}>
-            {person.bio || 'No biography available for this astronaut.'}
-          </p>
+          {/* Sidebar / Infobox */}
+          <div style={{ background: 'rgba(255,255,255,0.02)', display: 'flex', flexDirection: 'column' }}>
+            {person.profile_image ? (
+              <div style={{ width: '100%', height: 300, position: 'relative' }}>
+                <img 
+                  src={person.profile_image} 
+                  alt={person.name} 
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 20%' }} 
+                />
+                <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 80, background: 'linear-gradient(to top, rgba(5,10,24,0.8), transparent)' }}></div>
+              </div>
+            ) : (
+              <div style={{ width: '100%', height: 300, background: 'var(--accent-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)' }}>
+                <Users size={64} />
+              </div>
+            )}
+
+            <div style={{ padding: '24px' }}>
+              <div style={{ marginBottom: 20 }}>
+                <h4 style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', fontWeight: 700, marginBottom: 12, borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 8 }}>Details</h4>
+                
+                {[
+                  { label: 'Nationality', value: person.nationality, icon: getFlag(person.nationality) },
+                  { label: 'Agency', value: person.agency?.abbrev || person.agency?.name },
+                  { label: 'Craft', value: person.craft, icon: '🚀' },
+                  { label: 'Born', value: person.date_of_birth, icon: <Calendar size={14} /> },
+                  { label: 'Flights', value: person.flights_count, icon: <Rocket size={14} /> },
+                ].map((item, idx) => item.value && (
+                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, fontSize: 13 }}>
+                    <span style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {typeof item.icon === 'string' ? item.icon : item.icon} {item.label}
+                    </span>
+                    <span style={{ fontWeight: 600 }}>{item.value}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic', lineHeight: 1.4 }}>
+                Source: Wikipedia & Launch Library 2
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
