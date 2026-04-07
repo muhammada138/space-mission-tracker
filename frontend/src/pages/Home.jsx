@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search } from 'lucide-react'
+import { Search, MapPin, Users } from 'lucide-react'
 import api from '../api/axios'
 import LaunchCard from '../components/LaunchCard'
 import HeroLaunch from '../components/HeroLaunch'
@@ -56,6 +56,15 @@ export default function Home({ tab = 'upcoming' }) {
             <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 14 }}>
               Live launch data from Launch Library 2 and SpaceX
             </p>
+          </div>
+
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <button className="btn btn-ghost" onClick={() => navigate('/astronauts')}>
+              <Users size={14} /> Humans in Space
+            </button>
+            <button className="btn btn-ghost" onClick={() => navigate('/spaceports')}>
+              <MapPin size={14} /> Global Spaceports
+            </button>
           </div>
 
           {/* Search bar */}

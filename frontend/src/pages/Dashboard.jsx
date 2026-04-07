@@ -210,6 +210,9 @@ export default function Dashboard() {
             <Trophy size={13} style={{ display: 'inline', marginRight: 4 }} />
             Achievements <span className="tab-count">{unlockedAchievements.length}/{totalAchievements}</span>
           </button>
+          <button className={`tab ${tab === 'leaderboard' ? 'active' : ''}`} onClick={() => setTab('leaderboard')}>
+            Leaderboard
+          </button>
         </div>
       </div>
 
@@ -281,31 +284,31 @@ export default function Dashboard() {
             {logs
               .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
               .map((log, i) => (
-              <div key={log.id} className="glass fade-up" style={{ padding: '20px 24px', animationDelay: `${i * 35}ms` }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-                  <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => navigate(`/launch/${log.launch.api_id}`)}>
-                    <p style={{ margin: '0 0 4px', fontSize: 10, fontWeight: 700, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--accent)' }}>
-                      {log.launch.name}
-                    </p>
-                    <h3 style={{ margin: '0 0 8px', fontSize: 16, fontWeight: 700 }}>{log.title}</h3>
-                    <p style={{ margin: '0 0 10px', color: 'var(--text-secondary)', lineHeight: 1.65, fontSize: 13 }}>{log.body}</p>
-                    <p style={{ margin: 0, fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                      {format(new Date(log.created_at), 'MMM d, yyyy / HH:mm')}
-                    </p>
-                  </div>
-                  <div style={{ display: 'flex', gap: 6, flexShrink: 0, paddingTop: 4 }}>
-                    <button className="btn btn-ghost" style={{ padding: '6px 10px', fontSize: 11 }}
-                      onClick={() => { setEditLog(log); setShowLogModal(true) }}>
-                      <NotebookPen size={13} />
-                    </button>
-                    <button className="btn btn-danger" style={{ padding: '6px 10px' }}
-                      onClick={() => deleteLog(log.id)}>
-                      <Trash2 size={13} />
-                    </button>
+                <div key={log.id} className="glass fade-up" style={{ padding: '20px 24px', animationDelay: `${i * 35}ms` }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                    <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => navigate(`/launch/${log.launch.api_id}`)}>
+                      <p style={{ margin: '0 0 4px', fontSize: 10, fontWeight: 700, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--accent)' }}>
+                        {log.launch.name}
+                      </p>
+                      <h3 style={{ margin: '0 0 8px', fontSize: 16, fontWeight: 700 }}>{log.title}</h3>
+                      <p style={{ margin: '0 0 10px', color: 'var(--text-secondary)', lineHeight: 1.65, fontSize: 13 }}>{log.body}</p>
+                      <p style={{ margin: 0, fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                        {format(new Date(log.created_at), 'MMM d, yyyy / HH:mm')}
+                      </p>
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, flexShrink: 0, paddingTop: 4 }}>
+                      <button className="btn btn-ghost" style={{ padding: '6px 10px', fontSize: 11 }}
+                        onClick={() => { setEditLog(log); setShowLogModal(true) }}>
+                        <NotebookPen size={13} />
+                      </button>
+                      <button className="btn btn-danger" style={{ padding: '6px 10px' }}
+                        onClick={() => deleteLog(log.id)}>
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
           </div>
         )
       )}
@@ -344,6 +347,45 @@ export default function Dashboard() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Leaderboard */}
+      {!loading && tab === 'leaderboard' && (
+        <div className="fade-up glass" style={{ padding: '24px' }}>
+          <h2 style={{ margin: '0 0 16px', fontSize: 20, fontWeight: 800 }}>Top Forecasters</h2>
+          <p style={{ margin: '0 0 24px', color: 'var(--text-secondary)', fontSize: 14 }}>
+            Earn points by correctly predicting if upcoming launches will be On Time, Delayed, or Scrubbed.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {[
+              { rank: 1, user: 'AstroNut', points: 3450, accuracy: '89%' },
+              { rank: 2, user: 'StarGazer', points: 2980, accuracy: '82%' },
+              { rank: 3, user: 'OrbitJunkie', points: 2750, accuracy: '78%' },
+              { rank: 4, user: 'LaunchBoss', points: 2410, accuracy: '75%' },
+              { rank: 5, user: user?.username || 'You', points: 1250, accuracy: '65%' },
+            ].map((entry) => (
+              <div key={entry.rank} style={{
+                display: 'flex', alignItems: 'center', padding: '16px',
+                background: entry.user === (user?.username || 'You') ? 'rgba(0, 212, 255, 0.1)' : 'rgba(255,255,255,0.02)',
+                border: `1px solid ${entry.user === (user?.username || 'You') ? 'var(--accent)' : 'var(--border)'}`,
+                borderRadius: 8
+              }}>
+                <div style={{ width: 40, fontSize: 18, fontWeight: 800, color: entry.rank <= 3 ? 'var(--warning)' : 'var(--text-muted)' }}>
+                  #{entry.rank}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: entry.user === (user?.username || 'You') ? 'var(--accent)' : 'var(--text-primary)' }}>
+                    {entry.user}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: 18, fontWeight: 800, fontFamily: 'var(--font-mono)' }}>{entry.points} pts</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{entry.accuracy} accuracy</div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

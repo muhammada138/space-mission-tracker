@@ -37,7 +37,7 @@ function PredictionWidget({ apiId }) {
   useEffect(() => {
     api.get(`/watchlist/predictions/${apiId}/`)
       .then(({ data }) => setData(data))
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false))
   }, [apiId])
 
@@ -144,7 +144,7 @@ export default function LaunchDetail() {
 
         api.get(`/launches/${api_id}/updates/`)
           .then(res => setUpdates(Array.isArray(res.data) ? res.data : []))
-          .catch(() => {})
+          .catch(() => { })
       })
       .catch(() => toast.error('Launch not found'))
       .finally(() => setLoading(false))
@@ -159,14 +159,14 @@ export default function LaunchDetail() {
         const items = Array.isArray(data) ? data : data.results ?? []
         if (items.length > 0) setWatchlistId(items[0].id)
       })
-      .catch(() => {})
+      .catch(() => { })
 
     api.get('/watchlist/logs/')
       .then(({ data }) => {
         const items = Array.isArray(data) ? data : data.results ?? []
         setLogs(items.filter(l => l.launch?.api_id === api_id))
       })
-      .catch(() => {})
+      .catch(() => { })
   }, [user, api_id])
 
   const toggleWatchlist = async () => {
@@ -308,12 +308,16 @@ export default function LaunchDetail() {
               </div>
             )}
 
-            {/* Mission Brief */}
+            {/* Payload & Mission */}
             {launch.mission_description && (
               <div className="glass" style={{ padding: '20px 24px', marginBottom: 18 }}>
                 <h3 style={{ margin: '0 0 10px', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                  Mission Brief
+                  Payload & Mission Brief
                 </h3>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+                  {launch.mission_type && <span className="badge badge-default">{launch.mission_type}</span>}
+                  {launch.orbit && <span className="badge badge-go">{launch.orbit}</span>}
+                </div>
                 <p style={{ margin: 0, color: 'var(--text-secondary)', lineHeight: 1.7, fontSize: 13 }}>
                   {launch.mission_description}
                 </p>

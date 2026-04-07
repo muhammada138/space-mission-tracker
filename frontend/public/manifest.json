@@ -1,0 +1,16 @@
+{
+    "short_name": "Space Tracker",
+    "name": "Space Mission Tracker",
+    "icons": [
+        {
+            "src": "/rocket.svg",
+            "type": "image/svg+xml",
+            "sizes": "192x192 512x512"
+        }
+    ],
+    "start_url": "/",
+    "background_color": "#050a18",
+    "display": "standalone",
+    "theme_color": "#00d4ff",
+    "description": "Track space missions globally in real-time."
+}
