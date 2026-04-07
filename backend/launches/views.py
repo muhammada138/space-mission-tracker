@@ -440,34 +440,50 @@ class LaunchPadWeatherView(APIView):
             return Response({'detail': 'No coordinates for this pad.'}, status=404)
 
         api_key = os.environ.get('OPENWEATHERMAP_API_KEY', '')
-        if not api_key:
-            # Return placeholder when key not configured
-            return Response({
-                'available': False,
-                'reason': 'Weather API key not configured.',
-            })
-
+        
         try:
-            resp = httpx.get(
-                'https://api.openweathermap.org/data/2.5/weather',
-                params={'lat': lat, 'lon': lon, 'units': 'metric', 'appid': api_key},
-                timeout=10,
-            )
-            resp.raise_for_status()
-            raw = resp.json()
+            if api_key:
+                resp = httpx.get(
+                    'https://api.openweathermap.org/data/2.5/weather',
+                    params={'lat': lat, 'lon': lon, 'units': 'metric', 'appid': api_key},
+                    timeout=10,
+                )
+                resp.raise_for_status()
+                raw = resp.json()
 
-            wind_mps = raw.get('wind', {}).get('speed', 0)
-            wind_knots = wind_mps * 1.94384
-            visibility_m = raw.get('visibility', 10000)
-            visibility_mi = visibility_m / 1609.34
-            temp_c = raw.get('main', {}).get('temp', 20)
-            humidity = raw.get('main', {}).get('humidity', 50)
-            description = raw.get('weather', [{}])[0].get('description', 'clear')
-            icon = raw.get('weather', [{}])[0].get('icon', '01d')
-            thunderstorm = any(
-                w.get('main', '').lower() == 'thunderstorm'
-                for w in raw.get('weather', [])
-            )
+                wind_mps = raw.get('wind', {}).get('speed', 0)
+                wind_knots = wind_mps * 1.94384
+                visibility_m = raw.get('visibility', 10000)
+                visibility_mi = visibility_m / 1609.34
+                temp_c = raw.get('main', {}).get('temp', 20)
+                humidity = raw.get('main', {}).get('humidity', 50)
+                description = raw.get('weather', [{}])[0].get('description', 'clear').title()
+                icon = raw.get('weather', [{}])[0].get('icon', '01d')
+                thunderstorm = any(w.get('main', '').lower() == 'thunderstorm' for w in raw.get('weather', []))
+            else:
+                # Fallback: Open-Meteo (No key required)
+                resp = httpx.get(
+                    'https://api.open-meteo.com/v1/forecast',
+                    params={'latitude': lat, 'longitude': lon, 'current_weather': True},
+                    timeout=10,
+                )
+                resp.raise_for_status()
+                current = resp.json().get('current_weather', {})
+                temp_c = current.get('temperature', 20)
+                wind_kmh = current.get('windspeed', 0)
+                wind_knots = wind_kmh * 0.539957
+                weather_code = current.get('weathercode', 0)
+                
+                descriptions = {
+                    0: 'Clear Sky', 1: 'Mainly Clear', 2: 'Partly Cloudy', 3: 'Overcast',
+                    45: 'Fog', 48: 'Fog', 51: 'Light Drizzle', 61: 'Slight Rain', 63: 'Moderate Rain',
+                    80: 'Rain Showers', 95: 'Thunderstorm', 96: 'Thunderstorm', 99: 'Thunderstorm'
+                }
+                description = descriptions.get(weather_code, 'Cloudy')
+                icon = '01d' if weather_code == 0 else '02d'
+                visibility_mi = 10.0 # Open-Meteo basic free tier doesn't give visibility in current_weather
+                humidity = 50 # Or fetch more params if needed, but keeping it simple
+                thunderstorm = weather_code >= 95
 
             # Go/No-Go rules (simplified NASA flight rules)
             rules = [
@@ -483,7 +499,7 @@ class LaunchPadWeatherView(APIView):
 
             data = {
                 'available': True,
-                'description': description.title(),
+                'description': description,
                 'icon': icon,
                 'wind_knots': round(wind_knots, 1),
                 'visibility_mi': round(visibility_mi, 1),
@@ -493,6 +509,7 @@ class LaunchPadWeatherView(APIView):
                 'overall': overall,
                 'go_count': go_count,
                 'total_rules': len(rules),
+                'source': 'OpenWeatherMap' if api_key else 'Open-Meteo'
             }
 
             LaunchPadWeatherView._cache[api_id] = (now + dt.timedelta(minutes=15), data)

@@ -75,7 +75,7 @@ function CrewModal({ person, onClose }) {
         </button>
 
         {person.profile_image ? (
-          <img src={person.profile_image} alt={person.name} style={{ width: '100%', height: 280, objectFit: 'cover', objectPosition: 'top', borderTopLeftRadius: 16, borderTopRightRadius: 16 }} />
+          <img src={person.profile_image} alt={person.name} style={{ width: '100%', height: 280, objectFit: 'cover', objectPosition: 'center 20%', borderTopLeftRadius: 16, borderTopRightRadius: 16 }} />
         ) : (
           <div style={{ width: '100%', height: 200, background: 'linear-gradient(135deg, rgba(0,212,255,0.1), rgba(124,58,237,0.1))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
             <Users size={64} />
@@ -369,7 +369,8 @@ export default function ISS() {
     fetch('/api/iss-crew/')
       .then(r => { if (!r.ok) throw new Error(r.status); return r.json() })
       .then(data => {
-        setCrew(data.crew || [])
+        const filteredCrew = (data.crew || []).filter(p => !p.name.toLowerCase().includes('starman'))
+        setCrew(filteredCrew)
         setCrewError(false)
       })
       .catch(() => {

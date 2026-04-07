@@ -30,7 +30,10 @@ export default function Astronauts() {
 
     useEffect(() => {
         api.get('/iss-crew/')
-            .then(r => setCrew(r.data.crew || []))
+            .then(r => {
+                const filteredCrew = (r.data.crew || []).filter(p => !p.name.toLowerCase().includes('starman'))
+                setCrew(filteredCrew)
+            })
             .catch(err => console.error(err))
             .finally(() => setLoading(false))
     }, [])
@@ -75,7 +78,7 @@ export default function Astronauts() {
                                     onClick={() => setSelectedPerson(person)}
                                 >
                                     {person.profile_image ? (
-                                        <img src={person.profile_image} alt={person.name} style={{ width: '100%', height: 200, objectFit: 'cover', objectPosition: 'top' }} />
+                                        <img src={person.profile_image} alt={person.name} style={{ width: '100%', height: 200, objectFit: 'cover', objectPosition: 'center 20%' }} />
                                     ) : (
                                         <div style={{ width: '100%', height: 200, background: 'var(--accent-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)' }}>
                                             <Users size={48} />
@@ -132,7 +135,7 @@ export default function Astronauts() {
                         </button>
 
                         {selectedPerson.profile_image ? (
-                            <img src={selectedPerson.profile_image} alt={selectedPerson.name} style={{ width: '100%', height: 300, objectFit: 'cover', objectPosition: 'top', borderTopLeftRadius: 16, borderTopRightRadius: 16 }} />
+                            <img src={selectedPerson.profile_image} alt={selectedPerson.name} style={{ width: '100%', height: 300, objectFit: 'cover', objectPosition: 'center 20%', borderTopLeftRadius: 16, borderTopRightRadius: 16 }} />
                         ) : (
                             <div style={{ width: '100%', height: 200, background: 'var(--accent-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
                                 <Users size={64} />

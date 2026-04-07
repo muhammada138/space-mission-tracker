@@ -66,7 +66,7 @@ export default function Navbar() {
     { to: '/timeline', label: 'Timeline', icon: <Timer size={14} /> },
     { to: '/rockets', label: 'Rockets', icon: <Crosshair size={14} /> },
     { to: '/stats', label: 'Stats', icon: <BarChart3 size={14} /> },
-    { to: '/iss', label: 'ISS', icon: <Map size={14} /> },
+    { to: '/iss', label: 'Space Stations', icon: <Map size={14} /> },
   ]
 
   return (
