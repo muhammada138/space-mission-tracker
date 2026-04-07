@@ -299,14 +299,14 @@ class ISSCrewView(APIView):
             
         except Exception:
             try:
-            resp = httpx.get('http://api.open-notify.org/astros.json', timeout=10)
-            resp.raise_for_status()
-            data = resp.json()
-            crew = [p for p in data.get('people', []) if p.get('craft') == 'ISS']
-            result = {'crew': crew}
-
-            ISSCrewView._cache = {'data': result, 'expires': now + dt.timedelta(minutes=15)}
-            return Response(result)
+                resp = httpx.get('http://api.open-notify.org/astros.json', timeout=10)
+                resp.raise_for_status()
+                data = resp.json()
+                crew = [p for p in data.get('people', []) if p.get('craft') == 'ISS']
+                result = {'crew': crew}
+    
+                ISSCrewView._cache = {'data': result, 'expires': now + dt.timedelta(minutes=15)}
+                return Response(result)
                 
             except Exception:
                 return Response({'crew': []}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
