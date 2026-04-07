@@ -272,7 +272,7 @@ class LaunchUpdatesView(APIView):
 
 
 class ISSCrewView(APIView):
-    """GET /api/iss-crew/ - proxy for open-notify astros (HTTP-only, can't be called from browser on HTTPS)"""
+    """GET /api/iss-crew/ - proxy for detailed LL2 astronaut data with Open-Notify fallback"""
     permission_classes = [permissions.AllowAny]
 
     _cache = {'data': None, 'expires': None}
@@ -287,6 +287,18 @@ class ISSCrewView(APIView):
             return Response(self._cache['data'])
 
         try:
+            # Fetch detailed astronaut data from LL2 and cache it heavily to avoid rate limits
+            resp = httpx.get('https://ll.thespacedevs.com/2.2.0/astronaut/?in_space=true&mode=detailed', timeout=15)
+            resp.raise_for_status()
+            data = resp.json()
+            crew = data.get('results', [])
+            result = {'crew': crew}
+            
+            ISSCrewView._cache = {'data': result, 'expires': now + dt.timedelta(hours=2)}
+            return Response(result)
+            
+        except Exception:
+            try:
             resp = httpx.get('http://api.open-notify.org/astros.json', timeout=10)
             resp.raise_for_status()
             data = resp.json()
@@ -295,9 +307,9 @@ class ISSCrewView(APIView):
 
             ISSCrewView._cache = {'data': result, 'expires': now + dt.timedelta(minutes=15)}
             return Response(result)
-
-        except Exception:
-            return Response({'crew': []}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+                
+            except Exception:
+                return Response({'crew': []}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
 
 class LaunchPadWeatherView(APIView):
@@ -475,4 +487,3 @@ class SpaceWeatherView(APIView):
                 'flares': 0,
                 'storms': 0,
             })
-
