@@ -56,9 +56,16 @@ export default function Home({ tab = 'upcoming' }) {
             <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 14 }}>
               Live launch data from Launch Library 2 and SpaceX
             </p>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 16 }}>
+              <button className="btn btn-ghost" onClick={() => navigate('/astronauts')}>
+                <Users size={14} /> Humans in Space
+              </button>
+              <button className="btn btn-ghost" onClick={() => navigate('/map')}>
+                <MapPin size={14} /> Global Spaceports
+              </button>
+            </div>
           </div>
 
-          {/* Search bar */}
           <div className="search-bar">
             <Search size={14} className="search-icon" />
             <input
@@ -76,40 +83,29 @@ export default function Home({ tab = 'upcoming' }) {
         <SpaceWeather />
       </div>
 
-      {/* Controls row: Tabs and Action Buttons */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
-        <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-          <div className="tabs">
-            <button className={`tab ${tab === 'upcoming' ? 'active' : ''}`} onClick={() => setTab('upcoming')}>
-              Upcoming
-              {!loading && tab === 'upcoming' && <span className="tab-count">{launches.length}</span>}
-            </button>
-            <button className={`tab ${tab === 'active' ? 'active' : ''}`} onClick={() => setTab('active')}>
-              Currently Active
-            </button>
-            <button className={`tab ${tab === 'past' ? 'active' : ''}`} onClick={() => setTab('past')}>
-              Past
-              {!loading && tab === 'past' && <span className="tab-count">{launches.length}</span>}
-            </button>
+      {/* Controls row: Tabs */}
+      <div style={{ marginBottom: 24 }}>
+        <div className="tabs">
+          <button className={`tab ${tab === 'upcoming' ? 'active' : ''}`} onClick={() => setTab('upcoming')}>
+            Upcoming
+            {!loading && tab === 'upcoming' && <span className="tab-count">{launches.length}</span>}
+          </button>
+          <button className={`tab ${tab === 'active' ? 'active' : ''}`} onClick={() => setTab('active')}>
+            Currently Active
+          </button>
+          <button className={`tab ${tab === 'past' ? 'active' : ''}`} onClick={() => setTab('past')}>
+            Past
+            {!loading && tab === 'past' && <span className="tab-count">{launches.length}</span>}
+          </button>
+        </div>
+
+        {tab !== 'active' && (
+          <div className="tabs" style={{ marginTop: 12, borderBottom: 'none' }}>
+            <button className={`tab ${source === 'all' ? 'active' : ''}`} onClick={() => setSource('all')}>All Providers</button>
+            <button className={`tab ${source === 'll2' ? 'active' : ''}`} onClick={() => setSource('ll2')}>Launch Library</button>
+            <button className={`tab ${source === 'spacex' ? 'active' : ''}`} onClick={() => setSource('spacex')}>SpaceX API</button>
           </div>
-
-          {tab !== 'active' && (
-            <div className="tabs">
-              <button className={`tab ${source === 'all' ? 'active' : ''}`} onClick={() => setSource('all')}>All</button>
-              <button className={`tab ${source === 'll2' ? 'active' : ''}`} onClick={() => setSource('ll2')}>Launch Library</button>
-              <button className={`tab ${source === 'spacex' ? 'active' : ''}`} onClick={() => setSource('spacex')}>SpaceX</button>
-            </div>
-          )}
-        </div>
-
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <button className="btn btn-ghost" onClick={() => navigate('/astronauts')}>
-            <Users size={14} /> Humans in Space
-          </button>
-          <button className="btn btn-ghost" onClick={() => navigate('/spaceports')}>
-            <MapPin size={14} /> Global Spaceports
-          </button>
-        </div>
+        )}
       </div>
 
       {/* Content */}

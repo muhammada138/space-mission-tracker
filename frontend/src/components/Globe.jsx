@@ -95,7 +95,7 @@ function LaunchPadDot({ lat, lng, name, count, onClick }) {
   )
 }
 
-function StationMarker({ lat, lng, name, color = "#ff9f43" }) {
+function StationMarker({ lat, lng, name, color = "#ff9f43", onClick }) {
   const meshRef = useRef()
   const pos = useMemo(() => latLngToVec3(lat, lng, 2.15), [lat, lng])
   const [hovered, setHovered] = useState(false)
@@ -109,7 +109,7 @@ function StationMarker({ lat, lng, name, color = "#ff9f43" }) {
   // Orient the ISS so its panels face the Earth nicely
   useEffect(() => {
     if (meshRef.current) {
-      meshRef.current.lookAt(0, 0, 0) // Look at the center of the Earth
+      meshRef.current.lookAt(0, 0, 0)
     }
   }, [pos])
 
@@ -126,6 +126,7 @@ function StationMarker({ lat, lng, name, color = "#ff9f43" }) {
       ref={meshRef}
       onPointerOver={(e) => { e.stopPropagation(); setHovered(true) }}
       onPointerOut={(e) => { e.stopPropagation(); setHovered(false) }}
+      onClick={(e) => { e.stopPropagation(); onClick?.() }}
     >
       {/* Central module */}
       <mesh>
@@ -148,7 +149,19 @@ function StationMarker({ lat, lng, name, color = "#ff9f43" }) {
       </Sphere>
       {/* Label */}
       <Html position={[0, 0.15, 0]} center style={{ pointerEvents: 'none' }}>
-        <div style={{ background: 'rgba(5, 10, 24, 0.8)', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', color: '#fff', border: `1px solid ${color}`, fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>
+        <div style={{
+          background: hovered ? color : 'rgba(5, 10, 24, 0.85)',
+          padding: '4px 10px',
+          borderRadius: '6px',
+          fontSize: '11px',
+          fontWeight: 700,
+          color: hovered ? '#000' : '#fff',
+          border: `1px solid ${color}`,
+          fontFamily: 'var(--font-mono)',
+          whiteSpace: 'nowrap',
+          transition: 'all 0.2s ease',
+          boxShadow: hovered ? `0 0 15px ${color}` : 'none'
+        }}>
           {name}
         </div>
       </Html>

@@ -52,48 +52,62 @@ export default function Astronauts() {
                 </p>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 20 }}>
-                {crew.map((person, i) => (
-                    <div
-                        key={i}
-                        className="glass hover-card fade-up"
-                        style={{ animationDelay: `${i * 40}ms`, overflow: 'hidden', cursor: 'pointer' }}
-                        onClick={() => setSelectedPerson(person)}
-                    >
-                        {person.profile_image ? (
-                            <img src={person.profile_image} alt={person.name} style={{ width: '100%', height: 200, objectFit: 'cover', objectPosition: 'top' }} />
-                        ) : (
-                            <div style={{ width: '100%', height: 200, background: 'var(--accent-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)' }}>
-                                <Users size={48} />
-                            </div>
-                        )}
-                        <div style={{ padding: '20px' }}>
-                            <h3 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 700 }}>{person.name}</h3>
-                            <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--text-secondary)' }}>
-                                {getFlag(person.nationality)} {person.agency?.abbrev || person.agency?.name || 'Astronaut'} • {person.nationality || 'Unknown'}
-                            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 40 }}>
+                {Object.entries(
+                    crew.reduce((acc, p) => {
+                        const craft = p.craft || 'ISS'
+                        if (!acc[craft]) acc[craft] = []
+                        acc[craft].push(p)
+                        return acc
+                    }, {})
+                ).map(([craft, members]) => (
+                    <div key={craft} className="fade-up">
+                        <h2 style={{ margin: '0 0 20px', fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'var(--font-mono)', display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <div style={{ width: 8, height: 8, borderRadius: '50%', background: craft === 'ISS' ? 'var(--accent)' : 'var(--warning)' }} />
+                            {craft} Station Crew ({members.length})
+                        </h2>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 20 }}>
+                            {members.map((person, i) => (
+                                <div
+                                    key={i}
+                                    className="glass hover-card"
+                                    style={{ animationDelay: `${i * 30}ms`, overflow: 'hidden', cursor: 'pointer' }}
+                                    onClick={() => setSelectedPerson(person)}
+                                >
+                                    {person.profile_image ? (
+                                        <img src={person.profile_image} alt={person.name} style={{ width: '100%', height: 200, objectFit: 'cover', objectPosition: 'top' }} />
+                                    ) : (
+                                        <div style={{ width: '100%', height: 200, background: 'var(--accent-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)' }}>
+                                            <Users size={48} />
+                                        </div>
+                                    )}
+                                    <div style={{ padding: '20px' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                            <h3 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 700 }}>{person.name}</h3>
+                                            <span style={{ fontSize: 20 }}>{getFlag(person.nationality)}</span>
+                                        </div>
+                                        <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--text-secondary)' }}>
+                                            {person.agency?.abbrev || person.agency?.name || 'Astronaut'} • {person.nationality || 'Unknown'}
+                                        </p>
 
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
-                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.05)', fontSize: 12, color: 'var(--text-primary)' }}>
-                                    <Globe size={14} style={{ color: 'var(--accent)' }} />
-                                    Stationed on: <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{person.craft || 'ISS'}</span>
-                                </div>
-                                {person.flights_count !== undefined && (
-                                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.05)', fontSize: 12, color: 'var(--text-primary)' }}>
-                                        <Rocket size={14} style={{ color: 'var(--warning)' }} />
-                                        Flights: {person.flights_count}
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+                                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.05)', fontSize: 12 }}>
+                                                <Globe size={14} style={{ color: 'var(--accent)' }} />
+                                                On duty at: <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{person.craft || 'ISS'}</span>
+                                            </div>
+                                        </div>
+
+                                        {person.bio && (
+                                            <p style={{ margin: 0, fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                                {person.bio}
+                                            </p>
+                                        )}
+                                        <div style={{ marginTop: 12, fontSize: 11, color: 'var(--accent)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                            View Mission File <Info size={12} />
+                                        </div>
                                     </div>
-                                )}
-                            </div>
-
-                            {person.bio && (
-                                <p style={{ margin: 0, fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                                    {person.bio}
-                                </p>
-                            )}
-                            <div style={{ marginTop: 12, fontSize: 11, color: 'var(--accent)', fontWeight: 600 }}>
-                                Read Mission File →
-                            </div>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 ))}
