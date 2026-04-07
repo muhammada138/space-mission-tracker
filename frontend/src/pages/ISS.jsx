@@ -1,8 +1,36 @@
 import { useState, useEffect, useRef, Suspense, useCallback, useMemo } from 'react'
 import Globe from '../components/Globe'
-import { Bell, BellOff, MapPin, Navigation, AlertCircle } from 'lucide-react'
+import { Bell, BellOff, MapPin, Navigation, AlertCircle, Users, Globe as GlobeIcon, Rocket, Calendar, Info, X } from 'lucide-react'
 import toast from 'react-hot-toast'
-import * as satellite from 'satellite.js'
+import { twoline2satrec, propagate, gstime, eciToGeodetic } from 'satellite.js'
+
+// ── Flag emoji mapper ─────────────────────────────────────────────────────────
+
+function getFlag(nationality) {
+  if (!nationality) return '🌍'
+  const n = nationality.toLowerCase()
+  if (n.includes('american')) return '🇺🇸'
+  if (n.includes('russian')) return '🇷🇺'
+  if (n.includes('chinese')) return '🇨🇳'
+  if (n.includes('japanese')) return '🇯🇵'
+  if (n.includes('canadian')) return '🇨🇦'
+  if (n.includes('italian')) return '🇮🇹'
+  if (n.includes('french')) return '🇫🇷'
+  if (n.includes('german')) return '🇩🇪'
+  if (n.includes('british') || n.includes('uk')) return '🇬🇧'
+  if (n.includes('dutch')) return '🇳🇱'
+  if (n.includes('swedish')) return '🇸🇪'
+  if (n.includes('emirati') || n.includes('uae')) return '🇦🇪'
+  if (n.includes('saudi')) return '🇸🇦'
+  if (n.includes('indian')) return '🇮🇳'
+  if (n.includes('belgian')) return '🇧🇪'
+  if (n.includes('danish')) return '🇩🇰'
+  if (n.includes('korean')) return '🇰🇷'
+  if (n.includes('brazilian')) return '🇧🇷'
+  if (n.includes('australian')) return '🇦🇺'
+  if (n.includes('belarusian')) return '🇧🇾'
+  return '🌍'
+}
 
 // ── Haversine distance (km) between two lat/lon points ──────────────────────
 
@@ -17,21 +45,100 @@ function haversineKm(lat1, lon1, lat2, lon2) {
 }
 
 const VISIBILITY_KM = 2200
-const ALERT_KM = 1200   // "approaching" threshold
+const ALERT_KM = 1200
 
 const STATIONS = [
   { id: 'iss', name: 'International Space Station', shortName: 'ISS', noradId: 25544, color: '#00d4ff' },
   { id: 'tiangong', name: 'Tiangong Space Station', shortName: 'Tiangong', noradId: 48274, color: '#f87171' }
 ]
 
-// ── ISS Pass Alert Widget ────────────────────────────────────────────────────
+// ── Astronaut Mission File Modal ─────────────────────────────────────────────
+
+function CrewModal({ person, onClose }) {
+  if (!person) return null
+
+  return (
+    <div
+      style={{ position: 'fixed', inset: 0, background: 'rgba(5, 10, 24, 0.85)', backdropFilter: 'blur(4px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+      onClick={onClose}
+    >
+      <div
+        className="glass fade-up"
+        style={{ maxWidth: 600, width: '100%', maxHeight: '85vh', overflowY: 'auto', position: 'relative', padding: 0 }}
+        onClick={e => e.stopPropagation()}
+      >
+        <button
+          onClick={onClose}
+          style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(0,0,0,0.5)', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 24, width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}
+        >
+          <X size={18} />
+        </button>
+
+        {person.profile_image ? (
+          <img src={person.profile_image} alt={person.name} style={{ width: '100%', height: 280, objectFit: 'cover', objectPosition: 'top', borderTopLeftRadius: 16, borderTopRightRadius: 16 }} />
+        ) : (
+          <div style={{ width: '100%', height: 200, background: 'linear-gradient(135deg, rgba(0,212,255,0.1), rgba(124,58,237,0.1))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
+            <Users size={64} />
+          </div>
+        )}
+
+        <div style={{ padding: '28px 32px 32px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
+            <div>
+              <h2 style={{ margin: '0 0 6px', fontSize: 26, fontWeight: 800, letterSpacing: '-0.02em' }}>{person.name}</h2>
+              <p style={{ margin: 0, fontSize: 15, color: 'var(--text-secondary)' }}>
+                {getFlag(person.nationality)} {person.nationality || 'Unknown'} • {person.agency?.name || person.agency?.abbrev || 'Astronaut'}
+              </p>
+            </div>
+            {person.status && (
+              <span className="badge badge-go" style={{ flexShrink: 0 }}>{person.status.name || 'Active'}</span>
+            )}
+          </div>
+
+          {/* Stats row */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 24 }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.05)', fontSize: 13 }}>
+              <GlobeIcon size={15} style={{ color: 'var(--accent)' }} />
+              <span style={{ color: 'var(--text-secondary)' }}>Craft:</span>
+              <span style={{ fontWeight: 600, color: 'var(--accent)' }}>{person.craft || 'ISS'}</span>
+            </div>
+            {person.flights_count != null && (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.05)', fontSize: 13 }}>
+                <Rocket size={15} style={{ color: 'var(--warning)' }} />
+                <span style={{ color: 'var(--text-secondary)' }}>Flights:</span>
+                <span style={{ fontWeight: 600 }}>{person.flights_count}</span>
+              </div>
+            )}
+            {person.date_of_birth && (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.05)', fontSize: 13 }}>
+                <Calendar size={15} style={{ color: 'var(--success)' }} />
+                <span style={{ color: 'var(--text-secondary)' }}>Born:</span>
+                <span style={{ fontWeight: 600 }}>{person.date_of_birth}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Biography */}
+          <h3 style={{ fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
+            <Info size={15} /> Biography
+          </h3>
+          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.75, color: 'var(--text-primary)' }}>
+            {person.bio || 'No biography available for this astronaut.'}
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Pass Alert Widget ────────────────────────────────────────────────────────
 
 function PassAlertWidget({ station, position }) {
   const [userLocation, setUserLocation] = useState(null)
   const [locationError, setLocationError] = useState(null)
   const [alertsEnabled, setAlertsEnabled] = useState(false)
   const [distance, setDistance] = useState(null)
-  const [phase, setPhase] = useState('idle') // idle | approaching | overhead | receding
+  const [phase, setPhase] = useState('idle')
   const prevPhaseRef = useRef('idle')
   const notifiedRef = useRef({ approaching: false, overhead: false })
 
@@ -45,7 +152,7 @@ function PassAlertWidget({ station, position }) {
         setUserLocation({ lat: pos.coords.latitude, lon: pos.coords.longitude })
         setLocationError(null)
       },
-      () => setLocationError('Location access denied. Enable it to track ISS passes.'),
+      () => setLocationError('Location access denied. Enable it to track passes.'),
       { enableHighAccuracy: false, timeout: 10000 }
     )
   }, [])
@@ -62,17 +169,16 @@ function PassAlertWidget({ station, position }) {
     }
     requestLocation()
     setAlertsEnabled(true)
-    toast.success('ISS pass alerts enabled!')
-  }, [requestLocation])
+    toast.success(`${station.shortName} pass alerts enabled!`)
+  }, [requestLocation, station.shortName])
 
   const disableAlerts = useCallback(() => {
     setAlertsEnabled(false)
     setPhase('idle')
     notifiedRef.current = { approaching: false, overhead: false }
     toast(`${station.shortName} alerts disabled`, { icon: '🔕' })
-  }, [])
+  }, [station.shortName])
 
-  // Update distance and phase whenever ISS position changes
   useEffect(() => {
     if (!userLocation || !position) return
 
@@ -84,7 +190,6 @@ function PassAlertWidget({ station, position }) {
 
     if (!alertsEnabled) return
 
-    // Notify when transitioning to approaching
     if (newPhase === 'approaching' && prevPhaseRef.current === 'idle' && !notifiedRef.current.approaching) {
       notifiedRef.current.approaching = true
       new Notification(`${station.shortName} approaching your location!`, {
@@ -95,7 +200,6 @@ function PassAlertWidget({ station, position }) {
       toast(`${station.shortName} approaching! Look up soon 🛸`, { icon: '🛸', duration: 6000 })
     }
 
-    // Notify when overhead
     if (newPhase === 'overhead' && prevPhaseRef.current !== 'overhead' && !notifiedRef.current.overhead) {
       notifiedRef.current.overhead = true
       new Notification(`${station.shortName} is overhead!`, {
@@ -106,7 +210,6 @@ function PassAlertWidget({ station, position }) {
       toast.success(`${station.shortName} is overhead right now! 🌍`, { duration: 8000 })
     }
 
-    // Reset notification flags when ISS passes (receding and far)
     if (dist > VISIBILITY_KM && prevPhaseRef.current !== 'idle') {
       notifiedRef.current = { approaching: false, overhead: false }
     }
@@ -149,7 +252,6 @@ function PassAlertWidget({ station, position }) {
 
       {userLocation && (
         <div style={{ marginTop: 14, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
-          {/* Your location */}
           <div style={{ padding: '12px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: 8, border: '1px solid var(--border)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, color: 'var(--accent)', fontSize: 12 }}>
               <MapPin size={12} /> Your Location
@@ -159,7 +261,6 @@ function PassAlertWidget({ station, position }) {
             </p>
           </div>
 
-          {/* Distance */}
           <div style={{ padding: '12px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: 8, border: `1px solid ${distance !== null && distance < ALERT_KM ? phaseColor : 'var(--border)'}` }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, color: phaseColor, fontSize: 12 }}>
               <Navigation size={12} /> Distance
@@ -169,7 +270,6 @@ function PassAlertWidget({ station, position }) {
             </p>
           </div>
 
-          {/* Status */}
           <div style={{ padding: '12px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: 8, border: `1px solid ${phaseColor}` }}>
             <p style={{ margin: '0 0 4px', fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
               Visibility
@@ -197,33 +297,34 @@ export default function ISS() {
   const [stationsData, setStationsData] = useState({})
   const [activeStationId, setActiveStationId] = useState('iss')
   const [crew, setCrew] = useState([])
+  const [crewLoading, setCrewLoading] = useState(true)
   const [crewError, setCrewError] = useState(false)
   const [lockOn, setLockOn] = useState(false)
+  const [selectedPerson, setSelectedPerson] = useState(null)
 
   const activeStation = STATIONS.find(s => s.id === activeStationId)
   const activeData = stationsData[activeStationId]
 
+  // Orbital tracking via TLE propagation
   useEffect(() => {
     let active = true
     const satrecs = {}
     let tickCount = 0
 
-    // Fetch TLEs (Orbital Math parameters) from Celestrak
     Promise.all(STATIONS.map(s =>
       fetch(`https://tle.ivanstanojevic.me/api/tle/${s.noradId}`)
         .then(r => r.json())
         .then(data => {
-          satrecs[s.id] = satellite.twoline2satrec(data.line1, data.line2)
+          satrecs[s.id] = twoline2satrec(data.line1, data.line2)
         })
         .catch(e => console.error('Failed TLE for', s.name, e))
     )).then(() => {
       if (!active) return
 
-      // Start the orbital physics propagator at 1 tick per second
       const interval = setInterval(() => {
         tickCount++
         const now = new Date()
-        const gmst = satellite.gstime(now)
+        const gmst = gstime(now)
 
         setStationsData(prev => {
           const next = { ...prev }
@@ -232,9 +333,9 @@ export default function ISS() {
             if (!satrec) return
 
             try {
-              const pv = satellite.propagate(satrec, now)
+              const pv = propagate(satrec, now)
               if (pv.position && typeof pv.position.x === 'number') {
-                const geo = satellite.eciToGeodetic(pv.position, gmst)
+                const geo = eciToGeodetic(pv.position, gmst)
                 const lat = geo.latitude * 180 / Math.PI
                 const lng = geo.longitude * 180 / Math.PI
                 const alt = geo.height
@@ -243,7 +344,6 @@ export default function ISS() {
                 const oldTrack = prev[s.id]?.track || []
                 let newTrack = oldTrack
 
-                // Leave breadcrumbs for the trail every 5 seconds
                 if (tickCount % 5 === 0) {
                   newTrack = [...oldTrack, [lat, lng]]
                   if (newTrack.length > 100) newTrack.shift()
@@ -263,25 +363,26 @@ export default function ISS() {
     return () => { active = false }
   }, [])
 
+  // Fetch crew from backend (cached LL2 + Wikipedia enrichment)
   useEffect(() => {
-    fetch('https://api.open-notify.org/astros.json')
+    setCrewLoading(true)
+    fetch('/api/iss-crew/')
       .then(r => { if (!r.ok) throw new Error(r.status); return r.json() })
       .then(data => {
-        const issCrew = (data.people || []).filter(p => p.craft === 'ISS')
-        setCrew(issCrew)
+        setCrew(data.crew || [])
+        setCrewError(false)
       })
       .catch(() => {
-        fetch('/api/iss-crew/')
-          .then(r => { if (!r.ok) throw new Error(r.status); return r.json() })
-          .then(data => setCrew(data.crew ?? []))
-          .catch(() => setCrewError(true))
+        setCrewError(true)
       })
+      .finally(() => setCrewLoading(false))
   }, [])
 
+  // Group crew by craft
   const groupedCrew = useMemo(() => {
     const groups = {}
     crew.forEach(p => {
-      const craft = p.craft || 'Other'
+      const craft = p.craft || 'ISS'
       if (!groups[craft]) groups[craft] = []
       groups[craft].push(p)
     })
@@ -305,7 +406,7 @@ export default function ISS() {
           Space Stations <span style={{ color: 'var(--accent)' }}>Live Tracker</span>
         </h1>
         <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 14 }}>
-          Real-time position of the International Space Station & global crew manifests
+          Real-time orbital tracking & crew manifests
         </p>
       </div>
 
@@ -404,9 +505,13 @@ export default function ISS() {
         )}
       </div>
 
-      {/* Crew manifest */}
+      {/* Crew manifest — in-page bio cards */}
       <div className="glass fade-up" style={{ padding: '22px 26px' }}>
-        {crewError ? (
+        {crewLoading ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40 }}>
+            <div className="spinner" />
+          </div>
+        ) : crewError ? (
           <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)' }}>Crew data temporarily unavailable.</p>
         ) : (
           <div>
@@ -415,18 +520,38 @@ export default function ISS() {
                 <h4 style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'var(--font-mono)' }}>
                   {craft} Crew ({members.length})
                 </h4>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
                   {members.map((person, i) => (
                     <div
                       key={i}
-                      style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: 8, border: '1px solid var(--border)' }}
+                      onClick={() => setSelectedPerson(person)}
+                      className="hover-card"
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 12,
+                        padding: '12px 14px', background: 'rgba(255,255,255,0.02)',
+                        borderRadius: 8, border: '1px solid var(--border)',
+                        cursor: 'pointer', transition: 'border-color 0.2s, background 0.2s',
+                      }}
                     >
-                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--accent-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>
-                        👨‍🚀
+                      {person.profile_image ? (
+                        <img
+                          src={person.profile_image}
+                          alt={person.name}
+                          style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+                        />
+                      ) : (
+                        <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--accent-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>
+                          👨‍🚀
+                        </div>
+                      )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ margin: 0, fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{person.name}</p>
+                        <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)' }}>
+                          {getFlag(person.nationality)} {person.agency?.abbrev || 'Astronaut'}
+                        </p>
                       </div>
-                      <div style={{ flex: 1 }}>
-                        <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>{person.name}</p>
-                        <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)' }}>{person.agency?.abbrev || 'Astronaut'}</p>
+                      <div style={{ fontSize: 10, color: 'var(--accent)', fontWeight: 600, flexShrink: 0 }}>
+                        BIO →
                       </div>
                     </div>
                   ))}
@@ -436,6 +561,11 @@ export default function ISS() {
           </div>
         )}
       </div>
+
+      {/* In-page astronaut bio modal */}
+      {selectedPerson && (
+        <CrewModal person={selectedPerson} onClose={() => setSelectedPerson(null)} />
+      )}
     </div>
   )
 }

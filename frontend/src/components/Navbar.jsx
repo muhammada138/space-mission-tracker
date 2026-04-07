@@ -62,7 +62,7 @@ export default function Navbar() {
 
   const links = [
     { to: '/launches/upcoming', label: 'Launches', icon: <Rocket size={14} />, matchPrefix: '/launches' },
-    { to: '/map', label: 'Globe', icon: <Globe size={14} /> },
+    { to: '/map', label: 'World Map', icon: <Globe size={14} /> },
     { to: '/timeline', label: 'Timeline', icon: <Timer size={14} /> },
     { to: '/rockets', label: 'Rockets', icon: <Crosshair size={14} /> },
     { to: '/stats', label: 'Stats', icon: <BarChart3 size={14} /> },
