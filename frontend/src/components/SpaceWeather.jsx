@@ -6,7 +6,7 @@ export default function SpaceWeather() {
   const [dismissed, setDismissed] = useState(false)
 
   useEffect(() => {
-    fetch(`${import.meta.env.VITE_API_URL}/api/space-weather/`)
+    fetch('/api/space-weather/')
       .then(r => r.ok ? r.json() : Promise.reject())
       .then(data => setWeather(data))
       .catch(() => {

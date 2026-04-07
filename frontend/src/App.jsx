@@ -17,6 +17,7 @@ import Stats from './pages/Stats'
 import ISS from './pages/ISS'
 import Astronauts from './pages/Astronauts'
 import LiveMission from './pages/LiveMission'
+import LaunchMap from './pages/LaunchMap'
 
 // Scroll to top on route change
 function ScrollReset() {
@@ -41,7 +42,8 @@ function AnimatedRoutes() {
         <Route path="/login"              element={<Login />} />
         <Route path="/register"           element={<Register />} />
         <Route path="/launch/:api_id"     element={<LaunchDetail />} />
-        <Route path="/map"                element={<Spaceports />} />
+        <Route path="/map"                element={<LaunchMap />} />
+        <Route path="/spaceports"         element={<Spaceports />} />
         <Route path="/timeline"           element={<Timeline />} />
         <Route path="/rockets"            element={<Rockets />} />
         <Route path="/stats"              element={<Stats />} />
