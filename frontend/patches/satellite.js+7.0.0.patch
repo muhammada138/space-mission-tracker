@@ -1,0 +1,10 @@
+diff --git a/node_modules/satellite.js/dist/index.js b/node_modules/satellite.js/dist/index.js
+index 692502a..db6c206 100644
+--- a/node_modules/satellite.js/dist/index.js
++++ b/node_modules/satellite.js/dist/index.js
+@@ -8,4 +8,4 @@ export { sunPos } from './sun.js';
+ export * from './shadow.js';
+ export { SatRecError } from './propagation/SatRec.js';
+ export * from './common-types.js';
+-export * from './wasm/index.js';
++// export * from './wasm/index.js';

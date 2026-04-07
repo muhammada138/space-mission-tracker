@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [
     react(),
     nodePolyfills({
-      include: ['node:module', 'fs', 'path', 'os', 'buffer', 'process'],
+      include: ['fs', 'path', 'os', 'buffer', 'process'],
       globals: {
         Buffer: true,
         global: true,
@@ -20,9 +20,6 @@ export default defineConfig({
   },
   build: {
     target: 'esnext',
-    commonjsOptions: {
-      include: [/node_modules/],
-    },
   },
   server: {
     proxy: {
