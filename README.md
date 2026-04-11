@@ -17,14 +17,14 @@ Full-stack web app for tracking rocket launches from multiple sources. Browse up
 Most space tracking sites dump a wall of launches with no way to personalize anything. This application has been built from the ground up as a **Mission Control** portal—it has a deep-navy aesthetic, CSS starfields, and advanced visual tools. It lets you filter streams, save missions, track live space events, and keep personal notes.
 
 ### 🚀 Core Features:
-- **Interactive 3D Launch Globe** - A WebGL-powered reactive Earth mapping launch pad cartesian coordinates using perfect trigonometric Spherical-to-XYZ mapping to topography matrices.
-- **ISS Live Tracker** - A fully interpolated 3D tracker hooking into `OrbitControls` targets locally to lock-on to the Station dynamically as external APIs broadcast coordinate permutations telemetry.
+- **Interactive 3D Launch Globe** - A WebGL globe that plots every launch pad by latitude/longitude, rendered with Three.js.
+- **ISS Live Tracker** - Real-time 3D tracker that fetches the ISS position from an external API and lets you lock the camera onto the station as it orbits.
 - **Space Weather Panel** - Live solar activity and geomagnetic storm updates powered by NASA's DONKI API.
-- **Launch Timeline** - An organically scaling horizontal timeline utilizing natural pixel-per-day logarithmic spacing and vertical dot collision staggering.
-- **Massive Historical Multi-Source Pipeline** - Synthesizes over 1,000 real global launches since 2022 by bridging a statically archived `.json` mass-data seed with highly available dynamic Launch Library 2 polling endpoints.
-- **Rocket Encyclopedia & Analytics** - A catalog mapping rocket stats, alongside an interactive charts dashboard (success rates, pads etc).
-- **Mission Briefings & Notifications** - Browser notification alerts for upcoming launches (30m & 5m prior) and custom Share Card generator for exportable images.
-- **Personal Watchlist & Logs** - Save missions to your dashboard timeline and write personal journal logs for events you track.
+- **Launch Timeline** - Horizontal scrollable timeline that spaces launches proportionally by date, with staggered dots to prevent overlap on crowded windows.
+- **Historical Launch Pipeline** - Combines a static JSON seed of 1,000+ launches since 2022 with live Launch Library 2 polling to keep data current without hitting rate limits.
+- **Rocket Encyclopedia & Analytics** - A catalog of rocket stats alongside an interactive charts dashboard (success rates, launch pads, etc).
+- **Mission Briefings & Notifications** - Browser notification alerts for upcoming launches (30m & 5m prior) and a Share Card generator for exportable mission images.
+- **Personal Watchlist & Logs** - Save missions to your dashboard and write personal journal entries for launches you follow.
 
 ## Getting started
 
@@ -48,7 +48,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173 and the frontend proxies API calls to Django on port 8000.
+Open http://localhost:5173 and the frontend proxies API calls to Django on port 8002.
 
 ## Environment variables
 
