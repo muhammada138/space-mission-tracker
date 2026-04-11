@@ -22,6 +22,10 @@ p, h1, h2, h3, h4, h5, h6 { overflow-wrap: break-word; }
   --bg-card-hover: rgba(14, 24, 52, 0.9);
   --bg-elevated: rgba(16, 28, 56, 0.7);
 
+  /* Standardized Accents */
+  --gold: #c89b3c;
+  --cyan: #00d4ff;
+
   /* Borders */
   --border: rgba(255, 255, 255, 0.06);
   --border-hover: rgba(255, 255, 255, 0.12);
