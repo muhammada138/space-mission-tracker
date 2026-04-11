@@ -1,4 +1,5 @@
 import datetime as dt
+import os
 
 from django.utils.dateparse import parse_datetime
 from rest_framework import permissions, status
@@ -583,7 +584,7 @@ class SpaceWeatherView(APIView):
             return Response(self._cache['data'])
 
         try:
-            api_key = 'DEMO_KEY'  # NASA DEMO_KEY works for low rate
+            api_key = os.environ.get('NASA_API_KEY', 'DEMO_KEY')
             today = now.strftime('%Y-%m-%d')
             week_ago = (now - dt.timedelta(days=7)).strftime('%Y-%m-%d')
 
