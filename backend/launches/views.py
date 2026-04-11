@@ -271,13 +271,13 @@ class ISSCrewView(APIView):
     _cache = {'data': None, 'expires': None}
 
     @staticmethod
-    def _get_wiki_summary(name):
+    async def _get_wiki_summary(client, name):
         """Fetch a rich Wikipedia extract and high-res photo for an astronaut."""
-        import httpx, urllib.parse
+        import urllib.parse
         try:
             slug = urllib.parse.quote(name.replace(' ', '_'))
             # 1. Start with the REST API for metadata (images, URLs, basic layout)
-            resp = httpx.get(
+            resp = await client.get(
                 f'https://en.wikipedia.org/api/rest_v1/page/summary/{slug}',
                 timeout=8,
                 headers={'User-Agent': 'SpaceTracker/1.0'},
@@ -300,7 +300,7 @@ class ISSCrewView(APIView):
 
             # 2. Use the Action API to get the FULL introductory section (lead section)
             # This avoids the truncation found in the summary REST endpoint
-            action_resp = httpx.get(
+            action_resp = await client.get(
                 'https://en.wikipedia.org/w/api.php',
                 params={
                     'action': 'query',
@@ -327,92 +327,8 @@ class ISSCrewView(APIView):
             pass
         return {}
 
-    @staticmethod
-    def _enrich_ll2_crew(results):
-        """Normalize LL2 astronaut objects and enrich with Wikipedia data."""
-        crew = []
-        for a in results:
-            entry = {
-                'name': a.get('name', ''),
-                'nationality': a.get('nationality', ''),
-                'bio': a.get('bio', ''),
-                'profile_image': a.get('profile_image') or a.get('profile_image_thumbnail') or '',
-                'date_of_birth': a.get('date_of_birth', ''),
-                'flights_count': a.get('flights_count', 0),
-                'agency': {
-                    'name': (a.get('agency') or {}).get('name', ''),
-                    'abbrev': (a.get('agency') or {}).get('abbrev', ''),
-                    'type': (a.get('agency') or {}).get('type', ''),
-                },
-                'status': {
-                    'name': (a.get('status') or {}).get('name', 'Active'),
-                },
-                'wiki_url': a.get('wiki', ''),
-            }
-            # Determine craft from current flight or last flight
-            craft = 'ISS'
-            try:
-                last_flight = (a.get('last_flight') or '')
-                if 'shenzhou' in last_flight.lower() or 'tiangong' in last_flight.lower():
-                    craft = 'Tiangong'
-                flights = a.get('flights', []) or []
-                for f in flights:
-                    fname = (f.get('name') or '').lower()
-                    if 'shenzhou' in fname:
-                        craft = 'Tiangong'
-                        break
-            except Exception:
-                pass
-            entry['craft'] = craft
-
-            # Always attempt to enrich with high-res Wikipedia data
-            wiki = ISSCrewView._get_wiki_summary(entry['name'])
-            if wiki:
-                # Prioritize high-res photo over LL2's small ones
-                if wiki.get('wiki_thumbnail'):
-                    entry['profile_image'] = wiki['wiki_thumbnail']
-                
-                # Prioritize longer bio from Wikipedia
-                if wiki.get('wiki_extract') and len(wiki['wiki_extract']) > len(entry['bio']):
-                    entry['bio'] = wiki['wiki_extract']
-                
-                # Update wiki URL
-                if wiki.get('wiki_url'):
-                    entry['wiki_url'] = wiki['wiki_url']
-
-            crew.append(entry)
-        return crew
-
-    @staticmethod
-    def _enrich_open_notify_crew(people):
-        """Enrich basic Open-Notify crew names with Wikipedia data."""
-        crew = []
-        for p in people:
-            entry = {
-                'name': p.get('name', ''),
-                'craft': p.get('craft', 'ISS'),
-                'nationality': '',
-                'bio': '',
-                'profile_image': '',
-                'date_of_birth': '',
-                'flights_count': None,
-                'agency': {'name': '', 'abbrev': '', 'type': ''},
-                'status': {'name': 'Active'},
-                'wiki_url': '',
-            }
-            wiki = ISSCrewView._get_wiki_summary(entry['name'])
-            if wiki:
-                if wiki.get('wiki_extract'):
-                    entry['bio'] = wiki['wiki_extract']
-                if wiki.get('wiki_thumbnail'):
-                    entry['profile_image'] = wiki['wiki_thumbnail']
-                if wiki.get('wiki_url'):
-                    entry['wiki_url'] = wiki['wiki_url']
-            crew.append(entry)
-        return crew
-
-    def get(self, request):
-        import httpx
+    async def get(self, request):
+        import httpx, asyncio
         from django.utils import timezone
 
         now = timezone.now()
@@ -420,36 +336,115 @@ class ISSCrewView(APIView):
         if self._cache['data'] and self._cache['expires'] and now < self._cache['expires']:
             return Response(self._cache['data'])
 
-        try:
-            # LL2 gives detailed astronaut data for everyone currently in space
-            resp = httpx.get(
-                'https://ll.thespacedevs.com/2.2.0/astronaut/',
-                params={'in_space': 'true', 'mode': 'detailed', 'limit': 30},
-                timeout=15,
-            )
-            resp.raise_for_status()
-            results = resp.json().get('results', [])
-            crew = self._enrich_ll2_crew(results)
-            result = {'crew': crew, 'source': 'll2'}
-
-            ISSCrewView._cache = {'data': result, 'expires': now + dt.timedelta(hours=2)}
-            return Response(result)
-
-        except Exception:
+        async with httpx.AsyncClient() as client:
             try:
-                # Fallback: Open-Notify + Wikipedia enrichment
-                resp = httpx.get('http://api.open-notify.org/astros.json', timeout=10)
+                # LL2 gives detailed astronaut data for everyone currently in space
+                resp = await client.get(
+                    'https://ll.thespacedevs.com/2.2.0/astronaut/',
+                    params={'in_space': 'true', 'mode': 'detailed', 'limit': 30},
+                    timeout=15,
+                )
                 resp.raise_for_status()
-                data = resp.json()
-                people = data.get('people', [])
-                crew = self._enrich_open_notify_crew(people)
-                result = {'crew': crew, 'source': 'open-notify'}
+                results = resp.json().get('results', [])
+                
+                crew = []
+                wiki_tasks = []
+                for a in results:
+                    entry = {
+                        'name': a.get('name', ''),
+                        'nationality': a.get('nationality', ''),
+                        'bio': a.get('bio', ''),
+                        'profile_image': a.get('profile_image') or a.get('profile_image_thumbnail') or '',
+                        'date_of_birth': a.get('date_of_birth', ''),
+                        'flights_count': a.get('flights_count', 0),
+                        'agency': {
+                            'name': (a.get('agency') or {}).get('name', ''),
+                            'abbrev': (a.get('agency') or {}).get('abbrev', ''),
+                            'type': (a.get('agency') or {}).get('type', ''),
+                        },
+                        'status': {
+                            'name': (a.get('status') or {}).get('name', 'Active'),
+                        },
+                        'wiki_url': a.get('wiki', ''),
+                    }
+                    # Determine craft from current flight or last flight
+                    craft = 'ISS'
+                    try:
+                        last_flight = (a.get('last_flight') or '')
+                        if 'shenzhou' in last_flight.lower() or 'tiangong' in last_flight.lower():
+                            craft = 'Tiangong'
+                        flights = a.get('flights', []) or []
+                        for f in flights:
+                            fname = (f.get('name') or '').lower()
+                            if 'shenzhou' in fname:
+                                craft = 'Tiangong'
+                                break
+                    except Exception:
+                        pass
+                    entry['craft'] = craft
+                    crew.append(entry)
+                    wiki_tasks.append(self._get_wiki_summary(client, entry['name']))
 
-                ISSCrewView._cache = {'data': result, 'expires': now + dt.timedelta(minutes=30)}
+                # Fetch all wiki summaries in parallel
+                wiki_results = await asyncio.gather(*wiki_tasks)
+
+                # Enrich with wiki data
+                for entry, wiki in zip(crew, wiki_results):
+                    if wiki:
+                        if wiki.get('wiki_thumbnail'):
+                            entry['profile_image'] = wiki['wiki_thumbnail']
+                        if wiki.get('wiki_extract') and len(wiki['wiki_extract']) > len(entry['bio']):
+                            entry['bio'] = wiki['wiki_extract']
+                        if wiki.get('wiki_url'):
+                            entry['wiki_url'] = wiki['wiki_url']
+
+                result = {'crew': crew, 'source': 'll2'}
+                ISSCrewView._cache = {'data': result, 'expires': now + dt.timedelta(hours=2)}
                 return Response(result)
 
             except Exception:
-                return Response({'crew': [], 'source': 'unavailable'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+                try:
+                    # Fallback: Open-Notify + Wikipedia enrichment
+                    resp = await client.get('http://api.open-notify.org/astros.json', timeout=10)
+                    resp.raise_for_status()
+                    data = resp.json()
+                    people = data.get('people', [])
+                    
+                    crew = []
+                    wiki_tasks = []
+                    for p in people:
+                        entry = {
+                            'name': p.get('name', ''),
+                            'craft': p.get('craft', 'ISS'),
+                            'nationality': '',
+                            'bio': '',
+                            'profile_image': '',
+                            'date_of_birth': '',
+                            'flights_count': None,
+                            'agency': {'name': '', 'abbrev': '', 'type': ''},
+                            'status': {'name': 'Active'},
+                            'wiki_url': '',
+                        }
+                        crew.append(entry)
+                        wiki_tasks.append(self._get_wiki_summary(client, entry['name']))
+
+                    wiki_results = await asyncio.gather(*wiki_tasks)
+
+                    for entry, wiki in zip(crew, wiki_results):
+                        if wiki:
+                            if wiki.get('wiki_extract'):
+                                entry['bio'] = wiki['wiki_extract']
+                            if wiki.get('wiki_thumbnail'):
+                                entry['profile_image'] = wiki['wiki_thumbnail']
+                            if wiki.get('wiki_url'):
+                                entry['wiki_url'] = wiki['wiki_url']
+
+                    result = {'crew': crew, 'source': 'open-notify'}
+                    ISSCrewView._cache = {'data': result, 'expires': now + dt.timedelta(minutes=30)}
+                    return Response(result)
+
+                except Exception:
+                    return Response({'crew': [], 'source': 'unavailable'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
 
 class LaunchPadWeatherView(APIView):
