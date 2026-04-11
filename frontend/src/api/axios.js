@@ -17,6 +17,8 @@ api.interceptors.response.use(
   (res) => res,
   async (err) => {
     const original = err.config
+    
+    // Handle 401 Unauthorized
     if (err.response?.status === 401 && !original._retry) {
       original._retry = true
       const refresh = localStorage.getItem('refresh_token')
@@ -33,6 +35,12 @@ api.interceptors.response.use(
         }
       }
     }
+
+    // Global error logging for 500+ errors
+    if (err.response?.status >= 500) {
+      console.error(`Server Error (${err.response.status}):`, err.response.data?.detail || err.message)
+    }
+
     return Promise.reject(err)
   }
 )

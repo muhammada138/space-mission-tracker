@@ -33,43 +33,57 @@ def _to_dt(val, fallback):
     return fallback
 
 
+def _filter_and_deduplicate(launches, source, seen=None):
+    """Helper to filter by source and deduplicate by api_id."""
+    if seen is None:
+        seen = set()
+    
+    final = []
+    for l in launches:
+        api_id = l.get('api_id')
+        if api_id not in seen:
+            if source == 'spacex':
+                # Filter for SpaceX provider
+                provider = l.get('launch_provider', '')
+                if not (provider and 'SpaceX' in provider):
+                    continue
+            elif source == 'll2':
+                # Filter out SpaceX-prefixed IDs
+                if str(api_id or '').startswith('spacex_'):
+                    continue
+                    
+            final.append(l)
+            seen.add(api_id)
+    return final, seen
+
+
 class UpcomingLaunchesView(APIView):
     """GET /api/launches/upcoming/?source=ll2|spacex|all"""
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
         source = request.query_params.get('source', 'all')
-        launches = []
+        raw_launches = []
         
-        # Always fetch from both to ensure we have all data (SpaceX API is dead but keeping logic)
-        if source in ('ll2', 'spacex', 'all'):
+        # 1. Fetch from LL2 (via local service)
+        if source in ('ll2', 'all'):
             try:
-                launches += get_upcoming_launches(limit=100)
-            except Exception:
-                pass
+                raw_launches += get_upcoming_launches(limit=100)
+            except Exception as e:
+                logger.warning(f"Upcoming LL2 fetch failed: {e}")
                 
+        # 2. Fetch from SpaceX directly
         if source in ('spacex', 'all'):
             try:
-                launches += get_spacex_upcoming_launches(limit=100)
-            except Exception:
-                pass
+                raw_launches += get_spacex_upcoming_launches(limit=100)
+            except Exception as e:
+                logger.warning(f"Upcoming SpaceX fetch failed: {e}")
                 
         # Serialize model objects
-        serialized = LaunchSerializer(launches, many=True).data
+        serialized = LaunchSerializer(raw_launches, many=True).data
         
-        # Deduplicate
-        seen = set()
-        final_launches = []
-        for l in serialized:
-            if l.get('api_id') not in seen:
-                final_launches.append(l)
-                seen.add(l.get('api_id'))
-                
-        # Apply source filter in python
-        if source == 'spacex':
-            final_launches = [l for l in final_launches if l.get('launch_provider') and 'SpaceX' in l.get('launch_provider')]
-        elif source == 'll2':
-            final_launches = [l for l in final_launches if not str(l.get('api_id', '')).startswith('spacex_')]
+        # Deduplicate and filter
+        final_launches, _ = _filter_and_deduplicate(serialized, source)
 
         # Sort by launch date, None-safe
         final_launches.sort(key=lambda l: _to_dt(l.get('launch_date'), _FAR_FUTURE))
@@ -82,73 +96,52 @@ class PastLaunchesView(APIView):
 
     def get(self, request):
         source = request.query_params.get('source', 'all')
-        launches = []
-        if source in ('ll2', 'spacex', 'all'):
+        raw_launches = []
+        
+        if source in ('ll2', 'all'):
             try:
-                launches += get_past_launches(limit=100)
-            except Exception:
-                pass
+                raw_launches += get_past_launches(limit=100)
+            except Exception as e:
+                logger.warning(f"Past LL2 fetch failed: {e}")
+        
         if source in ('spacex', 'all'):
             try:
-                launches += get_spacex_past_launches(limit=100)
-            except Exception:
-                pass
+                raw_launches += get_spacex_past_launches(limit=100)
+            except Exception as e:
+                logger.warning(f"Past SpaceX fetch failed: {e}")
 
         # Serialize model objects to dicts
-        serialized_launches = LaunchSerializer(launches, many=True).data
+        serialized = LaunchSerializer(raw_launches, many=True).data
 
         # Load deep history statically seeded JSON
         history = []
         try:
-            import json, os
             history_path = os.path.join(os.path.dirname(__file__), 'history.json')
             if os.path.exists(history_path):
+                import json
                 with open(history_path, 'r', encoding='utf-8') as f:
                     history = json.load(f)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error(f"Failed to load history.json: {e}")
 
         from django.utils import timezone
         now = timezone.now()
 
-        # De-duplicate by api_id and filter by date/source
-        seen = set()
-        final_launches = []
+        # Deduplicate and filter primary results
+        final_launches, seen = _filter_and_deduplicate(serialized, source)
         
-        # Filter serialized launches
-        for l in serialized_launches:
-            if l.get('api_id') not in seen:
-                if source == 'spacex':
-                    if not (l.get('launch_provider') and 'SpaceX' in l.get('launch_provider')):
-                        continue
-                elif source == 'll2':
-                    if str(l.get('api_id', '')).startswith('spacex_'):
-                        continue
-                        
-                final_launches.append(l)
-                seen.add(l.get('api_id'))
-                
-        # Filter history
-        for l in history:
-            if l.get('api_id') not in seen:
-                # 1. Filter out FUTURE launches
-                ldate = _to_dt(l.get('launch_date'), _FAR_PAST)
-                if ldate >= now:
-                    continue
-                    
-                # 2. Filter by source
-                if source == 'spacex':
-                    if not (l.get('launch_provider') and 'SpaceX' in l.get('launch_provider')):
-                        continue
-                elif source == 'll2':
-                    if str(l.get('api_id', '')).startswith('spacex_'):
-                        continue
-                        
-                final_launches.append(l)
-                seen.add(l.get('api_id'))
+        # Deduplicate and filter history (only past launches)
+        past_history = []
+        for h in history:
+            ldate = _to_dt(h.get('launch_date'), _FAR_PAST)
+            if ldate < now:
+                past_history.append(h)
+        
+        history_launches, _ = _filter_and_deduplicate(past_history, source, seen=seen)
+        final_launches.extend(history_launches)
 
         final_launches.sort(key=lambda l: _to_dt(l.get('launch_date'), _FAR_PAST), reverse=True)
-        return Response(final_launches[:2000]) # Cap to ensure we don't blow up browser memory in worst case
+        return Response(final_launches[:2000])
 
 
 class ActiveLaunchesView(APIView):

@@ -20,8 +20,9 @@ Most space tracking sites dump a wall of launches with no way to personalize any
 - **Interactive 3D Launch Globe** - A WebGL globe that plots every launch pad by latitude/longitude, rendered with Three.js.
 - **ISS Live Tracker** - Real-time 3D tracker that fetches the ISS position from an external API and lets you lock the camera onto the station as it orbits.
 - **Space Weather Panel** - Live solar activity and geomagnetic storm updates powered by NASA's DONKI API.
-- **Launch Timeline** - Horizontal scrollable timeline that spaces launches proportionally by date, with staggered dots to prevent overlap on crowded windows.
-- **Historical Launch Pipeline** - Combines a static JSON seed of 1,000+ launches since 2022 with live Launch Library 2 polling to keep data current without hitting rate limits.
+- **Robust Launch Pipeline** - Consolidated backend logic for filtering and deduplicating launches from multiple sources (SpaceX & LL2).
+- **Global API Error Handling** - Enhanced frontend resilience with centralized interceptors for handling and logging server-side errors.
+- **Historical Launch Archive** - Combines a static JSON seed of 1,000+ launches with live polling to ensure a comprehensive mission history.
 - **Rocket Encyclopedia & Analytics** - A catalog of rocket stats alongside an interactive charts dashboard (success rates, launch pads, etc).
 - **Mission Briefings & Notifications** - Browser notification alerts for upcoming launches (30m & 5m prior) and a Share Card generator for exportable mission images.
 - **Personal Watchlist & Logs** - Save missions to your dashboard and write personal journal entries for launches you follow.
