@@ -14,7 +14,7 @@ Full-stack web app for tracking rocket launches from multiple sources. Browse up
 
 ## Screenshots
 
-![Space Mission Tracker 3D Globe](./screenshot.png)
+![Space Mission Tracker Home Page](./screenshot.png)
 
 ## What it does
 
