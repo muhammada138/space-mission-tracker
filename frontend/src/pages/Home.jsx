@@ -56,14 +56,6 @@ export default function Home({ tab = 'upcoming' }) {
             <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 14 }}>
               Live launch data from Launch Library 2 and SpaceX
             </p>
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 16 }}>
-              <button className="btn btn-ghost" onClick={() => navigate('/astronauts')}>
-                <Users size={14} /> Humans in Space
-              </button>
-              <button className="btn btn-ghost" onClick={() => navigate('/map')}>
-                <MapPin size={14} /> Global Spaceports
-              </button>
-            </div>
           </div>
 
           <div className="search-bar">
