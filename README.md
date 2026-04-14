@@ -8,7 +8,7 @@
 ![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat&logo=vite&logoColor=white)
 ![JWT](https://img.shields.io/badge/JWT-black?style=flat&logo=JSON%20web%20tokens)
 
-Live at [space-mission-tracker-nine.vercel.app](https://space-mission-tracker-nine.vercel.app/)
+Live at [Space Tracker](https://space-mission-tracker-nine.vercel.app/)
 
 Full-stack web app for tracking rocket launches from multiple sources. Browse upcoming and past missions, save launches to a personal watchlist, and write mission logs. Pulls live data from the Launch Library 2 API and the SpaceX API.
 
