@@ -605,52 +605,48 @@ class LaunchPadWeatherView(APIView):
 
 
 class SpaceWeatherView(APIView):
-    """GET /api/space-weather/ - current space weather from NASA DONKI"""
+    """GET /api/space-weather/ - current space weather from NOAA and NASA"""
     permission_classes = [permissions.AllowAny]
 
     _cache = {'data': None, 'expires': None}
 
     def get(self, request):
-        import httpx
-        from django.utils import timezone
-
         now = timezone.now()
 
-        # Check cache (1 hour TTL)
+        # Check cache (30 min TTL for higher resolution weather)
         if self._cache['data'] and self._cache['expires'] and now < self._cache['expires']:
             return Response(self._cache['data'])
 
         try:
             api_key = os.environ.get('NASA_API_KEY', 'DEMO_KEY')
             today = now.strftime('%Y-%m-%d')
-            week_ago = (now - dt.timedelta(days=7)).strftime('%Y-%m-%d')
+            week_ago = (now - timedelta(days=7)).strftime('%Y-%m-%d')
 
-            # Fetch recent solar flares
-            flr_resp = httpx.get(
-                'https://api.nasa.gov/DONKI/FLR',
-                params={'startDate': week_ago, 'endDate': today, 'api_key': api_key},
-                timeout=10,
-            )
-            flares = flr_resp.json() if flr_resp.status_code == 200 else []
-            if not isinstance(flares, list):
-                flares = []
-
-            # Fetch geomagnetic storms
-            gst_resp = httpx.get(
-                'https://api.nasa.gov/DONKI/GST',
-                params={'startDate': week_ago, 'endDate': today, 'api_key': api_key},
-                timeout=10,
-            )
-            storms = gst_resp.json() if gst_resp.status_code == 200 else []
-            if not isinstance(storms, list):
-                storms = []
-
-            # Determine Kp index from storms
+            # 1. Fetch real-time K-index from NOAA (more granular than DONKI GST)
             kp = 0
-            if storms:
-                for s in storms:
-                    for obs in s.get('allKpIndex', []):
-                        kp = max(kp, obs.get('kpIndex', 0))
+            try:
+                noaa_resp = httpx.get('https://services.swpc.noaa.gov/json/planetary_k_index_1m.json', timeout=10)
+                if noaa_resp.status_code == 200:
+                    noaa_data = noaa_resp.json()
+                    if noaa_data and isinstance(noaa_data, list):
+                        # Get the most recent valid Kp reading
+                        latest = noaa_data[-1]
+                        kp = latest.get('kp_index', 0)
+            except Exception as e:
+                logger.warning(f"NOAA Kp fetch failed: {e}")
+
+            # 2. Fetch recent solar flares from NASA DONKI
+            flares = []
+            try:
+                flr_resp = httpx.get(
+                    'https://api.nasa.gov/DONKI/FLR',
+                    params={'startDate': week_ago, 'endDate': today, 'api_key': api_key},
+                    timeout=10,
+                )
+                if flr_resp.status_code == 200:
+                    flares = flr_resp.json()
+                    if not isinstance(flares, list): flares = []
+            except Exception: pass
 
             # Determine severity level
             if kp >= 7 or len(flares) > 5:
@@ -661,30 +657,29 @@ class SpaceWeatherView(APIView):
                 label = 'Moderate Activity'
             else:
                 level = 'nominal'
-                label = 'Quiet'
+                label = 'Quiet' if kp < 2 else 'Unsettled'
 
             result = {
                 'level': level,
                 'label': label,
                 'kp': kp,
                 'flares': len(flares),
-                'storms': len(storms),
+                'source': 'NOAA/NASA'
             }
 
-            # Cache for 1 hour
+            # Cache for 30 minutes
             SpaceWeatherView._cache = {
                 'data': result,
-                'expires': now + dt.timedelta(hours=1),
+                'expires': now + timedelta(minutes=30),
             }
 
             return Response(result)
 
-        except Exception:
-            # Return nominal fallback on any error
+        except Exception as e:
             return Response({
                 'level': 'nominal',
                 'label': 'Data Unavailable',
                 'kp': 0,
                 'flares': 0,
-                'storms': 0,
+                'error': str(e)
             })
