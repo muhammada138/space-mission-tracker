@@ -427,10 +427,10 @@ export default function ISS() {
         <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 14 }}>Real-time orbital tracking & manifestations</p>
       </div>
 
-      <div className="tabs fade-up" style={{ marginBottom: 20, display: 'inline-flex' }}>
+      <div className="tabs fade-up" style={{ marginBottom: 20, display: 'inline-flex', gap: 10 }}>
         {STATIONS.map(s => (
-          <button key={s.id} className={`tab ${activeStationId === s.id ? 'active' : ''}`} onClick={() => { setActiveStationId(s.id); setLockOn(false); }}>
-            <div style={{ width: 8, height: 8, borderRadius: '50%', background: s.color, marginRight: 8 }} />
+          <button key={s.id} className={`tab ${activeStationId === s.id ? 'active' : ''}`} onClick={() => { setActiveStationId(s.id); setLockOn(false); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, paddingLeft: 16, paddingRight: 16 }}>
+            <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: s.color }} />
             {s.shortName}
           </button>
         ))}
