@@ -96,12 +96,12 @@ function CrewModal({ person, onClose }) {
 
   return (
     <div
-      style={{ position: 'fixed', inset: 0, background: 'rgba(5, 10, 24, 0.9)', backdropFilter: 'blur(10px)', zIndex: 1000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 20px', overflowY: 'auto' }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(5, 10, 24, 0.9)', backdropFilter: 'blur(10px)', zIndex: 1000, overflowY: 'auto', padding: '60px 20px' }}
       onClick={onClose}
     >
       <div
         className="glass fade-up"
-        style={{ maxWidth: 900, width: '100%', position: 'relative', padding: 0, display: 'flex', flexDirection: 'column', border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}
+        style={{ margin: '0 auto', maxWidth: 900, width: '100%', position: 'relative', padding: 0, display: 'flex', flexDirection: 'column', border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}
         onClick={e => e.stopPropagation()}
       >
         <button

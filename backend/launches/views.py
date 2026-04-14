@@ -69,7 +69,9 @@ class UpcomingLaunchesView(APIView):
         raw_launches = []
         
         # 1. Fetch from LL2 (via local service)
-        if source in ('ll2', 'all'):
+        # Always fetch LL2 because native SpaceX API is stale for upcoming flights,
+        # but LL2 actively tracks SpaceX manifests with correct provider tags.
+        if source in ('ll2', 'all', 'spacex'):
             try:
                 raw_launches += get_upcoming_launches(limit=100)
             except Exception as e:
@@ -101,7 +103,8 @@ class PastLaunchesView(APIView):
         source = request.query_params.get('source', 'all')
         raw_launches = []
         
-        if source in ('ll2', 'all'):
+        # Always fetch LL2 since it has deep history and tracks SpaceX provider well
+        if source in ('ll2', 'all', 'spacex'):
             try:
                 raw_launches += get_past_launches(limit=100)
             except Exception as e:
