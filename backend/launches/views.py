@@ -201,8 +201,10 @@ class ActiveLaunchesView(APIView):
             except Exception:
                 pass
 
-            # Sort combined results by launch date descending
-            results.sort(key=lambda x: x.get('net', ''), reverse=True)
+            from django.utils import timezone
+            now = timezone.now()
+
+            results = [r for r in results if _to_dt(r.get('net'), _FAR_FUTURE) <= now]
 
             if results:
                 launches = list(_upsert_launches(results))

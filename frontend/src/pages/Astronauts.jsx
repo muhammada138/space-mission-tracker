@@ -29,6 +29,15 @@ export default function Astronauts() {
     const [error, setError] = useState(false)
     const [selectedPerson, setSelectedPerson] = useState(null)
 
+    useEffect(() => {
+        if (selectedPerson) {
+            document.body.style.overflow = 'hidden'
+        } else {
+            document.body.style.overflow = 'unset'
+        }
+        return () => { document.body.style.overflow = 'unset' }
+    }, [selectedPerson])
+
     const fetchCrew = () => {
         setLoading(true)
         setError(false)
@@ -204,17 +213,45 @@ export default function Astronauts() {
 
             {selectedPerson && (
                 <div
-                    style={{ position: 'fixed', inset: 0, background: 'rgba(5, 10, 24, 0.9)', backdropFilter: 'blur(10px)', zIndex: 1000, overflowY: 'auto', padding: '60px 20px' }}
+                    style={{ 
+                        position: 'fixed', inset: 0, 
+                        background: 'rgba(5, 10, 24, 0.9)', 
+                        backdropFilter: 'blur(10px)', 
+                        zIndex: 1000, 
+                        overflowY: 'scroll', 
+                        display: 'flex', 
+                        flexDirection: 'column', 
+                        alignItems: 'center',
+                        WebkitOverflowScrolling: 'touch'
+                    }}
                     onClick={() => setSelectedPerson(null)}
                 >
                     <div
                         className="glass fade-up"
-                        style={{ margin: '0 auto', maxWidth: 900, width: '100%', position: 'relative', padding: 0, display: 'flex', flexDirection: 'column', border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}
+                        style={{ 
+                            margin: '60px auto', 
+                            maxWidth: 900, 
+                            width: 'calc(100% - 40px)', 
+                            position: 'relative', 
+                            padding: 0, 
+                            display: 'flex', 
+                            flexDirection: 'column', 
+                            border: '1px solid rgba(255,255,255,0.12)', 
+                            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+                            flexShrink: 0
+                        }}
                         onClick={e => e.stopPropagation()}
                     >
                         <button
                             onClick={() => setSelectedPerson(null)}
-                            style={{ position: 'absolute', top: 20, right: 20, background: 'rgba(0,0,0,0.5)', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 24, width: 40, height: 40, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 30, backdropFilter: 'blur(8px)' }}
+                            style={{ 
+                                position: 'absolute', top: 20, right: 20, 
+                                background: 'rgba(0,0,0,0.5)', border: 'none', 
+                                color: '#fff', cursor: 'pointer', 
+                                width: 40, height: 40, borderRadius: '50%', 
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                                zIndex: 30, backdropFilter: 'blur(8px)' 
+                            }}
                         >
                             <X size={20} />
                         </button>
