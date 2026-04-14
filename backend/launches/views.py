@@ -13,6 +13,9 @@ from .models import Launch
 from .serializers import LaunchSerializer
 from .services import get_upcoming_launches, get_past_launches, get_launch_by_api_id
 from .spacex_service import get_spacex_upcoming_launches, get_spacex_past_launches
+import httpx
+from django.utils import timezone
+from datetime import timedelta
 
 # Fallback dates for sorting when launch_date is None
 _FAR_FUTURE = dt.datetime(9999, 1, 1, tzinfo=dt.timezone.utc)
@@ -155,8 +158,6 @@ class ActiveLaunchesView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        from .services import _upsert_launches, _parse_launch
-        import httpx
 
         # First check DB cache for in-flight matches.
         # Note: Missions with active spacecraft (but "Success" launch statuses, like Artemis II or Dragon)
@@ -201,8 +202,6 @@ class ActiveLaunchesView(APIView):
             except Exception:
                 pass
 
-            from django.utils import timezone
-            from datetime import timedelta
             now = timezone.now()
 
             # --- Bridge the LL2 "Status 6" gap ---
@@ -230,6 +229,8 @@ class ActiveLaunchesView(APIView):
             results = [r for r in results if _to_dt(r.get('net'), _FAR_FUTURE) <= active_threshold]
 
             if results:
+                # Use local import for services to avoid circular dependency
+                from .services import _upsert_launches
                 launches = list(_upsert_launches(results))
                 
                 # --- Post-Upsert Status Enforcement ---
@@ -253,6 +254,7 @@ class ActiveLaunchesView(APIView):
                 return Response(LaunchSerializer(active, many=True).data)
                 
         except Exception as e:
+            logger.error(f"ActiveLaunchesView fetch failure: {str(e)}")
             # If API fails, fallback to DB cache if we have anything
             if active:
                 return Response(LaunchSerializer(active, many=True).data)
@@ -267,9 +269,7 @@ class LaunchDetailView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request, api_id):
-        from .services import get_launch_by_api_id
-        from django.utils import timezone
-        from datetime import timedelta
+        now = timezone.now()
 
         # Check DB first 
         try:

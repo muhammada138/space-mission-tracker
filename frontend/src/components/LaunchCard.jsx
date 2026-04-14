@@ -31,7 +31,7 @@ export default function LaunchCard({ launch, showCountdown = true }) {
   const isFail = status.includes('fail')
   const isActive = status.includes('in flight') || status.includes('inflight') ||
     (launch.launch_date && new Date(launch.launch_date) < new Date() &&
-     (Date.now() - new Date(launch.launch_date).getTime()) < 3600000 &&
+     (Date.now() - new Date(launch.launch_date).getTime()) < 10800000 &&
      !isSuccess && !isFail)
 
   return (
