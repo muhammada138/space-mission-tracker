@@ -211,9 +211,20 @@ class ActiveLaunchesView(APIView):
             recent_successes = Launch.objects.filter(
                 launch_date__gte=recent_cutoff,
                 launch_date__lte=now
-            )
+            ).exclude(status__icontains='fail') # Don't force failures
+
             for l in recent_successes:
-                if not any(r['id'] == l.api_id for r in results):
+                # Ensure we don't duplicate missions already in 'results'
+                exists = False
+                for r in results:
+                    try:
+                        rid = r.get('id') if isinstance(r, dict) else (getattr(r, 'id', None) if not hasattr(r, '__getitem__') else r['id'])
+                        if str(rid) == str(l.api_id):
+                            exists = True
+                            break
+                    except Exception: pass
+                
+                if not exists:
                     # Convert model back to a dict mimicking LL2 results for _upsert
                     results.append({
                         'id': l.api_id,
@@ -226,7 +237,7 @@ class ActiveLaunchesView(APIView):
 
             # Transition to active 5 minutes before scheduled launch
             active_threshold = now + timedelta(minutes=5)
-            results = [r for r in results if _to_dt(r.get('net'), _FAR_FUTURE) <= active_threshold]
+            results = [r for r in results if _to_dt(r.get('net') if isinstance(r, dict) else getattr(r, 'net', None), _FAR_FUTURE) <= active_threshold]
 
             if results:
                 # Use local import for services to avoid circular dependency
@@ -238,7 +249,9 @@ class ActiveLaunchesView(APIView):
                 # status flag in the final response objects.
                 for l in launches:
                     if l.launch_date and (now - timedelta(hours=3)) <= l.launch_date <= (now + timedelta(minutes=5)):
-                        l.status = 'In Flight'
+                        # If it's a known success/fail, don't overwrite it unless it's very recent
+                        if 'Success' not in (l.status or '') and 'Fail' not in (l.status or ''):
+                            l.status = 'In Flight'
 
                 # Combine with db cache hits to ensure nothing is lost during transition
                 result_ids = {l.api_id for l in launches}
@@ -254,7 +267,7 @@ class ActiveLaunchesView(APIView):
                 return Response(LaunchSerializer(active, many=True).data)
                 
         except Exception as e:
-            logger.error(f"ActiveLaunchesView fetch failure: {str(e)}")
+            logger.error(f"ActiveLaunchesView fetch failure: {str(e)}", exc_info=True)
             # If API fails, fallback to DB cache if we have anything
             if active:
                 return Response(LaunchSerializer(active, many=True).data)

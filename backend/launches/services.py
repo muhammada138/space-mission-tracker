@@ -200,6 +200,11 @@ def get_past_launches(limit: int = 20) -> list:
 
 def get_launch_by_api_id(api_id: str, force_refresh: bool = False) -> Launch | None:
     """Fetch a single launch by LL2 api_id, refreshing cache if stale."""
+    # Handle SpaceX-prefixed IDs by routing to SpaceX service
+    if str(api_id).startswith('spacex_'):
+        from .spacex_service import get_spacex_launch_by_id
+        return get_spacex_launch_by_id(api_id)
+
     cutoff = timezone.now() - timedelta(minutes=CACHE_TTL_MINUTES)
     try:
         obj = Launch.objects.get(api_id=api_id)
@@ -215,7 +220,7 @@ def get_launch_by_api_id(api_id: str, force_refresh: bool = False) -> Launch | N
             timeout=15,
         )
         resp.raise_for_status()
-        parsed = _parse_launch(resp.json())
+        parsed = _parse_launch(noaa_data := resp.json())
         obj, _ = Launch.objects.update_or_create(api_id=api_id, defaults=parsed)
         return obj
     except Exception:

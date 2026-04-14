@@ -183,3 +183,26 @@ def get_spacex_past_launches(limit: int = 20) -> list:
             api_id__startswith='spacex_',
             launch_date__lt=timezone.now(),
         ).order_by('-launch_date')[:limit])
+
+
+def get_spacex_launch_by_id(spacex_id: str) -> Launch | None:
+    """Fetch a single SpaceX launch by ID (the raw SpaceX ID, not our spacex_ prefixed one)."""
+    try:
+        # Clean the ID if it was passed with our internal prefix
+        clean_id = spacex_id.replace('spacex_', '')
+        
+        rockets_map = _get_rockets_map()
+        launchpads_map = _get_launchpads_map()
+        
+        resp = httpx.get(f'{SPACEX_BASE}/launches/{clean_id}', timeout=10)
+        resp.raise_for_status()
+        raw = resp.json()
+        
+        parsed = _parse_spacex_launch(raw, rockets_map, launchpads_map)
+        obj, _ = Launch.objects.update_or_create(
+            api_id=parsed['api_id'],
+            defaults=parsed,
+        )
+        return obj
+    except Exception:
+        return None
