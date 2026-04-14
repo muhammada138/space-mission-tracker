@@ -187,9 +187,13 @@ class ActiveLaunchesView(APIView):
                     past_data = past_resp.json().get('results', [])
                     for launch in past_data:
                         stage = launch.get('rocket', {}).get('spacecraft_stage', {})
-                        # status ID 1 means spacecraft is currently active.
-                        if stage and stage.get('spacecraft', {}).get('status', {}).get('id') == 1:
+                        # If the spacecraft stage indicates the craft is currently in space, route it as active
+                        if stage and stage.get('spacecraft', {}).get('in_space') is True:
                             if not any(r['id'] == launch['id'] for r in results):
+                                # Force status to 'In Flight' so frontend treats it as an active mission
+                                if 'status' in launch and isinstance(launch['status'], dict):
+                                    launch['status']['name'] = 'In Flight'
+                                    launch['status']['abbrev'] = 'In Flight'
                                 results.append(launch)
             except Exception:
                 pass
