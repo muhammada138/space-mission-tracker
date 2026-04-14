@@ -286,7 +286,7 @@ textarea.input { resize: vertical; min-height: 110px; line-height: 1.6; }
 }
 
 .launch-card:hover {
-  transform: translateY(-4px) scale(1.01);
+  transform: translateY(-4px);
   box-shadow: 0 12px 40px rgba(0, 212, 255, 0.15);
   border-color: var(--accent);
 }
@@ -297,7 +297,7 @@ textarea.input { resize: vertical; min-height: 110px; line-height: 1.6; }
 }
 
 .hover-card:hover {
-  transform: translateY(-5px) scale(1.02);
+  transform: translateY(-5px);
   background: rgba(255, 255, 255, 0.05);
   border-color: var(--accent);
   box-shadow: 0 10px 30px rgba(0, 212, 255, 0.15);
@@ -336,6 +336,7 @@ textarea.input { resize: vertical; min-height: 110px; line-height: 1.6; }
 .launch-card .card-img-wrapper {
   position: relative;
   overflow: hidden;
+  margin-bottom: -1px;
 }
 .launch-card .card-img {
   width: 100%;
