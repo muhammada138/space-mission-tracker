@@ -219,7 +219,7 @@ export default function LaunchDetail() {
   const isFail = status.includes('fail')
   const isActive = status.includes('in flight') || status.includes('inflight') ||
     (launch.launch_date && new Date(launch.launch_date) < new Date() &&
-     (Date.now() - new Date(launch.launch_date).getTime()) < 9000000 && // 2.5 hours
+     (Date.now() - new Date(launch.launch_date).getTime()) < 10800000 && // 3 hours
      !status.includes('fail'))
 
   const ytId = getYouTubeId(launch.webcast_url)

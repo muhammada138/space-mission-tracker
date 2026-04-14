@@ -206,9 +206,9 @@ class ActiveLaunchesView(APIView):
             now = timezone.now()
 
             # --- Bridge the LL2 "Status 6" gap ---
-            # Fetch missions from the last 2.5 hours and force them to 'Active' 
+            # Fetch missions from the last 3 hours and force them to 'Active' 
             # while they climb to orbit, even if LL2 hasn't flagged them status 6 yet.
-            recent_cutoff = now - timedelta(hours=2, minutes=30)
+            recent_cutoff = now - timedelta(hours=3)
             recent_successes = Launch.objects.filter(
                 launch_date__gte=recent_cutoff,
                 launch_date__lte=now
@@ -231,6 +231,14 @@ class ActiveLaunchesView(APIView):
 
             if results:
                 launches = list(_upsert_launches(results))
+                
+                # --- Post-Upsert Status Enforcement ---
+                # Ensure missions we manually identified as 'active' keep their 
+                # status flag in the final response objects.
+                for l in launches:
+                    if l.launch_date and (now - timedelta(hours=3)) <= l.launch_date <= (now + timedelta(minutes=5)):
+                        l.status = 'In Flight'
+
                 # Combine with db cache hits to ensure nothing is lost during transition
                 result_ids = {l.api_id for l in launches}
                 for a in active:
@@ -269,11 +277,16 @@ class LaunchDetailView(APIView):
             
             # If the mission is live/recent and missing a webcast, force a refresh from the API
             now = timezone.now()
-            is_recent = launch.launch_date and (now - timedelta(hours=6)) <= launch.launch_date <= (now + timedelta(minutes=15))
-            if is_recent and not launch.webcast_url:
+            is_active_window = launch.launch_date and (now - timedelta(hours=6)) <= launch.launch_date <= (now + timedelta(minutes=15))
+            if is_active_window and not launch.webcast_url:
                 refreshed = get_launch_by_api_id(api_id, force_refresh=True)
                 if refreshed:
                     launch = refreshed
+            
+            # Force status to In Flight if in the immediate post-launch window
+            if launch.launch_date and (now - timedelta(hours=3)) <= launch.launch_date <= now:
+                if 'fail' not in (launch.status or '').toLowerCase():
+                    launch.status = 'In Flight'
             
             return Response(LaunchSerializer(launch).data)
         except Launch.DoesNotExist:

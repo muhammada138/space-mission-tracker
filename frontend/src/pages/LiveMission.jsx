@@ -253,11 +253,11 @@ export default function LiveMission() {
     const launchStatus = (launch?.status || '').toLowerCase()
     const isUpcoming = launch?.launch_date && new Date(launch.launch_date) > new Date()
     
-    // Active if in flight, or if it's within 2.5 hours post-launch
-    const isActive = (tPlusSeconds >= -300 && tPlusSeconds < 9000) || launchStatus.includes('in flight')
+    // Active if in flight, or if it's within 3 hours post-launch
+    const isActive = (tPlusSeconds >= -300 && tPlusSeconds < 10800) || launchStatus.includes('in flight')
     
-    // Only complete if it's been 2.5 hours AND it wasn't marked as upcoming/hold
-    const isComplete = tPlusSeconds >= 9000 && !isUpcoming && !launchStatus.includes('hold') && !launchStatus.includes('tbd')
+    // Only complete if it's been 3 hours AND it wasn't marked as upcoming/hold
+    const isComplete = tPlusSeconds >= 10800 && !isUpcoming && !launchStatus.includes('hold') && !launchStatus.includes('tbd')
 
     if (loading && !launch) return <div className="page-container" style={{ paddingTop: 100, display: 'flex', justifyContent: 'center' }}><div className="spinner" /></div>
     if (!launch) return <div className="page-container" style={{ paddingTop: 100 }}><h2>Launch not found</h2></div>
