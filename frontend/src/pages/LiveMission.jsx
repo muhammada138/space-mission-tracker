@@ -43,11 +43,11 @@ function getTelemetry(tPlusSeconds, isSpaceX) {
                 downrange: Math.round(frac * frac * 75), // ~75km downrange
             }
         } else if (t <= 510) { // Second stage burn
-            // Use 1.4 power curve to simulate gradual acceleration peak
+            // Fine-tuned power curves for perfect Starlink telemetry alignment
             const frac = (t - 156) / (510 - 156)
             return {
-                speed: Math.round(7200 + Math.pow(frac, 1.4) * 20600), // ~27800 km/h orbital
-                altitude: Math.round(72 + Math.pow(frac, 1.1) * 158), // ~230km primary orbit
+                speed: Math.round(7200 + Math.pow(frac, 1.7) * 20600), // ~27800 km/h orbital
+                altitude: Math.round(72 + Math.pow(frac, 0.8) * 158), // ~230km primary orbit
                 downrange: Math.round(75 + frac * 1100), // ~1175km
             }
         } else {

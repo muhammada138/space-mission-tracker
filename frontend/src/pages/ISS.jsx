@@ -101,8 +101,11 @@ function CrewModal({ person, onClose }) {
         background: 'rgba(5, 10, 24, 0.9)', 
         backdropFilter: 'blur(10px)', 
         zIndex: 1000, 
-        overflowY: 'scroll', 
-        display: 'block', 
+        overflowY: 'auto', 
+        display: 'flex', 
+        flexDirection: 'column',
+        alignItems: 'center',
+        padding: '60px 16px',
         WebkitOverflowScrolling: 'touch'
       }}
       onClick={onClose}
@@ -110,16 +113,10 @@ function CrewModal({ person, onClose }) {
       <div
         className="glass fade-up"
         style={{ 
-          margin: '60px auto', 
           maxWidth: 900, 
-          width: 'calc(100% - 32px)', 
+          width: '100%', 
           position: 'relative', 
           padding: 0, 
-          display: 'flex', 
-          flexDirection: 'column', 
-          border: '1px solid rgba(255,255,255,0.12)', 
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-        }}
         onClick={e => e.stopPropagation()}
       >
         <button
