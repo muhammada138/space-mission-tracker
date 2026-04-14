@@ -35,19 +35,20 @@ function getTelemetry(tPlusSeconds, isSpaceX) {
     const t = tPlusSeconds
     // Simplified Falcon 9 flight profile approximation
     if (isSpaceX) {
-        if (t <= 153) { // First stage burn
-            const frac = t / 153
+        if (t <= 156) { // First stage burn
+            const frac = t / 156
             return {
-                speed: Math.round(frac * frac * 6900), // ~6900 km/h at MECO
-                altitude: Math.round(frac * 80), // ~80km at MECO
-                downrange: Math.round(frac * frac * 70), // ~70km downrange
+                speed: Math.round(frac * frac * 7200), // ~7200 km/h at Stage Sep
+                altitude: Math.round(frac * 72), // ~72km at Stage Sep
+                downrange: Math.round(frac * frac * 75), // ~75km downrange
             }
         } else if (t <= 510) { // Second stage burn
-            const frac = (t - 153) / (510 - 153)
+            // Use 1.4 power curve to simulate gradual acceleration peak
+            const frac = (t - 156) / (510 - 156)
             return {
-                speed: Math.round(6900 + frac * 20900), // ~27800 km/h orbital
-                altitude: Math.round(80 + frac * 220), // ~300km orbit
-                downrange: Math.round(70 + frac * 1100), // ~1170km
+                speed: Math.round(7200 + Math.pow(frac, 1.4) * 20600), // ~27800 km/h orbital
+                altitude: Math.round(72 + Math.pow(frac, 1.1) * 158), // ~230km primary orbit
+                downrange: Math.round(75 + frac * 1100), // ~1175km
             }
         } else {
             return { speed: 27800, altitude: 300, downrange: 1170 }
@@ -262,9 +263,12 @@ export default function LiveMission() {
     if (!launch) return <div className="page-container" style={{ paddingTop: 100 }}><h2>Launch not found</h2></div>
 
     let ytId = null
+    let isX = false
     if (launch.webcast_url) {
-        if (launch.webcast_url.includes('v=')) ytId = launch.webcast_url.split('v=')[1]?.split('&')[0]
-        else if (launch.webcast_url.includes('youtu.be/')) ytId = launch.webcast_url.split('youtu.be/')[1]?.split('?')[0]
+        const url = launch.webcast_url.toLowerCase()
+        if (url.includes('v=')) ytId = launch.webcast_url.split('v=')[1]?.split('&')[0]
+        else if (url.includes('youtu.be/')) ytId = launch.webcast_url.split('youtu.be/')[1]?.split('?')[0]
+        else if (url.includes('twitter.com') || url.includes('x.com')) isX = true
     }
 
     return (
@@ -337,6 +341,25 @@ export default function LiveMission() {
                                 allowFullScreen
                                 style={{ display: 'block', border: 'none' }}
                             />
+                        ) : isX ? (
+                            <div style={{ height: 420, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #0a1428, #1c1c1c)', color: '#fff', flexDirection: 'column', gap: 20, textAlign: 'center', padding: 40 }}>
+                                <div style={{ background: '#000', width: 64, height: 64, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 20px rgba(0,0,0,0.5)' }}>
+                                    <svg width="32" height="32" viewBox="0 0 24 24" fill="#fff"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.045 4.126H5.078z"/></svg>
+                                </div>
+                                <div>
+                                    <h3 style={{ margin: '0 0 8px', fontSize: 20, fontWeight: 800 }}>SpaceX Live on X</h3>
+                                    <p style={{ margin: 0, fontSize: 14, color: 'var(--text-secondary)', maxWidth: 350 }}>SpaceX now primarily broadcasts live on X. Standard embedding is not supported, but you can join the live feed below.</p>
+                                </div>
+                                <a 
+                                    href={launch.webcast_url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    className="btn btn-primary"
+                                    style={{ background: '#fff', color: '#000', border: 'none', fontWeight: 800, padding: '12px 28px' }}
+                                >
+                                    OPEN LIVE FEED ON X
+                                </a>
+                            </div>
                         ) : (
                             <div style={{ height: 420, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #0a1428, #150d2e)', color: 'var(--text-muted)', flexDirection: 'column', gap: 12 }}>
                                 <Radio size={32} strokeWidth={1} />

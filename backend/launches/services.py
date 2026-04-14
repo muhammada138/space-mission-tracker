@@ -77,10 +77,19 @@ def _parse_launch(data: dict) -> dict:
     try:
         vid_urls = data.get('vidURLs') or data.get('vid_urls') or []
         if vid_urls:
-            # Sort by priority (highest first) and pick the best one
-            sorted_vids = sorted(vid_urls, key=lambda v: v.get('priority', 0) if isinstance(v, dict) else 0, reverse=True)
-            first_vid = sorted_vids[0]
-            webcast_url = first_vid.get('url', '') if isinstance(first_vid, dict) else str(first_vid)
+            # First, try to find a YouTube link because we can embed it
+            yt_vids = [v for v in vid_urls if 'youtube.com' in (v.get('url', '') if isinstance(v, dict) else str(v)).lower() or 'youtu.be' in (v.get('url', '') if isinstance(v, dict) else str(v)).lower()]
+            
+            if yt_vids:
+                # Priority sort the YouTube ones
+                sorted_yt = sorted(yt_vids, key=lambda v: v.get('priority', 0) if isinstance(v, dict) else 0, reverse=True)
+                first_vid = sorted_yt[0]
+                webcast_url = first_vid.get('url', '') if isinstance(first_vid, dict) else str(first_vid)
+            else:
+                # Fallback to whatever is highest priority (like X/Twitter)
+                sorted_vids = sorted(vid_urls, key=lambda v: v.get('priority', 0) if isinstance(v, dict) else 0, reverse=True)
+                first_vid = sorted_vids[0]
+                webcast_url = first_vid.get('url', '') if isinstance(first_vid, dict) else str(first_vid)
     except (KeyError, TypeError, IndexError):
         pass
 
