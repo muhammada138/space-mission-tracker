@@ -18,7 +18,7 @@ Full-stack web app for tracking rocket launches from multiple sources. Browse up
 
 ## What it does
 
-Most space tracking sites dump a wall of launches with no way to personalize anything. This application has been built from the ground up as a **Mission Control** portal—it has a deep-navy aesthetic, CSS starfields, and advanced visual tools. It lets you filter streams, save missions, track live space events, and keep personal notes.
+Most space tracking sites dump a wall of launches with no way to personalize anything. This application has been built from the ground up as a **Mission Control** portal - it has a deep-navy aesthetic, CSS starfields, and advanced visual tools. It lets you filter streams, save missions, track live space events, and keep personal notes.
 
 ### 🚀 Core Features:
 - **Interactive 3D Launch Globe** - A WebGL globe that plots every launch pad by latitude/longitude, rendered with Three.js.
