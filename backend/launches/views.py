@@ -204,9 +204,29 @@ class ActiveLaunchesView(APIView):
             from django.utils import timezone
             from datetime import timedelta
             now = timezone.now()
+
+            # --- Bridge the LL2 "Status 6" gap ---
+            # Fetch missions from the last 2.5 hours and force them to 'Active' 
+            # while they climb to orbit, even if LL2 hasn't flagged them status 6 yet.
+            recent_cutoff = now - timedelta(hours=2, minutes=30)
+            recent_successes = Launch.objects.filter(
+                launch_date__gte=recent_cutoff,
+                launch_date__lte=now
+            )
+            for l in recent_successes:
+                if not any(r['id'] == l.api_id for r in results):
+                    # Convert model back to a dict mimicking LL2 results for _upsert
+                    results.append({
+                        'id': l.api_id,
+                        'name': l.name,
+                        'net': l.launch_date.isoformat(),
+                        'status': {'name': 'In Flight', 'abbrev': 'In Flight'}, # Force active
+                        'rocket': {'configuration': {'name': l.rocket}},
+                        'launch_service_provider': {'name': l.launch_provider},
+                    })
+
             # Transition to active 5 minutes before scheduled launch
             active_threshold = now + timedelta(minutes=5)
-
             results = [r for r in results if _to_dt(r.get('net'), _FAR_FUTURE) <= active_threshold]
 
             if results:
@@ -239,14 +259,27 @@ class LaunchDetailView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request, api_id):
-        # Check DB first (works for both SpaceX and LL2 cached data)
+        from .services import get_launch_by_api_id
+        from django.utils import timezone
+        from datetime import timedelta
+
+        # Check DB first 
         try:
             launch = Launch.objects.get(api_id=api_id)
+            
+            # If the mission is live/recent and missing a webcast, force a refresh from the API
+            now = timezone.now()
+            is_recent = launch.launch_date and (now - timedelta(hours=6)) <= launch.launch_date <= (now + timedelta(minutes=15))
+            if is_recent and not launch.webcast_url:
+                refreshed = get_launch_by_api_id(api_id, force_refresh=True)
+                if refreshed:
+                    launch = refreshed
+            
             return Response(LaunchSerializer(launch).data)
         except Launch.DoesNotExist:
             pass
 
-        # Try fetching from LL2 (SpaceX launches are already prefixed)
+        # Try fetching from LL2 
         try:
             launch = get_launch_by_api_id(api_id)
             if launch:

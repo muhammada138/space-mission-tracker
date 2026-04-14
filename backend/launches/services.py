@@ -189,12 +189,12 @@ def get_past_launches(limit: int = 20) -> list:
     )
 
 
-def get_launch_by_api_id(api_id: str) -> Launch | None:
+def get_launch_by_api_id(api_id: str, force_refresh: bool = False) -> Launch | None:
     """Fetch a single launch by LL2 api_id, refreshing cache if stale."""
     cutoff = timezone.now() - timedelta(minutes=CACHE_TTL_MINUTES)
     try:
         obj = Launch.objects.get(api_id=api_id)
-        if obj.last_fetched >= cutoff:
+        if not force_refresh and obj.last_fetched >= cutoff:
             return obj
     except Launch.DoesNotExist:
         pass
