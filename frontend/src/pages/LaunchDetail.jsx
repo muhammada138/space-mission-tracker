@@ -214,6 +214,14 @@ export default function LaunchDetail() {
   )
 
   const isUpcoming = launch.launch_date && new Date(launch.launch_date) > new Date()
+  const status = (launch.status || '').toLowerCase()
+  const isSuccess = status.includes('success')
+  const isFail = status.includes('fail')
+  const isActive = status.includes('in flight') || status.includes('inflight') ||
+    (launch.launch_date && new Date(launch.launch_date) < new Date() &&
+     (Date.now() - new Date(launch.launch_date).getTime()) < 3600000 &&
+     !isSuccess && !isFail)
+
   const ytId = getYouTubeId(launch.webcast_url)
 
   return (
@@ -232,6 +240,33 @@ export default function LaunchDetail() {
         <button className="btn btn-ghost" onClick={() => navigate(-1)} style={{ marginBottom: 20 }}>
           <ArrowLeft size={14} /> Back
         </button>
+
+        {isActive && (
+          <div
+            className="glass"
+            style={{
+              marginBottom: 24, padding: '16px 20px', border: '1px solid var(--danger)',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              background: 'rgba(248, 113, 113, 0.05)', borderRadius: 12, flexWrap: 'wrap', gap: 16
+            }}
+          >
+            <div>
+              <h3 style={{ margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 8, color: 'var(--danger)', fontSize: 16, fontWeight: 800 }}>
+                <span style={{
+                  display: 'inline-flex', width: 8, height: 8, borderRadius: '50%',
+                  background: 'var(--danger)', animation: 'urgentPulse 2s ease-in-out infinite'
+                }} />
+                Mission is Live!
+              </h3>
+              <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary)' }}>
+                This vehicle is currently in flight. Track live mission telemetry, phases, and launch updates.
+              </p>
+            </div>
+            <button className="btn btn-accent" onClick={() => navigate(`/live/${launch.api_id}`)}>
+              <Radio size={14} /> Enter Live Tracker
+            </button>
+          </div>
+        )}
 
         <div className="detail-layout">
           {/* Left column: mission intel */}
