@@ -202,9 +202,12 @@ class ActiveLaunchesView(APIView):
                 pass
 
             from django.utils import timezone
+            from datetime import timedelta
             now = timezone.now()
+            # Transition to active 5 minutes before scheduled launch
+            active_threshold = now + timedelta(minutes=5)
 
-            results = [r for r in results if _to_dt(r.get('net'), _FAR_FUTURE) <= now]
+            results = [r for r in results if _to_dt(r.get('net'), _FAR_FUTURE) <= active_threshold]
 
             if results:
                 launches = list(_upsert_launches(results))
@@ -295,45 +298,40 @@ class ISSCrewView(APIView):
 
     @staticmethod
     def _get_wiki_summary_sync(client, name):
-        """Fetch a rich Wikipedia extract and high-res photo for an astronaut (sync)."""
+        """Helper to fetch Wikipedia summary synchronously with disambiguation checks"""
         import urllib.parse
-        try:
-            slug = urllib.parse.quote(name.replace(' ', '_'))
-            resp = client.get(
-                f'https://en.wikipedia.org/api/rest_v1/page/summary/{slug}',
-                timeout=6,
-                headers={'User-Agent': 'SpaceTracker/1.0'},
-            )
+        
+        def _fetch(title):
+            try:
+                slug = urllib.parse.quote(title.replace(' ', '_'))
+                resp = client.get(
+                    f'https://en.wikipedia.org/api/rest_v1/page/summary/{slug}',
+                    timeout=6,
+                    headers={'User-Agent': 'SpaceTracker/1.0'},
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    extract = data.get('extract', '')
+                    # If it's a disambiguation page, return None
+                    if 'may refer to:' in extract.lower() or 'can refer to:' in extract.lower() or data.get('type') == 'disambiguation':
+                        return None
+                    return {
+                        'wiki_thumbnail': data.get('originalimage', {}).get('source', '') or data.get('thumbnail', {}).get('source', ''),
+                        'wiki_url': data.get('content_urls', {}).get('desktop', {}).get('page', ''),
+                        'wiki_extract': extract
+                    }
+            except Exception:
+                pass
+            return None
 
-            wiki_data = {'wiki_extract': '', 'wiki_thumbnail': '', 'wiki_url': ''}
+        # Tier 1: Exact name
+        wiki_data = _fetch(name)
+        
+        # Tier 2: Name (astronaut) or Name (cosmonaut) - specifically for crew enrichment
+        if not wiki_data or len(wiki_data.get('wiki_extract', '')) < 50:
+            wiki_data = _fetch(f"{name} (astronaut)") or _fetch(f"{name} (cosmonaut)") or wiki_data
 
-            if resp.status_code == 200:
-                data = resp.json()
-                wiki_data['wiki_thumbnail'] = data.get('originalimage', {}).get('source', '') or \
-                                             data.get('thumbnail', {}).get('source', '')
-                wiki_data['wiki_url'] = data.get('content_urls', {}).get('desktop', {}).get('page', '')
-                wiki_data['wiki_extract'] = data.get('extract', '')
-
-            # Full intro via Action API
-            action_resp = client.get(
-                'https://en.wikipedia.org/w/api.php',
-                params={
-                    'action': 'query', 'format': 'json', 'prop': 'extracts',
-                    'exintro': True, 'explaintext': True, 'titles': name, 'redirects': 1,
-                },
-                timeout=6,
-                headers={'User-Agent': 'SpaceTracker/1.0'},
-            )
-            if action_resp.status_code == 200:
-                pages = action_resp.json().get('query', {}).get('pages', {})
-                for page_id in pages:
-                    full_intro = pages[page_id].get('extract', '')
-                    if full_intro and len(full_intro) > len(wiki_data['wiki_extract']):
-                        wiki_data['wiki_extract'] = full_intro
-
-            return wiki_data
-        except Exception:
-            return {}
+        return wiki_data or {}
 
     def get(self, request):
         import httpx

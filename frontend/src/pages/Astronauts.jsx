@@ -182,9 +182,12 @@ export default function Astronauts() {
                                         <span style={{ position: 'absolute', top: 16, right: 16, fontSize: 24, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }}>{getFlag(person.nationality)}</span>
                                     </div>
                                     <div style={{ padding: '24px', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                                        <h3 style={{ margin: '0 0 6px', fontSize: 20, fontWeight: 800 }}>{person.name}</h3>
-                                        <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--text-secondary)', fontWeight: 500 }}>
-                                            {person.agency?.abbrev || person.agency?.name || 'Astronaut'} • {person.nationality || 'Unknown'}
+                                        <h3 className="text-glow" style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 800, letterSpacing: '-0.02em', color: '#fff' }}>
+                                            {person.name}
+                                        </h3>
+                                        <p style={{ margin: '0 0 12px', fontSize: 12, color: 'var(--text-secondary)', fontWeight: 500 }}>
+                                            {person.agency?.name && person.agency.name !== 'Unknown' ? person.agency.name : 'Independent Astronaut'} 
+                                            {person.nationality && person.nationality !== 'Unknown' ? ` • ${person.nationality}` : ''}
                                         </p>
 
                                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
@@ -219,9 +222,7 @@ export default function Astronauts() {
                         backdropFilter: 'blur(10px)', 
                         zIndex: 1000, 
                         overflowY: 'scroll', 
-                        display: 'flex', 
-                        flexDirection: 'column', 
-                        alignItems: 'center',
+                        display: 'block', 
                         WebkitOverflowScrolling: 'touch'
                     }}
                     onClick={() => setSelectedPerson(null)}
@@ -231,14 +232,13 @@ export default function Astronauts() {
                         style={{ 
                             margin: '60px auto', 
                             maxWidth: 900, 
-                            width: 'calc(100% - 40px)', 
+                            width: 'calc(100% - 32px)', 
                             position: 'relative', 
                             padding: 0, 
                             display: 'flex', 
                             flexDirection: 'column', 
                             border: '1px solid rgba(255,255,255,0.12)', 
                             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-                            flexShrink: 0
                         }}
                         onClick={e => e.stopPropagation()}
                     >

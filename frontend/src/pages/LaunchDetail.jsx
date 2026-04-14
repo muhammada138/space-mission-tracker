@@ -241,55 +241,33 @@ export default function LaunchDetail() {
           <ArrowLeft size={14} /> Back
         </button>
 
-        {isActive && (
-          <div
-            className="glass"
-            style={{
-              marginBottom: 24, padding: '16px 20px', border: '1px solid var(--danger)',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              background: 'rgba(248, 113, 113, 0.05)', borderRadius: 12, flexWrap: 'wrap', gap: 16
-            }}
-          >
-            <div>
-              <h3 style={{ margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 8, color: 'var(--danger)', fontSize: 16, fontWeight: 800 }}>
-                <span style={{
-                  display: 'inline-flex', width: 8, height: 8, borderRadius: '50%',
-                  background: 'var(--danger)', animation: 'urgentPulse 2s ease-in-out infinite'
-                }} />
-                Mission is Live!
-              </h3>
-              <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary)' }}>
-                This vehicle is currently in flight. Track live mission telemetry, phases, and launch updates.
-              </p>
-            </div>
-            <button className="btn btn-accent" onClick={() => navigate(`/live/${launch.api_id}`)}>
-              <Radio size={14} /> Enter Live Tracker
-            </button>
-          </div>
-        )}
-
-        <div className="detail-layout">
-          {/* Left column: mission intel */}
-          <div className="fade-up">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-              <span className={`badge ${getStatusBadge(launch.status)}`}>{launch.status || 'Unknown'}</span>
-              {launch.mission_type && <span className="badge badge-default">{launch.mission_type}</span>}
-            </div>
-
-            <h1 style={{ fontSize: 'clamp(22px, 4vw, 34px)', fontWeight: 800, margin: '0 0 6px', lineHeight: 1.15, letterSpacing: '-0.02em' }}>
-              {launch.name}
-            </h1>
-            <p style={{ margin: '0 0 20px', color: 'var(--text-secondary)', fontSize: 14 }}>
-              {[launch.launch_provider, launch.rocket].filter(Boolean).join(' / ')}
-            </p>
-
             {/* Countdown for upcoming */}
             {isUpcoming && (
-              <div className="glass" style={{ padding: '18px 22px', marginBottom: 20, display: 'inline-block' }}>
-                <p style={{ margin: '0 0 6px', fontSize: 10, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                  T-Minus
-                </p>
-                <CountdownTimer targetDate={launch.launch_date} large />
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 20, flexWrap: 'wrap' }}>
+                <div className="glass" style={{ padding: '18px 22px', display: 'inline-block' }}>
+                  <p style={{ margin: '0 0 6px', fontSize: 10, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                    T-Minus
+                  </p>
+                  <CountdownTimer targetDate={launch.launch_date} large />
+                </div>
+                
+                {/* Prominent Watch Now Button */}
+                <button 
+                  className="btn btn-primary" 
+                  onClick={() => navigate(`/live/${launch.api_id}`)}
+                  style={{ 
+                    height: 98, padding: '0 32px', fontSize: 16, fontWeight: 800,
+                    display: 'flex', flexDirection: 'column', gap: 8, justifyContent: 'center',
+                    background: 'var(--gradient-brand)', border: 'none',
+                    animation: 'urgentPulse 2s ease-in-out infinite',
+                    boxShadow: '0 10px 30px rgba(0, 212, 255, 0.3)'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Radio size={20} /> WATCH NOW
+                  </div>
+                  <span style={{ fontSize: 11, fontWeight: 500, opacity: 0.9 }}>Enter Live Tracker</span>
+                </button>
               </div>
             )}
 

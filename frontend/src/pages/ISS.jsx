@@ -102,9 +102,7 @@ function CrewModal({ person, onClose }) {
         backdropFilter: 'blur(10px)', 
         zIndex: 1000, 
         overflowY: 'scroll', 
-        display: 'flex', 
-        flexDirection: 'column', 
-        alignItems: 'center',
+        display: 'block', 
         WebkitOverflowScrolling: 'touch'
       }}
       onClick={onClose}
@@ -114,14 +112,13 @@ function CrewModal({ person, onClose }) {
         style={{ 
           margin: '60px auto', 
           maxWidth: 900, 
-          width: 'calc(100% - 40px)', 
+          width: 'calc(100% - 32px)', 
           position: 'relative', 
           padding: 0, 
           display: 'flex', 
           flexDirection: 'column', 
           border: '1px solid rgba(255,255,255,0.12)', 
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-          flexShrink: 0
         }}
         onClick={e => e.stopPropagation()}
       >

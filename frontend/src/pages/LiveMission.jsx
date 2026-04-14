@@ -249,9 +249,14 @@ export default function LiveMission() {
     const currentPhaseIndex = useMemo(() => getCurrentPhaseIndex(tPlusSeconds, phases), [tPlusSeconds, phases])
     const telemetry = useMemo(() => getTelemetry(tPlusSeconds, isSpaceX), [tPlusSeconds, isSpaceX])
 
+    const launchStatus = (launch?.status || '').toLowerCase()
     const isUpcoming = launch?.launch_date && new Date(launch.launch_date) > new Date()
-    const isActive = tPlusSeconds >= 0 && tPlusSeconds < 3600
-    const isComplete = tPlusSeconds >= 3600
+    
+    // Active if in flight, or if it's within 5 minutes of launch
+    const isActive = (tPlusSeconds >= -300 && tPlusSeconds < 3600) || launchStatus.includes('in flight')
+    
+    // Only complete if it's been an hour AND it wasn't marked as upcoming/hold
+    const isComplete = tPlusSeconds >= 3600 && !isUpcoming && !launchStatus.includes('hold') && !launchStatus.includes('tbd')
 
     if (loading && !launch) return <div className="page-container" style={{ paddingTop: 100, display: 'flex', justifyContent: 'center' }}><div className="spinner" /></div>
     if (!launch) return <div className="page-container" style={{ paddingTop: 100 }}><h2>Launch not found</h2></div>
