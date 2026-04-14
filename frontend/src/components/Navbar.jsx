@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { Rocket, LayoutDashboard, LogIn, LogOut, UserPlus, Menu, X, Globe, BarChart3, Timer, Map, Crosshair } from 'lucide-react'
+import { Rocket, LayoutDashboard, LogIn, LogOut, UserPlus, Menu, X, Globe, BarChart3, Timer, Map, Crosshair, Users } from 'lucide-react'
 import api from '../api/axios'
 import toast from 'react-hot-toast'
 
@@ -67,6 +67,7 @@ export default function Navbar() {
     { to: '/rockets', label: 'Rockets', icon: <Crosshair size={14} /> },
     { to: '/stats', label: 'Stats', icon: <BarChart3 size={14} /> },
     { to: '/iss', label: 'Space Stations', icon: <Map size={14} /> },
+    { to: '/astronauts', label: 'Crew', icon: <Users size={14} /> },
   ]
 
   return (

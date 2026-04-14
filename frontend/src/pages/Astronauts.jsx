@@ -26,18 +26,59 @@ function getFlag(nationality) {
 export default function Astronauts() {
     const [crew, setCrew] = useState([])
     const [loading, setLoading] = useState(true)
+    const [error, setError] = useState(false)
     const [selectedPerson, setSelectedPerson] = useState(null)
 
-    useEffect(() => {
+    const fetchCrew = () => {
+        setLoading(true)
+        setError(false)
         fetch('/api/iss-crew/')
-            .then(r => { if (!r.ok) throw new Error(r.status); return r.json() })
+            .then(r => {
+                if (!r.ok) throw new Error(r.status)
+                return r.json()
+            })
             .then(data => {
                 const filteredCrew = (data.crew || []).filter(p => !p.name.toLowerCase().includes('starman'))
-                setCrew(filteredCrew)
+                if (filteredCrew.length > 0) {
+                    setCrew(filteredCrew)
+                } else {
+                    throw new Error('Empty crew from backend')
+                }
             })
-            .catch(err => console.error('Fetch error:', err))
+            .catch(err => {
+                console.warn('Backend crew fetch failed, trying LL2 direct:', err)
+                // Direct fallback to LL2
+                fetch('https://ll.thespacedevs.com/2.2.0/astronaut/?in_space=true&mode=detailed&limit=30')
+                    .then(r => r.json())
+                    .then(data => {
+                        const results = data.results || []
+                        const mapped = results.map(a => ({
+                            name: a.name || '',
+                            nationality: a.nationality || '',
+                            bio: a.bio || '',
+                            profile_image: a.profile_image || a.profile_image_thumbnail || '',
+                            date_of_birth: a.date_of_birth || '',
+                            flights_count: a.flights_count || 0,
+                            agency: {
+                                name: (a.agency || {}).name || '',
+                                abbrev: (a.agency || {}).abbrev || '',
+                            },
+                            craft: (a.last_flight || '').toLowerCase().includes('shenzhou') ? 'Tiangong' : 'ISS',
+                            wiki_url: a.wiki || '',
+                            status: { name: 'Active' },
+                        }))
+                        if (mapped.length > 0) {
+                            setCrew(mapped.filter(p => !p.name.toLowerCase().includes('starman')))
+                        } else {
+                            setError(true)
+                        }
+                    })
+                    .catch(() => setError(true))
+            })
             .finally(() => setLoading(false))
-    }, [])
+    }
+
+    useEffect(() => { fetchCrew() }, [])
 
     useEffect(() => {
         if (selectedPerson) {
@@ -49,8 +90,33 @@ export default function Astronauts() {
     }, [selectedPerson])
 
     if (loading) return (
-        <div className="page-container" style={{ paddingTop: 100, display: 'flex', justifyContent: 'center' }}>
-            <div className="spinner" />
+        <div className="page-container" style={{ paddingTop: 36, paddingBottom: 80 }}>
+            <div style={{ marginBottom: 48 }}>
+                <div className="skeleton" style={{ width: 200, height: 16, marginBottom: 12 }} />
+                <div className="skeleton" style={{ width: 300, height: 36, marginBottom: 10 }} />
+                <div className="skeleton" style={{ width: 400, height: 16 }} />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 24 }}>
+                {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="skeleton-card" style={{ animationDelay: `${i * 60}ms` }}>
+                        <div className="skeleton skeleton-img" />
+                        <div className="skeleton-body">
+                            <div className="skeleton skeleton-line" />
+                            <div className="skeleton skeleton-line-sm" />
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    )
+
+    if (error) return (
+        <div className="page-container" style={{ paddingTop: 100 }}>
+            <div className="empty-state fade-up">
+                <div className="icon">🛸</div>
+                <p style={{ color: 'var(--text-secondary)', marginBottom: 16 }}>Unable to reach crew data APIs. They may be rate-limited.</p>
+                <button className="btn btn-primary" onClick={fetchCrew}>Retry</button>
+            </div>
         </div>
     )
 

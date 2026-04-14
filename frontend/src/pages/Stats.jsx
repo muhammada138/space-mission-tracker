@@ -119,8 +119,10 @@ export default function Stats() {
     providers[prov] = (providers[prov] || 0) + 1
     if (l.launch_date) {
       const d = new Date(l.launch_date)
-      const m = d.toLocaleString('en', { month: 'short', year: '2-digit' })
-      monthData[m] = (monthData[m] || 0) + 1
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+      const label = d.toLocaleString('en', { month: 'short', year: '2-digit' })
+      if (!monthData[key]) monthData[key] = { sortKey: key, label, count: 0 }
+      monthData[key].count += 1
       dayCounts[d.getDay()] = (dayCounts[d.getDay()] || 0) + 1
     }
     const pad = l.pad_location || l.pad_name
@@ -131,8 +133,10 @@ export default function Stats() {
     .map(([name, count]) => ({ name: name.length > 20 ? name.slice(0, 20) + '…' : name, count }))
     .sort((a, b) => b.count - a.count).slice(0, 8)
 
-  const monthChartData = Object.entries(monthData)
-    .map(([month, count]) => ({ month, count })).slice(-12)
+  const monthChartData = Object.values(monthData)
+    .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
+    .slice(-12)
+    .map(m => ({ month: m.label, count: m.count }))
 
   const padData = Object.entries(padCounts)
     .map(([name, count]) => ({ name: name.length > 30 ? name.slice(0, 30) + '…' : name, count }))
@@ -141,8 +145,13 @@ export default function Stats() {
   const dayData = dayNames.map((name, i) => ({ name, count: dayCounts[i] || 0 }))
   const busiestDay = dayData.reduce((max, d) => d.count > max.count ? d : max, dayData[0])
 
-  const successRate = pastLaunches.length > 0
-    ? Math.round((successCount / pastLaunches.length) * 100) : 0
+  // Only count launches with definitive success/failure status for accuracy
+  const decisiveLaunches = pastLaunches.filter(l => {
+    const s = (l.status || '').toLowerCase()
+    return s.includes('success') || s.includes('fail')
+  })
+  const successRate = decisiveLaunches.length > 0
+    ? Math.round((successCount / decisiveLaunches.length) * 100) : 0
 
   if (loading) return (
     <div className="page-container" style={{ paddingTop: 100, display: 'flex', justifyContent: 'center' }}>

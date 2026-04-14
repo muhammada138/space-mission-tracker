@@ -1332,3 +1332,38 @@ main {
   .hero-launch { min-height: 220px; }
   .hero-launch-content { padding: 20px; }
 }
+
+/* ====================================================================
+   PERFORMANCE OPTIMIZATIONS
+   ==================================================================== */
+
+/* Lazy render off-screen cards */
+.launch-card {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 340px;
+}
+
+/* Reduce paint area for hover animations */
+.hover-card,
+.launch-card {
+  will-change: transform;
+}
+
+/* Hover scale utility */
+.hover-scale {
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+.hover-scale:hover {
+  transform: scale(1.1);
+}
+
+/* ====================================================================
+   LIVE MISSION PAGE RESPONSIVE
+   ==================================================================== */
+
+@media (max-width: 900px) {
+  /* Stack the live mission layout on smaller screens */
+  .page-container > .fade-up > div[style*="grid-template-columns: 1fr 380px"] {
+    grid-template-columns: 1fr !important;
+  }
+}

@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
-import { MapPin, CheckCircle, XCircle } from 'lucide-react'
+import { MapPin, CheckCircle, XCircle, Radio } from 'lucide-react'
 import CountdownTimer from './CountdownTimer'
 
 function getStatusClass(status) {
@@ -9,6 +9,7 @@ function getStatusClass(status) {
   if (s.includes('hold')) return 'status-hold'
   if (s.includes('success')) return 'status-success'
   if (s.includes('fail')) return 'status-fail'
+  if (s.includes('in flight') || s.includes('inflight')) return 'status-go'
   return 'status-default'
 }
 
@@ -18,6 +19,7 @@ function statusBadgeClass(status) {
   if (s.includes('hold')) return 'badge badge-hold'
   if (s.includes('success')) return 'badge badge-success'
   if (s.includes('fail')) return 'badge badge-failure'
+  if (s.includes('in flight') || s.includes('inflight')) return 'badge badge-go'
   return 'badge badge-default'
 }
 
@@ -27,14 +29,18 @@ export default function LaunchCard({ launch, showCountdown = true }) {
   const status = (launch.status || '').toLowerCase()
   const isSuccess = status.includes('success')
   const isFail = status.includes('fail')
+  const isActive = status.includes('in flight') || status.includes('inflight') ||
+    (launch.launch_date && new Date(launch.launch_date) < new Date() &&
+     (Date.now() - new Date(launch.launch_date).getTime()) < 3600000 &&
+     !isSuccess && !isFail)
 
   return (
     <div
       className={`glass launch-card ${getStatusClass(launch.status)}`}
-      onClick={() => navigate(`/launch/${launch.api_id}`)}
+      onClick={() => navigate(isActive ? `/live/${launch.api_id}` : `/launch/${launch.api_id}`)}
       role="button"
       tabIndex={0}
-      onKeyDown={(e) => e.key === 'Enter' && navigate(`/launch/${launch.api_id}`)}
+      onKeyDown={(e) => e.key === 'Enter' && navigate(isActive ? `/live/${launch.api_id}` : `/launch/${launch.api_id}`)}
     >
       <div className="card-img-wrapper">
         {launch.image_url ? (
@@ -43,7 +49,19 @@ export default function LaunchCard({ launch, showCountdown = true }) {
           <div className="card-img-placeholder">🚀</div>
         )}
         <div className="card-img-gradient" />
-        <div className="badge-overlay">
+        <div className="badge-overlay" style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          {isActive && (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+              padding: '3px 8px', borderRadius: 4, fontSize: 10, fontWeight: 800,
+              background: 'rgba(248, 113, 113, 0.9)', color: '#fff',
+              fontFamily: 'var(--font-mono)', letterSpacing: '0.06em',
+              animation: 'urgentPulse 2s ease-in-out infinite',
+            }}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#fff', animation: 'urgentPulse 1s ease-in-out infinite' }} />
+              LIVE
+            </span>
+          )}
           <span className={statusBadgeClass(launch.status)}>{launch.status || 'Unknown'}</span>
         </div>
       </div>
@@ -68,22 +86,33 @@ export default function LaunchCard({ launch, showCountdown = true }) {
         )}
 
         {/* Past launch result icon */}
-        {isPast && (isSuccess || isFail) && (
+        {isPast && !isActive && (isSuccess || isFail) && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600, color: isSuccess ? 'var(--success)' : 'var(--danger)', marginBottom: 8 }}>
             {isSuccess ? <CheckCircle size={14} /> : <XCircle size={14} />}
             {isSuccess ? 'Mission Success' : 'Mission Failure'}
           </div>
         )}
 
+        {/* Active mission CTA */}
+        {isActive && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700,
+            color: 'var(--danger)', marginBottom: 8,
+          }}>
+            <Radio size={14} />
+            Watch Live →
+          </div>
+        )}
+
         {/* Countdown or date */}
         <div>
           {launch.launch_date ? (
-            isPast ? (
+            isPast && !isActive ? (
               <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                 {format(new Date(launch.launch_date), 'MMM d, yyyy HH:mm')} UTC
               </p>
             ) : showCountdown ? (
-              <CountdownTimer launchDate={launch.launch_date} />
+              <CountdownTimer targetDate={launch.launch_date} />
             ) : (
               <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                 {format(new Date(launch.launch_date), 'MMM d, yyyy HH:mm')} UTC
@@ -97,3 +126,4 @@ export default function LaunchCard({ launch, showCountdown = true }) {
     </div>
   )
 }
+

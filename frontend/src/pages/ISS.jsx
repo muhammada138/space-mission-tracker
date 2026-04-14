@@ -357,19 +357,45 @@ export default function ISS() {
     return () => { active = false; clearInterval(interval) }
   }, [])
 
-  // Fetch crew data (cached back-end)
-  useEffect(() => {
+  // Fetch crew data with robust fallback
+  const fetchCrew = useCallback(() => {
     setCrewLoading(true)
+    setCrewError(false)
     fetch('/api/iss-crew/')
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) throw new Error(r.status)
+        return r.json()
+      })
       .then(data => {
         const filtered = (data.crew || []).filter(p => !p.name.toLowerCase().includes('starman'))
-        setCrew(filtered)
-        setCrewError(false)
+        if (filtered.length > 0) {
+          setCrew(filtered)
+        } else {
+          throw new Error('Empty crew')
+        }
       })
-      .catch(() => setCrewError(true))
+      .catch(() => {
+        // Direct fallback to LL2
+        fetch('https://ll.thespacedevs.com/2.2.0/astronaut/?in_space=true&mode=detailed&limit=30')
+          .then(r => r.json())
+          .then(data => {
+            const results = (data.results || []).map(a => ({
+              name: a.name || '', nationality: a.nationality || '', bio: a.bio || '',
+              profile_image: a.profile_image || '', date_of_birth: a.date_of_birth || '',
+              flights_count: a.flights_count || 0,
+              agency: { name: (a.agency || {}).name || '', abbrev: (a.agency || {}).abbrev || '' },
+              craft: (a.last_flight || '').toLowerCase().includes('shenzhou') ? 'Tiangong' : 'ISS',
+              wiki_url: a.wiki || '', status: { name: 'Active' },
+            })).filter(p => !p.name.toLowerCase().includes('starman'))
+            if (results.length > 0) setCrew(results)
+            else setCrewError(true)
+          })
+          .catch(() => setCrewError(true))
+      })
       .finally(() => setCrewLoading(false))
   }, [])
+
+  useEffect(() => { fetchCrew() }, [fetchCrew])
 
   const groupedCrew = useMemo(() => {
     const groups = {}
@@ -441,7 +467,12 @@ export default function ISS() {
       </div>
 
       <div className="glass fade-up" style={{ padding: '22px 26px' }}>
-        {crewLoading ? <div className="spinner" /> : crewError ? <p>Crew data unavailable.</p> : (
+        {crewLoading ? <div className="spinner" /> : crewError ? (
+          <div style={{ textAlign: 'center', padding: '24px 0' }}>
+            <p style={{ color: 'var(--text-muted)', marginBottom: 12 }}>Crew data temporarily unavailable</p>
+            <button className="btn btn-ghost" onClick={fetchCrew}>Retry</button>
+          </div>
+        ) : (
           <div>
             {Object.entries(groupedCrew).map(([craft, members]) => (
               <div key={craft} style={{ marginBottom: 24 }}>

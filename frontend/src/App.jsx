@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
-import { useEffect } from 'react'
+import { useEffect, Suspense, lazy } from 'react'
 import { AuthProvider } from './context/AuthContext'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
@@ -9,15 +9,26 @@ import Home from './pages/Home'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import LaunchDetail from './pages/LaunchDetail'
-import Dashboard from './pages/Dashboard'
-import Spaceports from './pages/Spaceports'
-import Timeline from './pages/Timeline'
-import Rockets from './pages/Rockets'
-import Stats from './pages/Stats'
-import ISS from './pages/ISS'
-import Astronauts from './pages/Astronauts'
-import LiveMission from './pages/LiveMission'
-import LaunchMap from './pages/LaunchMap'
+
+// Lazy-load heavy pages (Three.js globe, Recharts, Leaflet, etc.)
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const Spaceports = lazy(() => import('./pages/Spaceports'))
+const Timeline = lazy(() => import('./pages/Timeline'))
+const Rockets = lazy(() => import('./pages/Rockets'))
+const Stats = lazy(() => import('./pages/Stats'))
+const ISS = lazy(() => import('./pages/ISS'))
+const Astronauts = lazy(() => import('./pages/Astronauts'))
+const LiveMission = lazy(() => import('./pages/LiveMission'))
+const LaunchMap = lazy(() => import('./pages/LaunchMap'))
+
+// Loading fallback component
+function PageLoader() {
+  return (
+    <div className="page-container" style={{ paddingTop: 100, display: 'flex', justifyContent: 'center' }}>
+      <div className="spinner" />
+    </div>
+  )
+}
 
 // Scroll to top on route change
 function ScrollReset() {
@@ -33,27 +44,29 @@ function AnimatedRoutes() {
   return (
     <main key={location.pathname}>
       <ScrollReset />
-      <Routes location={location}>
-        <Route path="/"                   element={<Home tab="upcoming" />} />
-        <Route path="/launches"           element={<Home tab="upcoming" />} />
-        <Route path="/launches/upcoming"  element={<Home tab="upcoming" />} />
-        <Route path="/launches/active"    element={<Home tab="active" />} />
-        <Route path="/launches/past"      element={<Home tab="past" />} />
-        <Route path="/login"              element={<Login />} />
-        <Route path="/register"           element={<Register />} />
-        <Route path="/launch/:api_id"     element={<LaunchDetail />} />
-        <Route path="/map"                element={<LaunchMap />} />
-        <Route path="/spaceports"         element={<Spaceports />} />
-        <Route path="/timeline"           element={<Timeline />} />
-        <Route path="/rockets"            element={<Rockets />} />
-        <Route path="/stats"              element={<Stats />} />
-        <Route path="/iss"                element={<ISS />} />
-        <Route path="/astronauts"         element={<Astronauts />} />
-        <Route path="/live/:id"           element={<LiveMission />} />
-        <Route path="/dashboard"          element={
-          <ProtectedRoute><Dashboard /></ProtectedRoute>
-        } />
-      </Routes>
+      <Suspense fallback={<PageLoader />}>
+        <Routes location={location}>
+          <Route path="/"                   element={<Home tab="upcoming" />} />
+          <Route path="/launches"           element={<Home tab="upcoming" />} />
+          <Route path="/launches/upcoming"  element={<Home tab="upcoming" />} />
+          <Route path="/launches/active"    element={<Home tab="active" />} />
+          <Route path="/launches/past"      element={<Home tab="past" />} />
+          <Route path="/login"              element={<Login />} />
+          <Route path="/register"           element={<Register />} />
+          <Route path="/launch/:api_id"     element={<LaunchDetail />} />
+          <Route path="/map"                element={<LaunchMap />} />
+          <Route path="/spaceports"         element={<Spaceports />} />
+          <Route path="/timeline"           element={<Timeline />} />
+          <Route path="/rockets"            element={<Rockets />} />
+          <Route path="/stats"              element={<Stats />} />
+          <Route path="/iss"                element={<ISS />} />
+          <Route path="/astronauts"         element={<Astronauts />} />
+          <Route path="/live/:id"           element={<LiveMission />} />
+          <Route path="/dashboard"          element={
+            <ProtectedRoute><Dashboard /></ProtectedRoute>
+          } />
+        </Routes>
+      </Suspense>
     </main>
   )
 }

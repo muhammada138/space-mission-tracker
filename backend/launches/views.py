@@ -1,5 +1,8 @@
 import datetime as dt
+import logging
 import os
+
+logger = logging.getLogger(__name__)
 
 from django.utils.dateparse import parse_datetime
 from rest_framework import permissions, status
@@ -265,90 +268,88 @@ class LaunchUpdatesView(APIView):
 
 
 class ISSCrewView(APIView):
-    """GET /api/iss-crew/ - proxy for detailed LL2 astronaut data with Wikipedia enrichment"""
+    """GET /api/iss-crew/ - proxy for detailed LL2 astronaut data with Wikipedia enrichment.
+    Uses synchronous httpx so it works under both WSGI and ASGI.
+    """
     permission_classes = [permissions.AllowAny]
 
     _cache = {'data': None, 'expires': None}
 
+    # Hardcoded fallback crew for when ALL external APIs are down
+    _FALLBACK_CREW = [
+        {'name': 'Sunita Williams', 'craft': 'ISS', 'nationality': 'American', 'agency': {'name': 'NASA', 'abbrev': 'NASA', 'type': 'Government'}, 'bio': 'Sunita "Suni" Williams is a NASA astronaut. She previously held the record for total spacewalks by a woman and has spent over 322 days in space.', 'profile_image': '', 'date_of_birth': '1965-09-19', 'flights_count': 3, 'status': {'name': 'Active'}, 'wiki_url': 'https://en.wikipedia.org/wiki/Sunita_Williams'},
+        {'name': 'Butch Wilmore', 'craft': 'ISS', 'nationality': 'American', 'agency': {'name': 'NASA', 'abbrev': 'NASA', 'type': 'Government'}, 'bio': 'Barry "Butch" Wilmore is a NASA astronaut and a United States Navy test pilot. He has logged over 178 days in space.', 'profile_image': '', 'date_of_birth': '1962-06-29', 'flights_count': 3, 'status': {'name': 'Active'}, 'wiki_url': 'https://en.wikipedia.org/wiki/Butch_Wilmore'},
+        {'name': 'Oleg Kononenko', 'craft': 'ISS', 'nationality': 'Russian', 'agency': {'name': 'Russian Federal Space Agency', 'abbrev': 'RFSA', 'type': 'Government'}, 'bio': 'Oleg Kononenko is a Russian cosmonaut who holds the record for the most cumulative time spent in space.', 'profile_image': '', 'date_of_birth': '1964-06-21', 'flights_count': 5, 'status': {'name': 'Active'}, 'wiki_url': 'https://en.wikipedia.org/wiki/Oleg_Kononenko'},
+        {'name': 'Nikolai Chub', 'craft': 'ISS', 'nationality': 'Russian', 'agency': {'name': 'Russian Federal Space Agency', 'abbrev': 'RFSA', 'type': 'Government'}, 'bio': 'Nikolai Chub is a Russian cosmonaut selected in 2012.', 'profile_image': '', 'date_of_birth': '1984-04-10', 'flights_count': 1, 'status': {'name': 'Active'}, 'wiki_url': 'https://en.wikipedia.org/wiki/Nikolai_Chub'},
+        {'name': 'Don Pettit', 'craft': 'ISS', 'nationality': 'American', 'agency': {'name': 'NASA', 'abbrev': 'NASA', 'type': 'Government'}, 'bio': 'Donald Roy Pettit is an American chemical engineer and NASA astronaut known for his creative experiments aboard the ISS.', 'profile_image': '', 'date_of_birth': '1955-04-20', 'flights_count': 4, 'status': {'name': 'Active'}, 'wiki_url': 'https://en.wikipedia.org/wiki/Don_Pettit'},
+    ]
+
     @staticmethod
-    async def _get_wiki_summary(client, name):
-        """Fetch a rich Wikipedia extract and high-res photo for an astronaut."""
+    def _get_wiki_summary_sync(client, name):
+        """Fetch a rich Wikipedia extract and high-res photo for an astronaut (sync)."""
         import urllib.parse
         try:
             slug = urllib.parse.quote(name.replace(' ', '_'))
-            # 1. Start with the REST API for metadata (images, URLs, basic layout)
-            resp = await client.get(
+            resp = client.get(
                 f'https://en.wikipedia.org/api/rest_v1/page/summary/{slug}',
-                timeout=8,
+                timeout=6,
                 headers={'User-Agent': 'SpaceTracker/1.0'},
             )
-            
-            wiki_data = {
-                'wiki_extract': '',
-                'wiki_thumbnail': '',
-                'wiki_url': '',
-            }
+
+            wiki_data = {'wiki_extract': '', 'wiki_thumbnail': '', 'wiki_url': ''}
 
             if resp.status_code == 200:
                 data = resp.json()
-                # Use originalimage for much higher quality photos
                 wiki_data['wiki_thumbnail'] = data.get('originalimage', {}).get('source', '') or \
                                              data.get('thumbnail', {}).get('source', '')
                 wiki_data['wiki_url'] = data.get('content_urls', {}).get('desktop', {}).get('page', '')
-                # Base extract as backup
                 wiki_data['wiki_extract'] = data.get('extract', '')
 
-            # 2. Use the Action API to get the FULL introductory section (lead section)
-            # This avoids the truncation found in the summary REST endpoint
-            action_resp = await client.get(
+            # Full intro via Action API
+            action_resp = client.get(
                 'https://en.wikipedia.org/w/api.php',
                 params={
-                    'action': 'query',
-                    'format': 'json',
-                    'prop': 'extracts',
-                    'exintro': True,
-                    'explaintext': True,
-                    'titles': name, # Query API handles spaces better
-                    'redirects': 1,
+                    'action': 'query', 'format': 'json', 'prop': 'extracts',
+                    'exintro': True, 'explaintext': True, 'titles': name, 'redirects': 1,
                 },
-                timeout=8,
+                timeout=6,
                 headers={'User-Agent': 'SpaceTracker/1.0'},
             )
             if action_resp.status_code == 200:
-                raw_query = action_resp.json().get('query', {})
-                pages = raw_query.get('pages', {})
+                pages = action_resp.json().get('query', {}).get('pages', {})
                 for page_id in pages:
                     full_intro = pages[page_id].get('extract', '')
                     if full_intro and len(full_intro) > len(wiki_data['wiki_extract']):
                         wiki_data['wiki_extract'] = full_intro
-            
+
             return wiki_data
         except Exception:
-            pass
-        return {}
+            return {}
 
-    async def get(self, request):
-        import httpx, asyncio
+    def get(self, request):
+        import httpx
+        from concurrent.futures import ThreadPoolExecutor, as_completed
         from django.utils import timezone
 
         now = timezone.now()
 
+        # Return cached response if still fresh
         if self._cache['data'] and self._cache['expires'] and now < self._cache['expires']:
             return Response(self._cache['data'])
 
-        async with httpx.AsyncClient() as client:
+        with httpx.Client(timeout=15) as client:
+            crew = []
+            source = 'unavailable'
+
+            # --- Attempt 1: LL2 detailed astronaut API ---
             try:
-                # LL2 gives detailed astronaut data for everyone currently in space
-                resp = await client.get(
+                resp = client.get(
                     'https://ll.thespacedevs.com/2.2.0/astronaut/',
                     params={'in_space': 'true', 'mode': 'detailed', 'limit': 30},
-                    timeout=15,
                 )
                 resp.raise_for_status()
                 results = resp.json().get('results', [])
-                
-                crew = []
-                wiki_tasks = []
+
                 for a in results:
                     entry = {
                         'name': a.get('name', ''),
@@ -362,89 +363,84 @@ class ISSCrewView(APIView):
                             'abbrev': (a.get('agency') or {}).get('abbrev', ''),
                             'type': (a.get('agency') or {}).get('type', ''),
                         },
-                        'status': {
-                            'name': (a.get('status') or {}).get('name', 'Active'),
-                        },
+                        'status': {'name': (a.get('status') or {}).get('name', 'Active')},
                         'wiki_url': a.get('wiki', ''),
                     }
-                    # Determine craft from current flight or last flight
                     craft = 'ISS'
                     try:
                         last_flight = (a.get('last_flight') or '')
                         if 'shenzhou' in last_flight.lower() or 'tiangong' in last_flight.lower():
                             craft = 'Tiangong'
-                        flights = a.get('flights', []) or []
-                        for f in flights:
-                            fname = (f.get('name') or '').lower()
-                            if 'shenzhou' in fname:
+                        for f in (a.get('flights', []) or []):
+                            if 'shenzhou' in (f.get('name') or '').lower():
                                 craft = 'Tiangong'
                                 break
                     except Exception:
                         pass
                     entry['craft'] = craft
                     crew.append(entry)
-                    wiki_tasks.append(self._get_wiki_summary(client, entry['name']))
 
-                # Fetch all wiki summaries in parallel
-                wiki_results = await asyncio.gather(*wiki_tasks)
+                source = 'll2'
+                logger.info(f'LL2 astronaut API returned {len(crew)} crew members')
 
-                # Enrich with wiki data
-                for entry, wiki in zip(crew, wiki_results):
-                    if wiki:
-                        if wiki.get('wiki_thumbnail'):
-                            entry['profile_image'] = wiki['wiki_thumbnail']
-                        if wiki.get('wiki_extract') and len(wiki['wiki_extract']) > len(entry['bio']):
-                            entry['bio'] = wiki['wiki_extract']
-                        if wiki.get('wiki_url'):
-                            entry['wiki_url'] = wiki['wiki_url']
+            except Exception as e:
+                logger.warning(f'LL2 astronaut fetch failed: {e}')
 
-                result = {'crew': crew, 'source': 'll2'}
-                ISSCrewView._cache = {'data': result, 'expires': now + dt.timedelta(hours=2)}
-                return Response(result)
-
-            except Exception:
+                # --- Attempt 2: Open-Notify fallback ---
                 try:
-                    # Fallback: Open-Notify + Wikipedia enrichment
-                    resp = await client.get('http://api.open-notify.org/astros.json', timeout=10)
+                    resp = client.get('http://api.open-notify.org/astros.json', timeout=10)
                     resp.raise_for_status()
-                    data = resp.json()
-                    people = data.get('people', [])
-                    
-                    crew = []
-                    wiki_tasks = []
+                    people = resp.json().get('people', [])
                     for p in people:
-                        entry = {
+                        crew.append({
                             'name': p.get('name', ''),
                             'craft': p.get('craft', 'ISS'),
-                            'nationality': '',
-                            'bio': '',
-                            'profile_image': '',
-                            'date_of_birth': '',
-                            'flights_count': None,
+                            'nationality': '', 'bio': '', 'profile_image': '',
+                            'date_of_birth': '', 'flights_count': None,
                             'agency': {'name': '', 'abbrev': '', 'type': ''},
-                            'status': {'name': 'Active'},
-                            'wiki_url': '',
-                        }
-                        crew.append(entry)
-                        wiki_tasks.append(self._get_wiki_summary(client, entry['name']))
+                            'status': {'name': 'Active'}, 'wiki_url': '',
+                        })
+                    source = 'open-notify'
+                    logger.info(f'Open-Notify fallback returned {len(crew)} people')
+                except Exception as e2:
+                    logger.warning(f'Open-Notify fallback also failed: {e2}')
 
-                    wiki_results = await asyncio.gather(*wiki_tasks)
+            # --- Attempt 3: Hardcoded fallback ---
+            if not crew:
+                import copy
+                crew = copy.deepcopy(self._FALLBACK_CREW)
+                source = 'fallback'
+                logger.info('Using hardcoded fallback crew data')
 
-                    for entry, wiki in zip(crew, wiki_results):
-                        if wiki:
-                            if wiki.get('wiki_extract'):
-                                entry['bio'] = wiki['wiki_extract']
-                            if wiki.get('wiki_thumbnail'):
-                                entry['profile_image'] = wiki['wiki_thumbnail']
-                            if wiki.get('wiki_url'):
-                                entry['wiki_url'] = wiki['wiki_url']
+            # --- Enrich with Wikipedia data using thread pool ---
+            try:
+                def _enrich(entry_and_client):
+                    entry, wiki_client = entry_and_client
+                    wiki = self._get_wiki_summary_sync(wiki_client, entry['name'])
+                    return (entry, wiki)
 
-                    result = {'crew': crew, 'source': 'open-notify'}
-                    ISSCrewView._cache = {'data': result, 'expires': now + dt.timedelta(minutes=30)}
-                    return Response(result)
+                with httpx.Client(timeout=8) as wiki_client:
+                    with ThreadPoolExecutor(max_workers=6) as pool:
+                        futures = [pool.submit(_enrich, (e, wiki_client)) for e in crew]
+                        for future in as_completed(futures):
+                            try:
+                                entry, wiki = future.result()
+                                if wiki:
+                                    if wiki.get('wiki_thumbnail'):
+                                        entry['profile_image'] = wiki['wiki_thumbnail']
+                                    if wiki.get('wiki_extract') and len(wiki['wiki_extract']) > len(entry.get('bio', '')):
+                                        entry['bio'] = wiki['wiki_extract']
+                                    if wiki.get('wiki_url'):
+                                        entry['wiki_url'] = wiki['wiki_url']
+                            except Exception:
+                                pass
+            except Exception as e:
+                logger.warning(f'Wikipedia enrichment failed: {e}')
 
-                except Exception:
-                    return Response({'crew': [], 'source': 'unavailable'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+            result = {'crew': crew, 'count': len(crew), 'source': source}
+            ttl = dt.timedelta(hours=2) if source == 'll2' else dt.timedelta(minutes=30)
+            ISSCrewView._cache = {'data': result, 'expires': now + ttl}
+            return Response(result)
 
 
 class LaunchPadWeatherView(APIView):
