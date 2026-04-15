@@ -241,6 +241,25 @@ export default function LaunchDetail() {
           <ArrowLeft size={14} /> Back
         </button>
 
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 32 }}>
+          {/* Left column: main content */}
+          <div style={{ flex: '1 1 600px', minWidth: 0 }}>
+            {/* Header info */}
+            <div style={{ marginBottom: 24 }} className="fade-up">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                <span className={`badge ${getStatusBadge(launch.status)}`}>{launch.status || 'Unknown'}</span>
+                {isActive && (
+                  <span className="badge badge-accent" style={{ animation: 'pulse 2s infinite' }}>
+                    <Radio size={10} /> Live Now
+                  </span>
+                )}
+              </div>
+              <h1 style={{ fontSize: 32, margin: '0 0 8px', lineHeight: 1.1 }}>{launch.name}</h1>
+              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 15 }}>
+                {launch.launch_provider} • {launch.pad_name}
+              </p>
+            </div>
+
             {/* Countdown for upcoming */}
             {isUpcoming && (
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 20, flexWrap: 'wrap' }}>
