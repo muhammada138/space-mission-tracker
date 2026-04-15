@@ -10,15 +10,7 @@ import ShareCard from '../components/ShareCard'
 import WeatherWidget from '../components/WeatherWidget'
 import { useNotifications } from '../hooks/useNotifications'
 import toast from 'react-hot-toast'
-
-function getStatusBadge(status) {
-  const s = (status || '').toLowerCase()
-  if (s.includes('go') || s.includes('green')) return 'badge-go'
-  if (s.includes('hold') || s.includes('tbd') || s.includes('tbc')) return 'badge-hold'
-  if (s.includes('fail')) return 'badge-failure'
-  if (s.includes('success')) return 'badge-success'
-  return 'badge-default'
-}
+import { getStatusClass } from '../utils/status'
 
 function getYouTubeId(url) {
   if (!url) return null
@@ -247,7 +239,7 @@ export default function LaunchDetail() {
             {/* Header info */}
             <div style={{ marginBottom: 24 }} className="fade-up">
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                <span className={`badge ${getStatusBadge(launch.status)}`}>{launch.status || 'Unknown'}</span>
+                <span className={`badge ${getStatusClass(launch.status)}`}>{launch.status || 'Unknown'}</span>
                 {isActive && (
                   <span className="badge badge-accent" style={{ animation: 'pulse 2s infinite' }}>
                     <Radio size={10} /> Live Now
