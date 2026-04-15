@@ -380,19 +380,18 @@ export default function Rockets() {
           </div>
 
           {/* Bottom row: Search and Filters */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <div className="search-bar" style={{ flex: '1 1 300px', margin: 0, height: 42 }}>
-              <Search size={16} className="search-icon" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+            <div className="search-bar" style={{ flex: '1 1 350px' }}>
+              <Search size={18} className="search-icon" />
               <input
                 type="text"
                 placeholder={`Search ${view === 'vehicles' ? 'rockets' : 'spacecraft'}...`}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                style={{ fontSize: 14 }}
               />
               {searchQuery && (
-                <button onClick={() => setSearchQuery('')} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', padding: 8, cursor: 'pointer' }}>
-                  <X size={14} />
+                <button onClick={() => setSearchQuery('')} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', padding: 8, cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                  <X size={16} />
                 </button>
               )}
             </div>
@@ -401,12 +400,12 @@ export default function Rockets() {
               <button 
                 className={`btn ${showFilters ? 'btn-primary' : 'btn-ghost'}`}
                 onClick={() => setShowFilters(!showFilters)}
-                style={{ height: 42, display: 'flex', alignItems: 'center', gap: 8, padding: '0 16px', fontSize: 14 }}
+                style={{ height: 46, display: 'flex', alignItems: 'center', gap: 10, padding: '0 20px', fontSize: 14, borderRadius: 12 }}
               >
-                <SlidersHorizontal size={16} />
-                Filters
+                <SlidersHorizontal size={18} />
+                Advanced Filters
                 {(missionFilter !== 'all' || orbitFilter !== 'all') && (
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#fff' }} />
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: showFilters ? '#000' : 'var(--accent)', boxShadow: showFilters ? 'none' : '0 0 8px var(--accent)' }} />
                 )}
               </button>
             )}
@@ -414,27 +413,34 @@ export default function Rockets() {
 
           {/* Expanded Filters Panel (Spacecraft View Only) */}
           {view === 'payloads' && showFilters && (
-            <div className="fade-up" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.05)' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Mission Category</label>
+            <div className="fade-up" style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', 
+              gap: 20, 
+              padding: '24px', 
+              background: 'rgba(255,255,255,0.02)', 
+              borderRadius: 16, 
+              border: '1px solid rgba(255,255,255,0.05)',
+              boxShadow: 'inset 0 0 30px rgba(0,0,0,0.2)'
+            }}>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <label className="filter-label">Mission Category</label>
                 <select 
                   value={missionFilter} 
                   onChange={(e) => setMissionFilter(e.target.value)}
-                  className="glass"
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, background: 'var(--bg-card)', color: '#fff', border: '1px solid var(--glass-border)' }}
+                  className="filter-select"
                 >
                   <option value="all">All Categories</option>
                   {payloadFilterOptions.missions.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Target Orbit</label>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <label className="filter-label">Target Orbit</label>
                 <select 
                   value={orbitFilter} 
                   onChange={(e) => setOrbitFilter(e.target.value)}
-                  className="glass"
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, background: 'var(--bg-card)', color: '#fff', border: '1px solid var(--glass-border)' }}
+                  className="filter-select"
                 >
                   <option value="all">All Orbits</option>
                   {payloadFilterOptions.orbits.map(o => <option key={o} value={o}>{o}</option>)}
@@ -445,9 +451,9 @@ export default function Rockets() {
                 <button 
                   onClick={clearFilters}
                   className="btn btn-ghost"
-                  style={{ height: 38, width: '100%', fontSize: 13 }}
+                  style={{ height: 42, width: '100%', fontSize: 13, borderRadius: 10 }}
                 >
-                  Clear All
+                  Reset All Filters
                 </button>
               </div>
             </div>

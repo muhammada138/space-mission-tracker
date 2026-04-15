@@ -860,6 +860,82 @@ class LaunchPadWeatherView(APIView):
             return Response({'available': False, 'reason': str(e)}, status=503)
 
 
+class StarshipTestsView(APIView):
+    """GET /api/launches/starship-tests/ - dynamic Starship status from live coverage"""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        # NASA Spaceflight Channel ID
+        channel_id = 'UCSUu1lih2lgZ6891WZ6nV2A' 
+        rss_url = f'https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}'
+        
+        try:
+            # Use a broader user agent
+            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+            resp = httpx.get(rss_url, timeout=10, headers=headers)
+            resp.raise_for_status()
+            
+            root = ET.fromstring(resp.content)
+            ns = {'atom': 'http://www.w3.org/2005/Atom', 'media': 'http://search.yahoo.com/mrss/'}
+            
+            entries = []
+            keywords = ['starship', 'starbase', 'booster', 'ship', 'flight', 'ift', 'boca chica', 'massey', 'launch', 'test', 'static fire', 'cryo', 'wdr']
+            
+            # Tasks we want to track status for
+            checklist_defs = [
+                {'key': 's39_static', 'label': 'Ship 39 Static Fire', 'keywords': ['ship 39 static fire', 's39 static fire', 's39 static']},
+                {'key': 'b19_static', 'label': 'Booster 19 Static Fire', 'keywords': ['booster 19 static fire', 'b19 static fire', 'b19 static']},
+                {'key': 'stacking', 'label': 'B19 / S39 Stacking', 'keywords': ['stacking', 'stacked', 'full stack']},
+                {'key': 'wdr', 'label': 'Flight 12 WDR', 'keywords': ['wdr', 'wet dress']},
+                {'key': 'faa', 'label': 'FAA Flight 12 License', 'keywords': ['faa license', 'launch license']},
+            ]
+            
+            task_status = {d['key']: 'pending' for d in checklist_defs}
+            
+            for entry in root.findall('atom:entry', ns):
+                title = entry.find('atom:title', ns).text
+                title_lower = title.lower()
+                
+                # Dynamic Checklist Logic
+                for d in checklist_defs:
+                    if any(k in title_lower for k in d['keywords']):
+                        # Only mark complete if it doesn't say 'upcoming', 'scheduled', or 'live' (active)
+                        if 'upcoming' not in title_lower and 'live' not in title_lower and 'scheduled' not in title_lower:
+                            task_status[d['key']] = 'complete'
+
+                if any(k in title_lower for k in keywords):
+                    video_id = entry.find('atom:id', ns).text.split(':')[-1]
+                    link = entry.find('atom:link', ns).attrib['href']
+                    published = entry.find('atom:published', ns).text
+                    media_group = entry.find('media:group', ns)
+                    thumbnail = media_group.find('media:thumbnail', ns).attrib['url'] if media_group is not None else ''
+                    
+                    entries.append({
+                        'id': video_id,
+                        'title': title,
+                        'link': link,
+                        'published': published,
+                        'thumbnail': thumbnail
+                    })
+            
+            entries.sort(key=lambda x: x['published'], reverse=True)
+            
+            dynamic_checklist = []
+            for d in checklist_defs:
+                dynamic_checklist.append({
+                    'task': d['label'],
+                    'status': task_status[d['key']]
+                })
+
+            return Response({
+                'videos': entries[:12],
+                'checklist': dynamic_checklist
+            })
+        except Exception as e:
+            logger.error(f"Failed to fetch Starship tests: {e}")
+            return Response({'videos': [], 'checklist': []}, status=200)
+
+
 class SpaceWeatherView(APIView):
     """GET /api/space-weather/ - current space weather from NOAA and NASA"""
     permission_classes = [permissions.AllowAny]

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Rocket, Eye, EyeOff, UserPlus } from 'lucide-react'
-import api from '../api/axios'
+import { useAuth } from '../context/AuthContext'
 import toast from 'react-hot-toast'
 
 function getStrength(pw) {
@@ -17,6 +17,7 @@ const strengthLabels = ['', 'Weak', 'Fair', 'Good', 'Strong']
 const strengthColors = ['', '#f87171', '#ff9f43', '#00d4ff', '#34d399']
 
 export default function Register() {
+  const { register } = useAuth()
   const navigate = useNavigate()
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
@@ -32,9 +33,9 @@ export default function Register() {
     if (password.length < 8) return toast.error('Password must be at least 8 characters')
     setLoading(true)
     try {
-      await api.post('/auth/register/', { username, email, password, password2: password })
-      toast.success('Account created! Please log in.')
-      navigate('/login')
+      await register(username, email, password, password)
+      toast.success('Account created! Welcome aboard.')
+      navigate('/dashboard')
     } catch (err) {
       const data = err?.response?.data
       const msg = data?.username?.[0] || data?.password?.[0] || data?.detail || 'Registration failed'

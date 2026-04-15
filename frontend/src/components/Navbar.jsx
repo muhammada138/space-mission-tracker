@@ -60,33 +60,37 @@ export default function Navbar() {
 
   const close = () => setDrawerOpen(false)
 
-  const links = [
+  const mainLinks = [
     { to: '/launches/upcoming', label: 'Launches', icon: <Rocket size={14} />, matchPrefix: '/launches' },
-    { to: '/map', label: 'World Map', icon: <Globe size={14} /> },
     { to: '/timeline', label: 'Timeline', icon: <Timer size={14} /> },
-    { to: '/rockets', label: 'Rockets', icon: <Crosshair size={14} /> },
-    { to: '/stats', label: 'Stats', icon: <BarChart3 size={14} /> },
     { to: '/iss', label: 'Space Stations', icon: <Map size={14} /> },
+    { to: '/rockets', label: 'Rockets', icon: <Crosshair size={14} /> },
+  ]
+
+  const moreLinks = [
+    { to: '/map', label: 'World Map', icon: <Globe size={14} /> },
+    { to: '/stats', label: 'Stats', icon: <BarChart3 size={14} /> },
     { to: '/astronauts', label: 'Crew', icon: <Users size={14} /> },
+    { to: '/starship', label: 'Starship Tracker', icon: <Rocket size={14} style={{ color: 'var(--accent)' }} /> },
   ]
 
   return (
     <>
       <nav className={`navbar ${scrolled ? 'scrolled' : ''}`}>
-        <div className="page-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 56 }}>
+        <div className="page-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 64 }}>
           {/* Logo */}
-          <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 9 }} onClick={close}>
-            <div style={{ width: 32, height: 32, background: 'var(--gradient-brand)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-glow)' }}>
-              <Rocket size={16} color="#fff" />
+          <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 10 }} onClick={close}>
+            <div style={{ width: 36, height: 36, background: 'var(--gradient-brand)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-glow)' }}>
+              <Rocket size={18} color="#fff" />
             </div>
-            <span style={{ fontWeight: 800, fontSize: 16, letterSpacing: '-0.03em' }}>
+            <span style={{ fontWeight: 800, fontSize: 18, letterSpacing: '-0.03em' }}>
               Space<span style={{ color: 'var(--accent)' }}>Tracker</span>
             </span>
           </Link>
 
           {/* Desktop nav */}
-          <div className="nav-links">
-            {links.map(l => (
+          <div className="nav-links" style={{ gap: '8px' }}>
+            {mainLinks.map(l => (
               <NavLink
                 key={l.to}
                 to={l.to}
@@ -99,13 +103,40 @@ export default function Navbar() {
               </NavLink>
             ))}
 
+            {/* Dropdown for More links */}
+            <div className="nav-dropdown-wrapper" style={{ position: 'relative' }}>
+              <button className="nav-link" style={{ cursor: 'pointer' }}>
+                More <Menu size={14} style={{ marginLeft: 4 }} />
+              </button>
+              <div className="glass nav-dropdown" style={{ 
+                position: 'absolute', 
+                top: '100%', 
+                right: 0, 
+                width: 180, 
+                padding: '8px', 
+                marginTop: 8,
+                display: 'none',
+                flexDirection: 'column',
+                gap: 4,
+                zIndex: 100
+              }}>
+                {moreLinks.map(l => (
+                  <NavLink key={l.to} to={l.to} className="nav-link" style={{ padding: '8px 12px', borderRadius: 6, fontSize: 13 }}>
+                    {l.icon} {l.label}
+                  </NavLink>
+                ))}
+              </div>
+            </div>
+
             {/* Next launch ticker */}
             {nextLaunch && (
-              <div className="nav-ticker">
+              <div className="nav-ticker" style={{ margin: '0 8px' }}>
                 <span className="ticker-label">Next:</span>
                 <MiniCountdown targetDate={nextLaunch.launch_date} />
               </div>
             )}
+
+            <div style={{ width: 1, height: 24, background: 'rgba(255,255,255,0.1)', margin: '0 8px' }} />
 
             {user ? (
               <>
@@ -119,8 +150,8 @@ export default function Navbar() {
             ) : (
               <>
                 <Link to="/login" className="nav-link"><LogIn size={14} /> Login</Link>
-                <Link to="/register" className="btn btn-primary" style={{ fontSize: 13, padding: '8px 22px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  <UserPlus size={14} /> SIGN UP
+                <Link to="/register" className="btn btn-primary" style={{ fontSize: 13, padding: '8px 20px', borderRadius: 10 }}>
+                  SIGN UP
                 </Link>
               </>
             )}

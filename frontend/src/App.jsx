@@ -9,6 +9,7 @@ import Home from './pages/Home'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import LaunchDetail from './pages/LaunchDetail'
+import Starship from './pages/Starship'
 
 // Lazy-load heavy pages (Three.js globe, Recharts, Leaflet, etc.)
 const Dashboard = lazy(() => import('./pages/Dashboard'))
@@ -52,6 +53,8 @@ function AnimatedRoutes() {
           <Route path="/launches/active"    element={<Home tab="active" />} />
           <Route path="/launches/past"      element={<Home tab="past" />} />
           <Route path="/launches/payloads"  element={<Home tab="payloads" />} />
+          <Route path="/launches/starship"  element={<Home tab="starship" />} />
+          <Route path="/starship"           element={<Starship />} />
           <Route path="/login"              element={<Login />} />
           <Route path="/register"           element={<Register />} />
           <Route path="/launch/:api_id"     element={<LaunchDetail />} />

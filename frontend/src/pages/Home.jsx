@@ -19,6 +19,8 @@ export default function Home({ tab = 'upcoming' }) {
   const [showFilters, setShowFilters] = useState(false)
   const [missionFilter, setMissionFilter] = useState('all')
   const [orbitFilter, setOrbitFilter] = useState('all')
+  const [rocketFilter, setRocketFilter] = useState('all')
+  const [agencyFilter, setAgencyFilter] = useState('all')
 
   const setTab = (t) => {
     const routes = { upcoming: '/launches/upcoming', active: '/launches/active', past: '/launches/past', payloads: '/launches/payloads' }
@@ -35,17 +37,23 @@ export default function Home({ tab = 'upcoming' }) {
       .finally(() => setLoading(false))
   }, [tab, source])
 
-  // Get unique mission types and orbits for filter dropdowns
+  // Get unique mission types, orbits, rockets, and agencies for filter dropdowns
   const filterOptions = useMemo(() => {
     const missions = new Set()
     const orbits = new Set()
+    const rockets = new Set()
+    const agencies = new Set()
     launches.forEach(l => {
       if (l.mission_type) missions.add(l.mission_type)
       if (l.orbit) orbits.add(l.orbit)
+      if (l.rocket) rockets.add(l.rocket)
+      if (l.launch_provider) agencies.add(l.launch_provider)
     })
     return {
       missions: Array.from(missions).sort(),
-      orbits: Array.from(orbits).sort()
+      orbits: Array.from(orbits).sort(),
+      rockets: Array.from(rockets).sort(),
+      agencies: Array.from(agencies).sort()
     }
   }, [launches])
 
@@ -73,13 +81,25 @@ export default function Home({ tab = 'upcoming' }) {
       result = result.filter(l => l.orbit === orbitFilter)
     }
 
+    // 4. Rocket Filter
+    if (rocketFilter !== 'all') {
+      result = result.filter(l => l.rocket === rocketFilter)
+    }
+
+    // 5. Agency Filter
+    if (agencyFilter !== 'all') {
+      result = result.filter(l => l.launch_provider === agencyFilter)
+    }
+
     return result
-  }, [launches, searchQuery, missionFilter, orbitFilter])
+  }, [launches, searchQuery, missionFilter, orbitFilter, rocketFilter, agencyFilter])
 
   const clearFilters = () => {
     setSearchQuery('')
     setMissionFilter('all')
     setOrbitFilter('all')
+    setRocketFilter('all')
+    setAgencyFilter('all')
   }
 
   // Separate hero launch (first upcoming) from grid
@@ -113,8 +133,8 @@ export default function Home({ tab = 'upcoming' }) {
       </div>
 
       {/* Main Controls Section */}
-      <div className="glass" style={{ padding: '12px', borderRadius: 16, marginBottom: 32, border: '1px solid var(--glass-border)' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="glass" style={{ padding: '16px', borderRadius: 20, marginBottom: 32, border: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           
           {/* Top row: Tab Navigation */}
           <div className="tabs" style={{ borderBottom: 'none', padding: '4px', background: 'rgba(0,0,0,0.2)', borderRadius: 12, display: 'inline-flex', alignSelf: 'flex-start' }}>
@@ -132,19 +152,18 @@ export default function Home({ tab = 'upcoming' }) {
           </div>
 
           {/* Bottom row: Search and Filters */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <div className="search-bar" style={{ flex: '1 1 300px', margin: 0, height: 42 }}>
-              <Search size={16} className="search-icon" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+            <div className="search-bar" style={{ flex: '1 1 350px' }}>
+              <Search size={18} className="search-icon" />
               <input
                 type="text"
-                placeholder={`Search ${tab} missions...`}
+                placeholder={`Search ${tab} missions, rockets, or agencies...`}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                style={{ fontSize: 14 }}
               />
               {searchQuery && (
-                <button onClick={() => setSearchQuery('')} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', padding: 8, cursor: 'pointer' }}>
-                  <X size={14} />
+                <button onClick={() => setSearchQuery('')} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', padding: 8, cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                  <X size={16} />
                 </button>
               )}
             </div>
@@ -152,23 +171,23 @@ export default function Home({ tab = 'upcoming' }) {
             <button 
               className={`btn ${showFilters ? 'btn-primary' : 'btn-ghost'}`}
               onClick={() => setShowFilters(!showFilters)}
-              style={{ height: 42, display: 'flex', alignItems: 'center', gap: 8, padding: '0 16px', fontSize: 14 }}
+              style={{ height: 46, display: 'flex', alignItems: 'center', gap: 10, padding: '0 20px', fontSize: 14, borderRadius: 12 }}
             >
-              <SlidersHorizontal size={16} />
-              Filters
-              {(missionFilter !== 'all' || orbitFilter !== 'all') && (
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#fff' }} />
+              <SlidersHorizontal size={18} />
+              Advanced Filters
+              {(missionFilter !== 'all' || orbitFilter !== 'all' || rocketFilter !== 'all' || agencyFilter !== 'all') && (
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: showFilters ? '#000' : 'var(--accent)', boxShadow: showFilters ? 'none' : '0 0 8px var(--accent)' }} />
               )}
             </button>
 
             {tab !== 'active' && tab !== 'payloads' && (
-              <div className="tabs" style={{ borderBottom: 'none', height: 42, padding: '4px', background: 'rgba(0,0,0,0.1)', borderRadius: 8 }}>
+              <div className="tabs" style={{ borderBottom: 'none', height: 46, padding: '4px', background: 'rgba(0,0,0,0.15)', borderRadius: 12 }}>
                 {['all', 'll2', 'spacex'].map(s => (
                   <button 
                     key={s}
                     className={`tab ${source === s ? 'active' : ''}`} 
                     onClick={() => setSource(s)}
-                    style={{ borderRadius: 6, padding: '0 12px', fontSize: 12, height: '100%' }}
+                    style={{ borderRadius: 8, padding: '0 16px', fontSize: 13, height: '100%' }}
                   >
                     {s === 'all' ? 'All' : s === 'll2' ? 'LL2' : 'SpaceX'}
                   </button>
@@ -179,30 +198,61 @@ export default function Home({ tab = 'upcoming' }) {
 
           {/* Expanded Filters Panel */}
           {showFilters && (
-            <div className="fade-up" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.05)' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Mission Type</label>
+            <div className="fade-up" style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', 
+              gap: 20, 
+              padding: '24px', 
+              background: 'rgba(255,255,255,0.02)', 
+              borderRadius: 16, 
+              border: '1px solid rgba(255,255,255,0.05)',
+              boxShadow: 'inset 0 0 30px rgba(0,0,0,0.2)'
+            }}>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <label className="filter-label">Mission Type</label>
                 <select 
                   value={missionFilter} 
                   onChange={(e) => setMissionFilter(e.target.value)}
-                  className="glass"
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, background: 'var(--bg-card)', color: '#fff', border: '1px solid var(--glass-border)' }}
+                  className="filter-select"
                 >
-                  <option value="all">All Types</option>
+                  <option value="all">All Mission Types</option>
                   {filterOptions.missions.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Target Orbit</label>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <label className="filter-label">Target Orbit</label>
                 <select 
                   value={orbitFilter} 
                   onChange={(e) => setOrbitFilter(e.target.value)}
-                  className="glass"
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, background: 'var(--bg-card)', color: '#fff', border: '1px solid var(--glass-border)' }}
+                  className="filter-select"
                 >
-                  <option value="all">All Orbits</option>
+                  <option value="all">All Orbital Planes</option>
                   {filterOptions.orbits.map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <label className="filter-label">Rocket Vehicle</label>
+                <select 
+                  value={rocketFilter} 
+                  onChange={(e) => setRocketFilter(e.target.value)}
+                  className="filter-select"
+                >
+                  <option value="all">All Launch Vehicles</option>
+                  {filterOptions.rockets.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <label className="filter-label">Agency / Provider</label>
+                <select 
+                  value={agencyFilter} 
+                  onChange={(e) => setAgencyFilter(e.target.value)}
+                  className="filter-select"
+                >
+                  <option value="all">All Space Agencies</option>
+                  {filterOptions.agencies.map(a => <option key={a} value={a}>{a}</option>)}
                 </select>
               </div>
 
@@ -210,9 +260,9 @@ export default function Home({ tab = 'upcoming' }) {
                 <button 
                   onClick={clearFilters}
                   className="btn btn-ghost"
-                  style={{ height: 38, width: '100%', fontSize: 13 }}
+                  style={{ height: 42, width: '100%', fontSize: 13, borderRadius: 10 }}
                 >
-                  Clear All
+                  Reset All Filters
                 </button>
               </div>
             </div>
