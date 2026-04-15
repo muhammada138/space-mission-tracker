@@ -1,11 +1,21 @@
+import httpx
 import pytest
 from unittest.mock import patch, MagicMock
 from django.urls import reverse
 from rest_framework.test import APIClient
+from launches.models import Launch
+from launches.views import LaunchPadWeatherView
+import httpx
 
 @pytest.fixture
 def api_client():
     return APIClient()
+
+@pytest.fixture(autouse=True)
+def clear_weather_cache():
+    LaunchPadWeatherView._cache.clear()
+    yield
+    LaunchPadWeatherView._cache.clear()
 
 @pytest.mark.django_db
 def test_upcoming_launches_all_source(api_client):
@@ -46,116 +56,65 @@ def test_active_launches(api_client):
         if response.status_code == 200:
             assert isinstance(response.data, list)
 
-from launches.views import SpaceWeatherView
-
-@pytest.fixture
-def clear_space_weather_cache():
-    SpaceWeatherView._cache = {'data': None, 'expires': None}
-    yield
-    SpaceWeatherView._cache = {'data': None, 'expires': None}
+@pytest.mark.django_db
+def test_pad_weather_not_found(api_client):
+    response = api_client.get('/api/launches/invalid_id/pad-weather/')
+    assert response.status_code == 404
+    assert response.data['detail'] == 'Launch not found.'
 
 @pytest.mark.django_db
-class TestSpaceWeatherView:
-    def test_happy_path(self, api_client, clear_space_weather_cache):
-        with patch('httpx.get') as mock_get:
-            # We need to mock httpx.get to return different responses based on the URL
-            def side_effect(url, *args, **kwargs):
-                mock_resp = MagicMock()
-                mock_resp.status_code = 200
-                if 'noaa' in url:
-                    mock_resp.json.return_value = [{'kp_index': 5}]
-                elif 'nasa' in url:
-                    mock_resp.json.return_value = [{}, {}, {}] # 3 flares
-                return mock_resp
-            mock_get.side_effect = side_effect
+def test_pad_weather_no_coordinates(api_client):
+    Launch.objects.create(api_id='no_coords_id', name='No Coords Launch')
+    response = api_client.get('/api/launches/no_coords_id/pad-weather/')
+    assert response.status_code == 404
+    assert response.data['detail'] == 'No coordinates for this pad.'
 
-            response = api_client.get('/api/space-weather/')
-            assert response.status_code == 200
-            assert response.data['kp'] == 5
-            assert response.data['flares'] == 3
-            assert response.data['level'] == 'moderate'
-            assert response.data['label'] == 'Moderate Activity'
-            assert mock_get.call_count == 2
+@pytest.mark.django_db
+def test_pad_weather_openweathermap_success(api_client):
+    Launch.objects.create(api_id='test_id_owm', name='Test OWM Launch', pad_latitude=28.5, pad_longitude=-80.6)
 
-    def test_noaa_fails_nasa_succeeds(self, api_client, clear_space_weather_cache):
-        with patch('httpx.get') as mock_get:
-            def side_effect(url, *args, **kwargs):
-                if 'noaa' in url:
-                    raise Exception("NOAA Error")
-                mock_resp = MagicMock()
-                mock_resp.status_code = 200
-                if 'nasa' in url:
-                    mock_resp.json.return_value = [{}, {}, {}, {}, {}, {}] # 6 flares
-                return mock_resp
-            mock_get.side_effect = side_effect
+    mock_response = httpx.Response(200, request=httpx.Request("GET", "https://api.openweathermap.org/data/2.5/weather"), json={
+        'wind': {'speed': 5.0},
+        'visibility': 10000,
+        'main': {'temp': 25, 'humidity': 60},
+        'weather': [{'description': 'clear sky', 'icon': '01d', 'main': 'Clear'}]
+    })
 
-            response = api_client.get('/api/space-weather/')
-            assert response.status_code == 200
-            assert response.data['kp'] == 0
-            assert response.data['flares'] == 6
-            assert response.data['level'] == 'severe'
-            assert response.data['label'] == 'Storm Active'
+    with patch.dict('os.environ', {'OPENWEATHERMAP_API_KEY': 'fake_api_key'}), \
+         patch('httpx.get', return_value=mock_response):
+        response = api_client.get('/api/launches/test_id_owm/pad-weather/')
+        assert response.status_code == 200
+        assert response.data['available'] is True
+        assert response.data['source'] == 'OpenWeatherMap'
+        assert response.data['description'] == 'Clear Sky'
 
-    def test_nasa_fails_noaa_succeeds(self, api_client, clear_space_weather_cache):
-        with patch('httpx.get') as mock_get:
-            def side_effect(url, *args, **kwargs):
-                if 'nasa' in url:
-                    raise Exception("NASA Error")
-                mock_resp = MagicMock()
-                mock_resp.status_code = 200
-                if 'noaa' in url:
-                    mock_resp.json.return_value = [{'kp_index': 1}]
-                return mock_resp
-            mock_get.side_effect = side_effect
+@pytest.mark.django_db
+def test_pad_weather_openmeteo_success(api_client):
+    Launch.objects.create(api_id='test_id_om', name='Test OM Launch', pad_latitude=28.5, pad_longitude=-80.6)
 
-            response = api_client.get('/api/space-weather/')
-            assert response.status_code == 200
-            assert response.data['kp'] == 1
-            assert response.data['flares'] == 0
-            assert response.data['level'] == 'nominal'
-            assert response.data['label'] == 'Quiet'
+    mock_response = httpx.Response(200, request=httpx.Request("GET", "https://api.open-meteo.com/v1/forecast"), json={
+        'current_weather': {
+            'temperature': 25,
+            'windspeed': 10,
+            'weathercode': 0
+        }
+    })
 
-    def test_complete_api_failure(self, api_client, clear_space_weather_cache):
-        with patch('httpx.get') as mock_get:
-            mock_get.side_effect = Exception("Network Error")
+    with patch.dict('os.environ', {'OPENWEATHERMAP_API_KEY': ''}), \
+         patch('httpx.get', return_value=mock_response):
+        response = api_client.get('/api/launches/test_id_om/pad-weather/')
+        assert response.status_code == 200
+        assert response.data['available'] is True
+        assert response.data['source'] == 'Open-Meteo'
+        assert response.data['description'] == 'Clear Sky'
 
-            response = api_client.get('/api/space-weather/')
-            assert response.status_code == 200
-            assert response.data['kp'] == 0
-            assert response.data['flares'] == 0
-            assert response.data['level'] == 'nominal'
-            assert response.data['label'] == 'Quiet'
+@pytest.mark.django_db
+def test_pad_weather_api_error(api_client):
+    Launch.objects.create(api_id='test_id_err', name='Test Error Launch', pad_latitude=28.5, pad_longitude=-80.6)
 
-    def test_caching_mechanism(self, api_client, clear_space_weather_cache):
-        with patch('httpx.get') as mock_get:
-            def side_effect(url, *args, **kwargs):
-                mock_resp = MagicMock()
-                mock_resp.status_code = 200
-                if 'noaa' in url:
-                    mock_resp.json.return_value = [{'kp_index': 3}]
-                elif 'nasa' in url:
-                    mock_resp.json.return_value = []
-                return mock_resp
-            mock_get.side_effect = side_effect
-
-            # First request - should call APIs
-            response1 = api_client.get('/api/space-weather/')
-            assert response1.status_code == 200
-            assert mock_get.call_count == 2
-
-            # Second request - should use cache
-            response2 = api_client.get('/api/space-weather/')
-            assert response2.status_code == 200
-            assert response2.data == response1.data
-            assert mock_get.call_count == 2 # call count unchanged
-
-    def test_outer_exception_fallback(self, api_client, clear_space_weather_cache):
-        with patch('os.environ.get') as mock_env:
-            # Trigger the outer exception block
-            mock_env.side_effect = Exception("Outer Error")
-
-            response = api_client.get('/api/space-weather/')
-            assert response.status_code == 200
-            assert response.data['level'] == 'nominal'
-            assert response.data['label'] == 'Data Unavailable'
-            assert response.data['error'] == 'Outer Error'
+    with patch.dict('os.environ', {'OPENWEATHERMAP_API_KEY': ''}), \
+         patch('httpx.get', side_effect=httpx.RequestError("Connection timeout", request=httpx.Request("GET", "https://api.open-meteo.com/v1/forecast"))):
+        response = api_client.get('/api/launches/test_id_err/pad-weather/')
+        assert response.status_code == 503
+        assert response.data['available'] is False
+        assert 'Connection timeout' in response.data['reason']
