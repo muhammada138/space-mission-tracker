@@ -2,8 +2,9 @@ import { useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
 import { MapPin, CheckCircle, XCircle, Radio } from 'lucide-react'
 import CountdownTimer from './CountdownTimer'
+import { getStatusClass as getBadgeClass } from '../utils/status'
 
-function getStatusClass(status) {
+function getCardClass(status) {
   const s = (status || '').toLowerCase()
   if (s.includes('go')) return 'status-go'
   if (s.includes('hold')) return 'status-hold'
@@ -14,13 +15,7 @@ function getStatusClass(status) {
 }
 
 function statusBadgeClass(status) {
-  const s = (status || '').toLowerCase()
-  if (s.includes('go')) return 'badge badge-go'
-  if (s.includes('hold')) return 'badge badge-hold'
-  if (s.includes('success')) return 'badge badge-success'
-  if (s.includes('fail')) return 'badge badge-failure'
-  if (s.includes('in flight') || s.includes('inflight')) return 'badge badge-go'
-  return 'badge badge-default'
+  return `badge ${getBadgeClass(status)}`
 }
 
 export default function LaunchCard({ launch, showCountdown = true }) {
@@ -36,7 +31,7 @@ export default function LaunchCard({ launch, showCountdown = true }) {
 
   return (
     <div
-      className={`glass launch-card ${getStatusClass(launch.status)}`}
+      className={`glass launch-card ${getCardClass(launch.status)}`}
       onClick={() => navigate(isActive ? `/live/${launch.api_id}` : `/launch/${launch.api_id}`)}
       role="button"
       tabIndex={0}

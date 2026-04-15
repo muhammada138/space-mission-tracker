@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import CountdownTimer from './CountdownTimer'
+import { getStatusClass } from '../utils/status'
 
 export default function HeroLaunch({ launch }) {
   const navigate = useNavigate()
@@ -34,13 +35,4 @@ export default function HeroLaunch({ launch }) {
       </div>
     </div>
   )
-}
-
-function getStatusClass(status) {
-  const s = (status || '').toLowerCase()
-  if (s.includes('go')) return 'badge-go'
-  if (s.includes('hold')) return 'badge-hold'
-  if (s.includes('success')) return 'badge-success'
-  if (s.includes('fail')) return 'badge-failure'
-  return 'badge-default'
 }
