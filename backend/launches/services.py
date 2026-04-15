@@ -130,18 +130,38 @@ def _parse_launch(data: dict) -> dict:
 
 def _upsert_launches(results: list) -> list:
     """Upsert LL2 launch dicts into the DB."""
-    launches = []
+    parsed_results = []
+    api_ids = []
     for raw in results:
         try:
             parsed = _parse_launch(raw)
-            obj, _ = Launch.objects.update_or_create(
-                api_id=parsed['api_id'],
-                defaults=parsed,
-            )
-            launches.append(obj)
+            parsed_results.append(parsed)
+            api_ids.append(parsed['api_id'])
         except Exception:
             continue
-    return launches
+
+    if not parsed_results:
+        return []
+
+    # Get all fields from the first parsed object, except api_id
+    update_fields = [key for key in parsed_results[0].keys() if key != 'api_id']
+    launches_to_upsert = [Launch(**parsed) for parsed in parsed_results]
+
+    Launch.objects.bulk_create(
+        launches_to_upsert,
+        update_conflicts=True,
+        unique_fields=['api_id'],
+        update_fields=update_fields
+    )
+
+    # Fetch updated/created objects to return them with correct PKs
+    fetched_launches = {
+        launch.api_id: launch
+        for launch in Launch.objects.filter(api_id__in=api_ids)
+    }
+
+    # Return in the original order
+    return [fetched_launches[api_id] for api_id in api_ids if api_id in fetched_launches]
 
 
 def get_upcoming_launches(limit: int = 20) -> list:
