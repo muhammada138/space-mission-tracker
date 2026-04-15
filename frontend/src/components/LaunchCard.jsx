@@ -18,7 +18,7 @@ function statusBadgeClass(status) {
   return `badge ${getBadgeClass(status)}`
 }
 
-export default function LaunchCard({ launch, showCountdown = true }) {
+export default function LaunchCard({ launch, showCountdown = true, isPayload = false }) {
   const navigate = useNavigate()
   const isPast = launch.launch_date && new Date(launch.launch_date) < new Date()
   const status = (launch.status || '').toLowerCase()
@@ -30,6 +30,15 @@ export default function LaunchCard({ launch, showCountdown = true }) {
      (Date.now() - new Date(launch.launch_date).getTime()) < 10800000 &&
      !isSuccess && !isFail)
 
+  // Use mission info if it's a payload view
+  const displayName = isPayload && launch.mission_description 
+    ? launch.name.split('|').pop().trim() // e.g. "8 x Jilin-1"
+    : launch.name
+
+  const displayImage = isPayload && launch.infographic_url 
+    ? launch.infographic_url 
+    : launch.image_url
+
   return (
     <div
       className={`glass launch-card ${getCardClass(launch.status)} ${isActive ? 'card-active' : ''}`}
@@ -40,10 +49,10 @@ export default function LaunchCard({ launch, showCountdown = true }) {
       onKeyDown={(e) => e.key === 'Enter' && navigate(isActive ? `/live/${launch.api_id}` : `/launch/${launch.api_id}`)}
     >
       <div className="card-img-wrapper">
-        {launch.image_url ? (
-          <img src={launch.image_url} alt={launch.name} className="card-img" loading="lazy" />
+        {displayImage ? (
+          <img src={displayImage} alt={displayName} className="card-img" loading="lazy" />
         ) : (
-          <div className="card-img-placeholder">🚀</div>
+          <div className="card-img-placeholder">🛰️</div>
         )}
         <div className="card-img-gradient" />
         <div className="badge-overlay" style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -59,19 +68,23 @@ export default function LaunchCard({ launch, showCountdown = true }) {
               LIVE
             </span>
           )}
-          <span className={statusBadgeClass(launch.status)}>{launch.status || 'Unknown'}</span>
+          {isPayload && <span className="badge badge-info">IN ORBIT</span>}
+          {!isPayload && <span className={statusBadgeClass(launch.status)}>{launch.status || 'Unknown'}</span>}
         </div>
       </div>
 
       <div className="card-content">
         <h3 style={{ margin: '0 0 4px', fontSize: 14, lineHeight: 1.35, fontWeight: 700, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', height: '2.7em' }}>
-          {launch.name}
+          {displayName}
         </h3>
 
-        {/* Provider badge */}
+        {/* Provider / Rocket / Type badge */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, fontSize: 12, color: 'var(--text-secondary)' }}>
           <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent)', flexShrink: 0 }} />
-          {[launch.launch_provider, launch.rocket].filter(Boolean).join(' / ')}
+          {isPayload 
+            ? [launch.mission_type || 'Satellite', launch.orbit].filter(Boolean).join(' / ')
+            : [launch.launch_provider, launch.rocket].filter(Boolean).join(' / ')
+          }
         </div>
 
         {/* Pad location */}
