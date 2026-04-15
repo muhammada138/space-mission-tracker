@@ -33,6 +33,8 @@ def _parse_launch(data: dict) -> dict:
     orbit = ''
     try:
         mission = data.get('mission') or {}
+        if not isinstance(mission, dict):
+            mission = {}
         mission_desc = mission.get('description', '') or ''
         mission_type = mission.get('type', '') or ''
         orbit_data = mission.get('orbit') or {}
@@ -53,8 +55,12 @@ def _parse_launch(data: dict) -> dict:
     pad_longitude = None
     try:
         pad = data.get('pad') or {}
+        if not isinstance(pad, dict):
+            pad = {}
         pad_name = pad.get('name', '') or ''
         loc = pad.get('location') or {}
+        if not isinstance(loc, dict):
+            loc = {}
         pad_location = loc.get('name', '') or ''
         lat = pad.get('latitude')
         lon = pad.get('longitude')
@@ -76,6 +82,8 @@ def _parse_launch(data: dict) -> dict:
     webcast_url = ''
     try:
         vid_urls = data.get('vidURLs') or data.get('vid_urls') or []
+        if not isinstance(vid_urls, list):
+            vid_urls = []
         if vid_urls:
             # First, try to find a YouTube link because we can embed it
             yt_vids = [v for v in vid_urls if 'youtube.com' in (v.get('url', '') if isinstance(v, dict) else str(v)).lower() or 'youtu.be' in (v.get('url', '') if isinstance(v, dict) else str(v)).lower()]
