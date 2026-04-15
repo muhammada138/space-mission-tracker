@@ -18,7 +18,9 @@ def _parse_launch(data: dict) -> dict:
     """Extract fields from a LL2 launch object."""
     rocket_name = ''
     try:
-        rocket_name = data['rocket']['configuration']['name']
+        # Prefer full_name if available, fallback to name
+        config = data['rocket']['configuration']
+        rocket_name = config.get('full_name') or config.get('name') or ''
     except (KeyError, TypeError):
         pass
 
@@ -27,6 +29,12 @@ def _parse_launch(data: dict) -> dict:
         provider_name = data['launch_service_provider']['name']
     except (KeyError, TypeError):
         pass
+
+    # Data Cleanup: CAS Space often has weird configuration names in LL2
+    # e.g. "8 x Jilin-1" instead of "Kinetica 1"
+    if provider_name == 'CAS Space':
+        if not rocket_name or 'Jilin' in rocket_name or 'satellite' in rocket_name.lower() or '8 x' in rocket_name:
+            rocket_name = 'Kinetica 1'
 
     mission_desc = ''
     mission_type = ''

@@ -171,6 +171,21 @@ class PastLaunchesView(APIView):
             ldate = _to_dt(h.get('launch_date'), _FAR_PAST)
             # Only add to history if it's actually in the past AND not in our fresh results
             if ldate < now:
+                # Enrichment for orbital filtering
+                name = h.get('name', '')
+                if 'Starlink' in name:
+                    h['mission_type'] = 'Communications'
+                    h['orbit'] = 'Low Earth Orbit'
+                elif 'Jilin-1' in name:
+                    h['mission_type'] = 'Earth Science'
+                    h['orbit'] = 'Sun-Synchronous Orbit'
+                elif 'OneWeb' in name:
+                    h['mission_type'] = 'Communications'
+                    h['orbit'] = 'Low Earth Orbit'
+                elif 'Galileo' in name:
+                    h['mission_type'] = 'Navigation'
+                    h['orbit'] = 'Medium Earth Orbit'
+                
                 past_history.append(h)
         
         history_launches, _ = _filter_and_deduplicate(past_history, source, seen=seen)
@@ -369,18 +384,36 @@ class ActiveLaunchesView(APIView):
 class PayloadsInOrbitView(APIView):
     """GET /api/launches/payloads/ - spacecraft currently in orbit (long-duration missions)."""
     permission_classes = [permissions.AllowAny]
-
     _cache = {'data': None, 'expires': None}
 
     def get(self, request):
         now = timezone.now()
-        
-        # 1. Return memory cache if still fresh (6 hour TTL for orbital data)
         if self._cache['data'] and self._cache['expires'] and now < self._cache['expires']:
             return Response(self._cache['data'])
 
+        # Categories for satellite/payload detection
+        valid_types = (
+            'planetary science', 'astrophysics', 'heliophysics', 
+            'human exploration', 'resupply', 'communications', 
+            'navigation', 'earth science', 'technology demonstration',
+            'technology', 'test flight', 'dedicated rideshare',
+            'multi-payload', 'remote sensing', 'government/top secret',
+            'scientific'
+        )
+        two_years_ago = now - timedelta(days=730)
+
+        # 1. Start with local DB - these are launches we already know about
+        # Case-insensitive mission type match for local DB
+        q_types = [t.title() for t in valid_types] + [t.lower() for t in valid_types]
+        db_launches = Launch.objects.filter(
+            launch_date__gte=two_years_ago,
+            mission_type__in=q_types
+        ).order_by('-launch_date')
+        
+        payloads_map = {l.api_id: l for l in db_launches}
+
+        # 2. Try to fetch fresh data from API to find new things
         try:
-            # Increase limit to 200 to find more active long-duration missions (like ISS resupply)
             resp = httpx.get(
                 'https://ll.thespacedevs.com/2.2.0/launch/previous/',
                 params={'mode': 'detailed', 'limit': 200},
@@ -388,10 +421,9 @@ class PayloadsInOrbitView(APIView):
             )
             
             if resp.status_code == 200:
-                past_data = resp.json().get('results', [])
-                payloads = []
-                seen_ids = set()
-                for launch in past_data:
+                api_data = resp.json().get('results', [])
+                new_payloads = []
+                for launch in api_data:
                     # Logic to identify spacecraft
                     stage = launch.get('rocket', {}).get('spacecraft_stage', {})
                     is_sc = False
@@ -401,41 +433,43 @@ class PayloadsInOrbitView(APIView):
                             is_sc = True
                     
                     mission = launch.get('mission') or {}
-                    mtype = (mission.get('type') or '') if isinstance(mission, dict) else ''
-                    # Include more types for satellite/payload detection
-                    if not is_sc and mtype.lower() in ('planetary science', 'astrophysics', 'heliophysics', 'human exploration', 'resupply', 'communications', 'navigation', 'earth science', 'technology demonstration'):
+                    mtype = ''
+                    if isinstance(mission, dict):
+                        mtype = str(mission.get('type') or '')
+                    
+                    if not is_sc and mtype.lower() in valid_types:
                         ldate = _to_dt(launch.get('net'), _FAR_PAST)
-                        if ldate != _FAR_PAST and (timezone.now() - ldate) < timedelta(days=730):
+                        if ldate != _FAR_PAST and (now - ldate) < timedelta(days=730):
                             is_sc = True
 
                     if is_sc:
-                        lid = launch.get('id')
-                        if lid and lid not in seen_ids:
-                            payloads.append(launch)
-                            seen_ids.add(lid)
+                        new_payloads.append(launch)
 
-                from .services import _upsert_launches
-                launches = list(_upsert_launches(payloads))
-                launches.sort(key=lambda x: x.launch_date if x.launch_date else x.last_fetched, reverse=True)
-                
-                final_data = LaunchSerializer(launches, many=True).data
-                
-                # Only cache if we actually found items
-                if final_data:
-                    PayloadsInOrbitView._cache = {
-                        'data': final_data,
-                        'expires': now + timedelta(hours=6)
-                    }
-                return Response(final_data)
+                if new_payloads:
+                    from .services import _upsert_launches
+                    upserted = _upsert_launches(new_payloads)
+                    for l in upserted:
+                        payloads_map[l.api_id] = l
+
+            # Sort combined results
+            all_payloads = list(payloads_map.values())
+            all_payloads.sort(key=lambda x: x.launch_date if x.launch_date else x.last_fetched, reverse=True)
             
-            # 2. If API fails (rate limit), fallback to stale cache if available
-            if self._cache['data']:
-                return Response(self._cache['data'])
-                
-            return Response([])
+            final_data = LaunchSerializer(all_payloads, many=True).data
+            
+            if final_data:
+                self._cache = {
+                    'data': final_data,
+                    'expires': now + timedelta(hours=6)
+                }
+            return Response(final_data)
+
         except Exception as e:
             logger.error(f"Error in PayloadsInOrbitView: {e}", exc_info=True)
-            return Response(self._cache['data'] if self._cache['data'] else [])
+            # If API fails, return what we have in DB
+            all_payloads = list(payloads_map.values())
+            all_payloads.sort(key=lambda x: x.launch_date if x.launch_date else x.last_fetched, reverse=True)
+            return Response(LaunchSerializer(all_payloads, many=True).data)
 
 
 class LaunchDetailView(APIView):
