@@ -16,7 +16,7 @@ export default function Home({ tab = 'upcoming' }) {
   const [searchQuery, setSearchQuery] = useState('')
 
   const setTab = (t) => {
-    const routes = { upcoming: '/launches/upcoming', active: '/launches/active', past: '/launches/past' }
+    const routes = { upcoming: '/launches/upcoming', active: '/launches/active', past: '/launches/past', payloads: '/launches/payloads' }
     navigate(routes[t] || '/')
   }
 
@@ -41,7 +41,13 @@ export default function Home({ tab = 'upcoming' }) {
   }, [launches, searchQuery])
 
   // Separate hero launch (first upcoming) from grid
-  const heroLaunch = tab === 'upcoming' && !searchQuery && filteredLaunches.length > 0 ? filteredLaunches[0] : null
+  // Separate hero launch (first upcoming) from grid
+  const heroLaunch = tab === 'upcoming' && !searchQuery && filteredLaunches.length > 0 
+    ? filteredLaunches.find(l => {
+        const s = (l.status || '').toLowerCase()
+        return !s.includes('success') && !s.includes('fail')
+      }) || filteredLaunches[0] 
+    : null
   const gridLaunches = heroLaunch ? filteredLaunches.slice(1) : filteredLaunches
 
   return (
@@ -58,15 +64,6 @@ export default function Home({ tab = 'upcoming' }) {
             </p>
           </div>
 
-          <div className="search-bar">
-            <Search size={14} className="search-icon" />
-            <input
-              type="text"
-              placeholder="Search launches..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
         </div>
       </div>
 
@@ -89,13 +86,29 @@ export default function Home({ tab = 'upcoming' }) {
             Past
             {!loading && tab === 'past' && <span className="tab-count">{launches.length}</span>}
           </button>
+          <button className={`tab ${tab === 'payloads' ? 'active' : ''}`} onClick={() => setTab('payloads')}>
+            In Orbit
+            {!loading && tab === 'payloads' && <span className="tab-count">{launches.length}</span>}
+          </button>
         </div>
 
-        {tab !== 'active' && (
-          <div className="tabs" style={{ marginTop: 12, borderBottom: 'none' }}>
-            <button className={`tab ${source === 'all' ? 'active' : ''}`} onClick={() => setSource('all')}>All Providers</button>
-            <button className={`tab ${source === 'll2' ? 'active' : ''}`} onClick={() => setSource('ll2')}>Launch Library</button>
-            <button className={`tab ${source === 'spacex' ? 'active' : ''}`} onClick={() => setSource('spacex')}>SpaceX API</button>
+        {tab !== 'active' && tab !== 'payloads' && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 12, flexWrap: 'wrap' }}>
+            <div className="tabs" style={{ borderBottom: 'none' }}>
+              <button className={`tab ${source === 'all' ? 'active' : ''}`} onClick={() => setSource('all')}>All Providers</button>
+              <button className={`tab ${source === 'll2' ? 'active' : ''}`} onClick={() => setSource('ll2')}>Launch Library</button>
+              <button className={`tab ${source === 'spacex' ? 'active' : ''}`} onClick={() => setSource('spacex')}>SpaceX API</button>
+            </div>
+
+            <div className="search-bar" style={{ flex: '0 1 300px' }}>
+              <Search size={14} className="search-icon" />
+              <input
+                type="text"
+                placeholder="Search launches..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
           </div>
         )}
       </div>

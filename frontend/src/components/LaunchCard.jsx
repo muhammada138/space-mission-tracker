@@ -24,15 +24,17 @@ export default function LaunchCard({ launch, showCountdown = true }) {
   const status = (launch.status || '').toLowerCase()
   const isSuccess = status.includes('success')
   const isFail = status.includes('fail')
-  const isActive = status.includes('in flight') || status.includes('inflight') ||
+  const isActive = ((status.includes('in flight') || status.includes('inflight')) && 
+    (launch.launch_date && (Date.now() - new Date(launch.launch_date).getTime()) < 86400000)) ||
     (launch.launch_date && new Date(launch.launch_date) < new Date() &&
      (Date.now() - new Date(launch.launch_date).getTime()) < 10800000 &&
      !isSuccess && !isFail)
 
   return (
     <div
-      className={`glass launch-card ${getCardClass(launch.status)}`}
+      className={`glass launch-card ${getCardClass(launch.status)} ${isActive ? 'card-active' : ''}`}
       onClick={() => navigate(isActive ? `/live/${launch.api_id}` : `/launch/${launch.api_id}`)}
+      style={{ display: 'flex', flexDirection: 'column', height: '100%' }}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => e.key === 'Enter' && navigate(isActive ? `/live/${launch.api_id}` : `/launch/${launch.api_id}`)}
@@ -62,7 +64,7 @@ export default function LaunchCard({ launch, showCountdown = true }) {
       </div>
 
       <div className="card-content">
-        <h3 style={{ margin: '0 0 4px', fontSize: 14, lineHeight: 1.35, fontWeight: 700 }}>
+        <h3 style={{ margin: '0 0 4px', fontSize: 14, lineHeight: 1.35, fontWeight: 700, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', height: '2.7em' }}>
           {launch.name}
         </h3>
 
@@ -80,11 +82,11 @@ export default function LaunchCard({ launch, showCountdown = true }) {
           </div>
         )}
 
-        {/* Past launch result icon */}
-        {isPast && !isActive && (isSuccess || isFail) && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600, color: isSuccess ? 'var(--success)' : 'var(--danger)', marginBottom: 8 }}>
-            {isSuccess ? <CheckCircle size={14} /> : <XCircle size={14} />}
-            {isSuccess ? 'Mission Success' : 'Mission Failure'}
+        {/* Landing information for past/SpaceX flights */}
+        {launch.landing_pad && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, color: 'var(--success)', marginBottom: 8 }}>
+            <CheckCircle size={12} />
+            {launch.landing_pad}
           </div>
         )}
 
@@ -100,7 +102,7 @@ export default function LaunchCard({ launch, showCountdown = true }) {
         )}
 
         {/* Countdown or date */}
-        <div>
+        <div style={{ marginTop: 'auto' }}>
           {launch.launch_date ? (
             isPast && !isActive ? (
               <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>

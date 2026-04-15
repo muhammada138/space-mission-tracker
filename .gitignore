@@ -76,3 +76,23 @@ _agents/
 _agent/
 .gemini/
 .claude/
+
+# Planning and Artifacts
+plan.md
+*.plan.md
+artifacts/
+
+# Automation and Unification Scripts
+final_unify.py
+integrate_prs_local*.py
+merge_all_prs.py
+nuclear_unify.py
+ultimate_cleanup.py
+unify_history_space*.py
+
+# Bot Planning & Artifacts
+plan.md
+*.plan.md
+docs/maestro/
+docs/superpowers/
+docs/plans/

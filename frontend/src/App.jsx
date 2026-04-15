@@ -51,6 +51,7 @@ function AnimatedRoutes() {
           <Route path="/launches/upcoming"  element={<Home tab="upcoming" />} />
           <Route path="/launches/active"    element={<Home tab="active" />} />
           <Route path="/launches/past"      element={<Home tab="past" />} />
+          <Route path="/launches/payloads"  element={<Home tab="payloads" />} />
           <Route path="/login"              element={<Login />} />
           <Route path="/register"           element={<Register />} />
           <Route path="/launch/:api_id"     element={<LaunchDetail />} />

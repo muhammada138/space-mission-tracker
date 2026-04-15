@@ -107,6 +107,23 @@ def _parse_launch(data: dict) -> dict:
     except (KeyError, TypeError):
         pass
 
+    # Landing pad info
+    landing_pad = ''
+    try:
+        launcher_stages = data.get('rocket', {}).get('launcher_stage', [])
+        if launcher_stages and isinstance(launcher_stages, list):
+            # Try to find a successful landing or at least a landing location
+            for ls in launcher_stages:
+                landing = ls.get('landing')
+                if landing and isinstance(landing, dict):
+                    loc = landing.get('location')
+                    if loc and isinstance(loc, dict):
+                        landing_pad = loc.get('name', '')
+                        if landing_pad:
+                            break
+    except (KeyError, TypeError):
+        pass
+
     return {
         'api_id': str(data['id']),
         'name': data.get('name', ''),
@@ -125,6 +142,7 @@ def _parse_launch(data: dict) -> dict:
         'webcast_url': webcast_url,
         'wiki_url': wiki_url,
         'infographic_url': infographic_url,
+        'landing_pad': landing_pad,
     }
 
 
@@ -186,7 +204,12 @@ def _upsert_launches(results: list) -> list:
         if to_create:
             Launch.objects.bulk_create(to_create)
         if to_update:
-            Launch.objects.bulk_update(to_update, fields=update_fields)
+            # Explicitly set last_fetched because bulk_update bypasses auto_now
+            _now = timezone.now()
+            for obj in to_update:
+                obj.last_fetched = _now
+            _update_fields = update_fields + ['last_fetched'] if 'last_fetched' not in update_fields else update_fields
+            Launch.objects.bulk_update(to_update, fields=_update_fields)
     except Exception:
         successful_api_ids.clear()
         # Fallback to iterative update_or_create to preserve exact error handling behavior
@@ -250,14 +273,31 @@ def get_upcoming_launches(limit: int = 20) -> list:
 
 def get_past_launches(limit: int = 20) -> list:
     """Fetch recent past launches."""
-    cutoff = timezone.now() - timedelta(minutes=CACHE_TTL_MINUTES)
+    now = timezone.now()
+    cutoff = now - timedelta(minutes=CACHE_TTL_MINUTES)
     cached = Launch.objects.filter(
-        launch_date__lt=timezone.now(),
+        launch_date__lt=now,
         last_fetched__gte=cutoff,
     ).exclude(api_id__startswith='spacex_')
 
     if cached.exists():
-        return list(cached.order_by('-launch_date')[:limit])
+        # Don't serve from cache if any recently-launched mission still has a
+        # non-terminal status AND hasn't been refreshed within the last 30 minutes.
+        # This ensures "To Be Confirmed" missions get updated after they fly.
+        month_ago = now - timedelta(days=30)
+        short_cutoff = now - timedelta(minutes=30)
+        has_stale_unresolved = Launch.objects.filter(
+            launch_date__lt=now,
+            launch_date__gte=month_ago,
+            last_fetched__lte=short_cutoff,
+        ).exclude(api_id__startswith='spacex_').exclude(
+            status__icontains='success'
+        ).exclude(
+            status__icontains='fail'
+        ).exists()
+
+        if not has_stale_unresolved:
+            return list(cached.order_by('-launch_date')[:limit])
 
     try:
         resp = httpx.get(

@@ -16,8 +16,12 @@ from .models import Launch
 SPACEX_BASE = 'https://api.spacexdata.com/v5'
 CACHE_TTL_MINUTES = 30
 
+# Module-level cache for landpads (static data that rarely changes)
+_landpads_cache: dict = {}
+_landpads_cache_time = None
 
-def _parse_spacex_launch(data: dict, rockets_map: dict = None, launchpads_map: dict = None) -> dict:
+
+def _parse_spacex_launch(data: dict, rockets_map: dict = None, launchpads_map: dict = None, landpads_map: dict = None) -> dict:
     """Normalise a SpaceX launch object into our Launch model fields."""
     rocket_id = data.get('rocket', '')
     rocket_name = ''
@@ -60,6 +64,14 @@ def _parse_spacex_launch(data: dict, rockets_map: dict = None, launchpads_map: d
         if region and pad_location:
             pad_location = f"{pad_location}, {region}"
 
+    # Landing pad info
+    landing_pad = ''
+    cores = data.get('cores', [])
+    if cores and isinstance(cores, list) and landpads_map:
+        lp_id = cores[0].get('landpad')
+        if lp_id and lp_id in landpads_map:
+            landing_pad = landpads_map[lp_id]
+
     # Build YouTube embed URL if we have an ID
     if youtube_id and not webcast_url:
         webcast_url = f'https://www.youtube.com/watch?v={youtube_id}'
@@ -80,6 +92,7 @@ def _parse_spacex_launch(data: dict, rockets_map: dict = None, launchpads_map: d
         'webcast_url': webcast_url,
         'wiki_url': wiki_url,
         'infographic_url': '',
+        'landing_pad': landing_pad,
     }
 
 
@@ -101,13 +114,32 @@ def _get_launchpads_map() -> dict:
         return {}
 
 
-def _upsert_spacex_launches(results: list, rockets_map: dict, launchpads_map: dict) -> list:
+def _get_landpads_map() -> dict:
+    global _landpads_cache, _landpads_cache_time
+    now = timezone.now()
+    if _landpads_cache and _landpads_cache_time:
+        age_seconds = (now - _landpads_cache_time).total_seconds()
+        if age_seconds < 86400:  # 24-hour cache — landpad names essentially never change
+            return _landpads_cache
+    try:
+        resp = httpx.get(f'{SPACEX_BASE}/landpads', timeout=10)
+        resp.raise_for_status()
+        result = {p['id']: p.get('full_name', p.get('name', '')) for p in resp.json()}
+        _landpads_cache = result
+        _landpads_cache_time = now
+        return result
+    except Exception:
+        # Return stale data rather than an empty dict so existing cached landing pads still display
+        return _landpads_cache if _landpads_cache else {}
+
+
+def _upsert_spacex_launches(results: list, rockets_map: dict, launchpads_map: dict, landpads_map: dict = None) -> list:
     parsed_launches = []
     api_ids = []
 
     for raw in results:
         try:
-            parsed = _parse_spacex_launch(raw, rockets_map, launchpads_map)
+            parsed = _parse_spacex_launch(raw, rockets_map, launchpads_map, landpads_map)
             parsed_launches.append(parsed)
             api_ids.append(parsed['api_id'])
         except Exception:
@@ -139,8 +171,11 @@ def _upsert_spacex_launches(results: list, rockets_map: dict, launchpads_map: di
     if to_create:
         Launch.objects.bulk_create(to_create)
     if to_update:
-        # Get list of fields to update from the first parsed launch
-        update_fields = [k for k in parsed_launches[0].keys() if k != 'api_id']
+        # Explicitly set last_fetched because bulk_update bypasses auto_now
+        _now = timezone.now()
+        for obj in to_update:
+            obj.last_fetched = _now
+        update_fields = [k for k in parsed_launches[0].keys() if k != 'api_id'] + ['last_fetched']
         Launch.objects.bulk_update(to_update, update_fields)
 
     # Return the objects from DB to ensure they have PKs and are current
@@ -172,6 +207,7 @@ def get_spacex_upcoming_launches(limit: int = 20) -> list:
     try:
         rockets_map = _get_rockets_map()
         launchpads_map = _get_launchpads_map()
+        landpads_map = _get_landpads_map()
         resp = httpx.get(f'{SPACEX_BASE}/launches/upcoming', timeout=10)
         resp.raise_for_status()
         results = resp.json()
@@ -180,7 +216,7 @@ def get_spacex_upcoming_launches(limit: int = 20) -> list:
         if not results:
             # SpaceX API is stale, no actual future launches
             return []
-        launches = _upsert_spacex_launches(results[:limit], rockets_map, launchpads_map)
+        launches = _upsert_spacex_launches(results[:limit], rockets_map, launchpads_map, landpads_map)
         return sorted(launches, key=lambda l: l.launch_date or timezone.now())
     except Exception:
         return list(Launch.objects.filter(
@@ -203,11 +239,12 @@ def get_spacex_past_launches(limit: int = 20) -> list:
     try:
         rockets_map = _get_rockets_map()
         launchpads_map = _get_launchpads_map()
+        landpads_map = _get_landpads_map()
         resp = httpx.get(f'{SPACEX_BASE}/launches/past', timeout=10)
         resp.raise_for_status()
         results = resp.json()
         results = sorted(results, key=lambda x: x.get('date_utc', ''), reverse=True)[:limit]
-        launches = _upsert_spacex_launches(results, rockets_map, launchpads_map)
+        launches = _upsert_spacex_launches(results, rockets_map, launchpads_map, landpads_map)
         return sorted(launches, key=lambda l: l.launch_date or timezone.now(), reverse=True)
     except Exception:
         return list(Launch.objects.filter(
@@ -224,12 +261,13 @@ def get_spacex_launch_by_id(spacex_id: str) -> Launch | None:
         
         rockets_map = _get_rockets_map()
         launchpads_map = _get_launchpads_map()
+        landpads_map = _get_landpads_map()
         
         resp = httpx.get(f'{SPACEX_BASE}/launches/{clean_id}', timeout=10)
         resp.raise_for_status()
         raw = resp.json()
         
-        parsed = _parse_spacex_launch(raw, rockets_map, launchpads_map)
+        parsed = _parse_spacex_launch(raw, rockets_map, launchpads_map, landpads_map)
         obj, _ = Launch.objects.update_or_create(
             api_id=parsed['api_id'],
             defaults=parsed,
