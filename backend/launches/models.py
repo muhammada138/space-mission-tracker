@@ -21,6 +21,7 @@ class Launch(models.Model):
     webcast_url = models.URLField(blank=True, default='', max_length=1024)
     wiki_url = models.URLField(blank=True, default='', max_length=1024)
     infographic_url = models.URLField(blank=True, default='', max_length=1024)
+    landing_pad = models.CharField(max_length=256, blank=True, default='')
 
     # Launch pad coordinates (for weather lookups)
     pad_latitude = models.FloatField(null=True, blank=True)

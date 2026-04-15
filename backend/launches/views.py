@@ -44,14 +44,16 @@ def _to_dt(val, fallback):
 
 
 def _filter_and_deduplicate(launches, source, seen=None):
-    """Helper to filter by source and deduplicate by api_id."""
+    """Helper to filter by source and deduplicate by api_id AND mission name."""
     if seen is None:
         seen = set()
-    
+
     final = []
+    seen_names: set[str] = set()  # Secondary dedup — prevents same mission showing twice
     for l in launches:
         api_id = l.get('api_id')
-        if api_id not in seen:
+        name_key = (l.get('name') or '').lower().strip()
+        if api_id not in seen and name_key not in seen_names:
             if source == 'spacex':
                 # Filter for SpaceX provider
                 provider = l.get('launch_provider', '')
@@ -61,10 +63,21 @@ def _filter_and_deduplicate(launches, source, seen=None):
                 # Filter out SpaceX-prefixed IDs
                 if str(api_id or '').startswith('spacex_'):
                     continue
-                    
+
             final.append(l)
             seen.add(api_id)
+            if name_key:
+                seen_names.add(name_key)
     return final, seen
+
+
+def _filter_by_name_collision(past_launches, upcoming_launches):
+    """
+    Remove launches from the past list if a mission with the same name
+    exists in the upcoming list (handling reschedules/stale records).
+    """
+    upcoming_names = {l.get('name', '').lower() for l in upcoming_launches}
+    return [l for l in past_launches if l.get('name', '').lower() not in upcoming_names]
 
 
 class UpcomingLaunchesView(APIView):
@@ -94,8 +107,10 @@ class UpcomingLaunchesView(APIView):
         # Serialize model objects
         serialized = LaunchSerializer(raw_launches, many=True).data
         
-        # Deduplicate and filter
+        # Deduplicate and filter, and ENSURE only upcoming dates are shown
         final_launches, _ = _filter_and_deduplicate(serialized, source)
+        now = timezone.now()
+        final_launches = [l for l in final_launches if _to_dt(l.get('launch_date'), _FAR_PAST) >= now]
 
         # Sort by launch date, None-safe
         final_launches.sort(key=lambda l: _to_dt(l.get('launch_date'), _FAR_FUTURE))
@@ -119,7 +134,8 @@ class PastLaunchesView(APIView):
         
         if source in ('spacex', 'all'):
             try:
-                raw_launches += get_spacex_past_launches(limit=100)
+                # Use a smaller limit for SpaceX past to avoid timeouts
+                raw_launches += get_spacex_past_launches(limit=40)
             except Exception as e:
                 logger.warning(f"Past SpaceX fetch failed: {e}")
 
@@ -138,13 +154,15 @@ class PastLaunchesView(APIView):
 
         now = timezone.now()
 
-        # Deduplicate and filter primary results
+        # Deduplicate and filter primary results, and ENSURE only past dates are shown
         final_launches, seen = _filter_and_deduplicate(serialized, source)
+        final_launches = [l for l in final_launches if _to_dt(l.get('launch_date'), _FAR_FUTURE) < now]
         
         # Deduplicate and filter history (only past launches)
         past_history = []
         for h in history:
             ldate = _to_dt(h.get('launch_date'), _FAR_PAST)
+            # Only add to history if it's actually in the past AND not in our fresh results
             if ldate < now:
                 past_history.append(h)
         
@@ -152,6 +170,22 @@ class PastLaunchesView(APIView):
         final_launches.extend(history_launches)
 
         final_launches.sort(key=lambda l: _to_dt(l.get('launch_date'), _FAR_PAST), reverse=True)
+        
+        # FINAL CLEANUP: Ensure we don't show any mission in 'Past' that
+        # is currently listed as upcoming in the DB (handles reschedules/stale records).
+        try:
+            upcoming_names = set(
+                Launch.objects.filter(launch_date__gte=now)
+                .values_list('name', flat=True)
+            )
+            upcoming_names = {n.lower().strip() for n in upcoming_names if n}
+            final_launches = [
+                l for l in final_launches
+                if l.get('name', '').lower().strip() not in upcoming_names
+            ]
+        except Exception as e:
+            logger.warning(f"Name suppression failed: {e}")
+
         return Response(final_launches[:2000])
 
 
@@ -172,10 +206,19 @@ class ActiveLaunchesView(APIView):
         active = []
         for l in raw_active:
             ldate = _to_dt(l.launch_date, _FAR_PAST)
+            # 24h safety cutoff for "In Flight" status
             if ldate != _FAR_PAST and ldate < (now - timedelta(hours=24)):
-                refreshed = get_launch_by_api_id(l.api_id, force_refresh=True)
-                if refreshed and 'in flight' in (refreshed.status or '').lower():
-                    active.append(refreshed)
+                # Hard cutoff: missions older than 48h are long-duration/payload missions.
+                # They belong in the Payloads tab, not Currently Active.
+                if ldate < (now - timedelta(hours=48)):
+                    continue
+                # If between 24-48h old, try to refresh once to confirm it's over
+                try:
+                    refreshed = get_launch_by_api_id(l.api_id, force_refresh=True)
+                    if refreshed and 'in flight' in (refreshed.status or '').lower():
+                        active.append(refreshed)
+                except Exception:
+                    pass
             else:
                 active.append(l)
 
@@ -189,8 +232,10 @@ class ActiveLaunchesView(APIView):
                 params={'status': 6, 'mode': 'detailed', 'limit': 10},
                 timeout=15,
             )
-            resp.raise_for_status()
-            results = resp.json().get('results', [])
+            if resp.status_code == 200:
+                results = resp.json().get('results', [])
+            else:
+                results = []
             
             # Dynamically fetch recent launches to find active spacecraft
             # (Launch status is "Success", but Spacecraft is "Active")
@@ -203,10 +248,15 @@ class ActiveLaunchesView(APIView):
                 if past_resp.status_code == 200:
                     past_data = past_resp.json().get('results', [])
                     existing_ids = {r['id'] for r in results if 'id' in r}
+                    # Only include spacecraft-in-space missions launched within the last 3 days.
+                    # Older missions (like Cygnus resupply) belong in the Payloads tab.
+                    in_space_cutoff = now - timedelta(days=3)
                     for launch in past_data:
                         stage = launch.get('rocket', {}).get('spacecraft_stage', {})
+                        ldate_check = _to_dt(launch.get('net'), _FAR_PAST)
                         # If the spacecraft stage indicates the craft is currently in space, route it as active
-                        if stage and stage.get('spacecraft', {}).get('in_space') is True:
+                        if (stage and stage.get('spacecraft', {}).get('in_space') is True
+                                and ldate_check >= in_space_cutoff):
                             if 'id' in launch and launch['id'] not in existing_ids:
                                 # Force status to 'In Flight' so frontend treats it as an active mission
                                 if 'status' in launch and isinstance(launch['status'], dict):
@@ -260,6 +310,12 @@ class ActiveLaunchesView(APIView):
             active_threshold = now + timedelta(minutes=5)
             results = [r for r in results if _to_dt(r.get('net') if isinstance(r, dict) else getattr(r, 'net', None), _FAR_FUTURE) <= active_threshold]
 
+            # Exclude missions launched more than 48h ago — those are long-duration missions
+            # (e.g. Cygnus resupply, Dragon crew) that belong in the "In Orbit" tab.
+            active_floor = now - timedelta(hours=48)
+            results = [r for r in results
+                       if _to_dt(r.get('net') if isinstance(r, dict) else getattr(r, 'net', None), _FAR_PAST) >= active_floor]
+
             if results:
                 # Use local import for services to avoid circular dependency
                 from .services import _upsert_launches
@@ -288,15 +344,53 @@ class ActiveLaunchesView(APIView):
             elif active:
                 return Response(LaunchSerializer(active, many=True).data)
                 
+            # Transitions...
+            return Response([])
         except Exception as e:
-            logger.error(f"ActiveLaunchesView fetch failure: {str(e)}", exc_info=True)
-            # If API fails, fallback to DB cache if we have anything
+            logger.error(f"Critical error in ActiveLaunchesView: {e}", exc_info=True)
             if active:
                 return Response(LaunchSerializer(active, many=True).data)
-            return Response({'detail': f'Fetch failed: {str(e)}'}, status=503)
+            return Response([], status=200) # Graceful empty
 
-        # Fallback: actually no in-flight missions right now
-        return Response([])
+
+class PayloadsInOrbitView(APIView):
+    """GET /api/launches/payloads/ - spacecraft currently in orbit (long-duration missions)."""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        try:
+            resp = httpx.get(
+                'https://ll.thespacedevs.com/2.2.0/launch/previous/',
+                params={'mode': 'detailed', 'limit': 100},
+                timeout=15,
+            )
+            if resp.status_code != 200:
+                return Response([])
+            past_data = resp.json().get('results', [])
+
+            payloads = []
+            seen_ids = set()
+            for launch in past_data:
+                stage = launch.get('rocket', {}).get('spacecraft_stage', {})
+                if stage and stage.get('spacecraft', {}).get('in_space') is True:
+                    lid = launch.get('id')
+                    if lid and lid not in seen_ids:
+                        payloads.append(launch)
+                        seen_ids.add(lid)
+
+            if not payloads:
+                return Response([])
+
+            from .services import _upsert_launches
+            launches = list(_upsert_launches(payloads))
+            launches.sort(
+                key=lambda x: x.launch_date if x.launch_date else x.last_fetched,
+                reverse=True,
+            )
+            return Response(LaunchSerializer(launches, many=True).data)
+        except Exception as e:
+            logger.error(f"Error in PayloadsInOrbitView: {e}", exc_info=True)
+            return Response([])
 
 
 class LaunchDetailView(APIView):
@@ -310,11 +404,26 @@ class LaunchDetailView(APIView):
         try:
             launch = Launch.objects.get(api_id=api_id)
             
+            # If SpaceX launch is missing landing pad, force a refresh once
+            if api_id.startswith('spacex_') and not launch.landing_pad:
+                from .spacex_service import get_spacex_launch_by_id
+                refreshed = get_spacex_launch_by_id(api_id)
+                if refreshed:
+                    launch = refreshed
+            
             # If the mission is live/recent and missing a webcast, force a refresh from the API
             now = timezone.now()
             ldate = _to_dt(launch.launch_date, _FAR_PAST)
             is_active_window = ldate != _FAR_PAST and (now - timedelta(hours=6)) <= ldate <= (now + timedelta(minutes=15))
-            if is_active_window and not launch.webcast_url:
+            # Also refresh if launched within last 7 days with a non-terminal status
+            # (e.g. "To Be Confirmed" missions that haven't been updated since launch)
+            is_recent_nonterminal = (
+                ldate != _FAR_PAST and ldate < now and
+                (now - ldate) < timedelta(days=7) and
+                'success' not in (launch.status or '').lower() and
+                'fail' not in (launch.status or '').lower()
+            )
+            if (is_active_window and not launch.webcast_url) or is_recent_nonterminal:
                 refreshed = get_launch_by_api_id(api_id, force_refresh=True)
                 if refreshed:
                     launch = refreshed

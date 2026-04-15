@@ -119,8 +119,8 @@ export default function Navbar() {
             ) : (
               <>
                 <Link to="/login" className="nav-link"><LogIn size={14} /> Login</Link>
-                <Link to="/register" className="btn btn-primary" style={{ fontSize: 12, padding: '7px 16px' }}>
-                  <UserPlus size={13} /> Sign up
+                <Link to="/register" className="btn btn-primary" style={{ fontSize: 13, padding: '8px 22px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <UserPlus size={14} /> SIGN UP
                 </Link>
               </>
             )}
@@ -170,8 +170,8 @@ export default function Navbar() {
             ) : (
               <>
                 <Link to="/login" className="nav-link" onClick={close} style={{ padding: '12px 0' }}><LogIn size={14} /> Login</Link>
-                <Link to="/register" className="btn btn-primary" onClick={close} style={{ marginTop: 8, justifyContent: 'center' }}>
-                  <UserPlus size={13} /> Sign up
+                <Link to="/register" className="btn btn-primary" onClick={close} style={{ marginTop: 8, justifyContent: 'center', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <UserPlus size={14} /> SIGN UP
                 </Link>
               </>
             )}

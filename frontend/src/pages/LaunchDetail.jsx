@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Bookmark, BookmarkCheck, ExternalLink, MapPin, Globe, Radio, Rocket, Play, Share2, Bell, BellOff, Activity, ThumbsUp, ThumbsDown, Minus } from 'lucide-react'
+import { ArrowLeft, Bookmark, BookmarkCheck, ExternalLink, MapPin, Globe, Radio, Rocket, Play, Share2, Bell, BellOff, Activity, ThumbsUp, ThumbsDown, Minus, CheckCircle } from 'lucide-react'
 import { format, formatDistanceToNow } from 'date-fns'
 import api from '../api/axios'
 import { useAuth } from '../context/AuthContext'
@@ -209,10 +209,11 @@ export default function LaunchDetail() {
   const status = (launch.status || '').toLowerCase()
   const isSuccess = status.includes('success')
   const isFail = status.includes('fail')
-  const isActive = status.includes('in flight') || status.includes('inflight') ||
+  const isActive = ((status.includes('in flight') || status.includes('inflight')) && 
+    (launch.launch_date && (Date.now() - new Date(launch.launch_date).getTime()) < 86400000)) ||
     (launch.launch_date && new Date(launch.launch_date) < new Date() &&
      (Date.now() - new Date(launch.launch_date).getTime()) < 10800000 && // 3 hours
-     !status.includes('fail'))
+     !isSuccess && !isFail)
 
   const ytId = getYouTubeId(launch.webcast_url)
 
@@ -236,48 +237,68 @@ export default function LaunchDetail() {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 32 }}>
           {/* Left column: main content */}
           <div style={{ flex: '1 1 600px', minWidth: 0 }}>
-            {/* Header info */}
-            <div style={{ marginBottom: 24 }} className="fade-up">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                <span className={`badge ${getStatusClass(launch.status)}`}>{launch.status || 'Unknown'}</span>
-                {isActive && (
-                  <span className="badge badge-accent" style={{ animation: 'pulse 2s infinite' }}>
-                    <Radio size={10} /> Live Now
-                  </span>
-                )}
+            <div style={{ marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' }} className="fade-up">
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                  <span className={`badge ${getStatusClass(launch.status)}`}>{launch.status || 'Unknown'}</span>
+                  {isActive && (
+                    <span className="badge badge-accent" style={{ animation: 'pulse 2s infinite' }}>
+                      <Radio size={10} /> Live Now
+                    </span>
+                  )}
+                </div>
+                <h1 style={{ fontSize: 'clamp(28px, 4vw, 36px)', margin: '0 0 8px', lineHeight: 1.1 }}>{launch.name}</h1>
+                <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 15 }}>
+                  {launch.launch_provider} • {launch.rocket}
+                </p>
               </div>
-              <h1 style={{ fontSize: 32, margin: '0 0 8px', lineHeight: 1.1 }}>{launch.name}</h1>
-              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 15 }}>
-                {launch.launch_provider} • {launch.pad_name}
-              </p>
+
+              {launch.webcast_url && !isUpcoming && !ytId && (
+                <a href={launch.webcast_url} target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{ padding: '12px 24px' }}>
+                  <Play size={16} fill="currentColor" /> WATCH REPLAY
+                </a>
+              )}
             </div>
 
+            {/* Video Player - Hero Position */}
+            {ytId && (
+              <div className="fade-up" style={{ animationDelay: '50ms', marginBottom: 24 }}>
+                <div style={{ position: 'relative', paddingBottom: '56.25%', borderRadius: 16, overflow: 'hidden', background: '#000', border: '1px solid var(--border)', boxShadow: 'var(--shadow-lg)' }}>
+                  <iframe
+                    src={`https://www.youtube.com/embed/${ytId}?autoplay=0&rel=0`}
+                    title="Launch webcast"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Countdown for upcoming */}
-            {isUpcoming && (
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 20, flexWrap: 'wrap' }}>
-                <div className="glass" style={{ padding: '18px 22px', display: 'inline-block' }}>
-                  <p style={{ margin: '0 0 6px', fontSize: 10, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                    T-Minus
+            {isUpcoming && !isSuccess && !isFail && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24, marginBottom: 32, width: '100%' }} className="fade-up">
+                <div className="glass" style={{ padding: '18px 32px', textAlign: 'center' }}>
+                  <p style={{ margin: '0 0 10px', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                    T-Minus to Launch
                   </p>
                   <CountdownTimer targetDate={launch.launch_date} large />
                 </div>
                 
-                {/* Prominent Watch Now Button */}
+                {/* Refined Watch Now Button */}
                 <button 
                   className="btn btn-primary" 
                   onClick={() => navigate(`/live/${launch.api_id}`)}
                   style={{ 
-                    height: 98, padding: '0 32px', fontSize: 16, fontWeight: 800,
-                    display: 'flex', flexDirection: 'column', gap: 8, justifyContent: 'center',
+                    padding: '16px 40px', fontSize: 15, fontWeight: 800,
+                    display: 'flex', alignItems: 'center', gap: 12,
                     background: 'var(--gradient-brand)', border: 'none',
                     animation: 'urgentPulse 2s ease-in-out infinite',
-                    boxShadow: '0 10px 30px rgba(0, 212, 255, 0.3)'
+                    boxShadow: '0 8px 25px rgba(0, 212, 255, 0.25)',
+                    borderRadius: 12
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Radio size={20} /> WATCH NOW
-                  </div>
-                  <span style={{ fontSize: 11, fontWeight: 500, opacity: 0.9 }}>Enter Live Tracker</span>
+                  <Radio size={18} /> WATCH LIVE TRACKER
                 </button>
               </div>
             )}
@@ -292,6 +313,9 @@ export default function LaunchDetail() {
                 <InfoRow icon={<Globe size={13} />} label="Provider" value={launch.launch_provider} />
                 <InfoRow icon={<MapPin size={13} />} label="Pad" value={launch.pad_name} />
                 <InfoRow icon={<MapPin size={13} />} label="Location" value={launch.pad_location} />
+                {launch.landing_pad && (
+                  <InfoRow icon={<CheckCircle size={13} />} label="Landing Pad" value={launch.landing_pad} />
+                )}
                 <InfoRow icon={<Radio size={13} />} label="Orbit" value={launch.orbit} />
                 <InfoRow label="Date" value={launch.launch_date ? format(new Date(launch.launch_date), 'MMM d, yyyy - HH:mm z') : 'TBD'} />
                 {!isUpcoming && launch.launch_date && (
@@ -349,18 +373,11 @@ export default function LaunchDetail() {
             )}
 
             {/* External links */}
-            {(launch.webcast_url || launch.wiki_url) && (
+            {launch.wiki_url && (
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}>
-                {launch.webcast_url && (
-                  <a href={launch.webcast_url} target="_blank" rel="noopener noreferrer" className="btn btn-accent">
-                    <Play size={13} /> Watch Launch
-                  </a>
-                )}
-                {launch.wiki_url && (
-                  <a href={launch.wiki_url} target="_blank" rel="noopener noreferrer" className="btn btn-ghost">
-                    <ExternalLink size={13} /> Wikipedia
-                  </a>
-                )}
+                <a href={launch.wiki_url} target="_blank" rel="noopener noreferrer" className="btn btn-ghost">
+                  <ExternalLink size={13} /> Mission Wikipedia
+                </a>
               </div>
             )}
 
@@ -385,17 +402,6 @@ export default function LaunchDetail() {
 
           {/* Right column: media and actions */}
           <div className="fade-up" style={{ animationDelay: '60ms' }}>
-            {ytId && (
-              <div style={{ position: 'relative', paddingBottom: '56.25%', borderRadius: 12, overflow: 'hidden', marginBottom: 16, background: '#000', border: '1px solid var(--border)' }}>
-                <iframe
-                  src={`https://www.youtube.com/embed/${ytId}`}
-                  title="Launch webcast"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
-                />
-              </div>
-            )}
 
             {launch.infographic_url && (
               <div className="glass" style={{ overflow: 'hidden', marginBottom: 16 }}>
@@ -411,7 +417,9 @@ export default function LaunchDetail() {
                 style={{ width: '100%', justifyContent: 'center', padding: '11px 20px' }}
               >
                 {watchlistId ? <BookmarkCheck size={14} /> : <Bookmark size={14} />}
-                {watchlistId ? 'Saved to Watchlist' : 'Save to Watchlist'}
+                {watchlistId 
+                  ? (isUpcoming ? 'Saved to Watchlist' : 'Saved to Memoirs') 
+                  : (isUpcoming ? 'Save to Watchlist' : 'Save to Memoirs')}
               </button>
 
               {isUpcoming && (
@@ -449,6 +457,8 @@ export default function LaunchDetail() {
     </div>
   )
 }
+
+
 
 function InfoRow({ icon, label, value }) {
   if (!value) return null
