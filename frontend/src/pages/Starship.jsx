@@ -6,11 +6,20 @@ import LaunchCard from '../components/LaunchCard'
 export default function Starship() {
   const [nextFlight, setNextFlight] = useState(null)
   const [recentTests, setRecentTests] = useState([])
-  const [checklist, setChecklist] = useState([])
   const [loading, setLoading] = useState(true)
   const [loadingTests, setLoadingTests] = useState(true)
+  const [isLive, setIsLive] = useState(false)
   const [starbaseTime, setStarbaseTime] = useState('')
   const [weather, setWeather] = useState({ temp: '--', condition: 'Loading...', wind: '--' })
+
+  // Guaranteed Frontend Fallback (Flight 12 Context)
+  const [checklist, setChecklist] = useState([
+    { task: 'Ship 39 Static Fire (Massey\'s)', status: 'complete' },
+    { task: 'Booster 19 Static Fire (33 Engines)', status: 'pending' },
+    { task: 'B19 / S39 Stacking (Pad 2)', status: 'pending' },
+    { task: 'Flight 12 Wet Dress Rehearsal', status: 'pending' },
+    { task: 'FAA Flight 12 Launch License', status: 'pending' },
+  ])
 
   useEffect(() => {
     // 1. Fetch Starship specifically
@@ -25,10 +34,21 @@ export default function Starship() {
     // 2. Fetch Recent Tests and Dynamic Checklist
     api.get('/launches/starship-tests/')
       .then(({ data }) => {
-        setRecentTests(data.videos || [])
-        setChecklist(data.checklist || [])
+        console.log('Starship tests data:', data)
+        if (data.videos && data.videos.length > 0) {
+          setRecentTests(data.videos)
+          setIsLive(true)
+        } else {
+          console.warn('No videos returned from backend')
+        }
+        if (data.checklist && data.checklist.length > 0) {
+          setChecklist(data.checklist)
+        }
       })
-      .catch(() => {})
+      .catch((err) => {
+        console.error('Failed to fetch Starship tests:', err)
+        console.warn("Using local fallback for Starship checklist")
+      })
       .finally(() => setLoadingTests(false))
 
     // 3. Starbase Time (Central Time)
