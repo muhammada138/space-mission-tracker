@@ -102,18 +102,49 @@ def _get_launchpads_map() -> dict:
 
 
 def _upsert_spacex_launches(results: list, rockets_map: dict, launchpads_map: dict) -> list:
-    launches = []
+    parsed_launches = []
+    api_ids = []
+
     for raw in results:
         try:
             parsed = _parse_spacex_launch(raw, rockets_map, launchpads_map)
-            obj, _ = Launch.objects.update_or_create(
-                api_id=parsed['api_id'],
-                defaults=parsed,
-            )
-            launches.append(obj)
+            parsed_launches.append(parsed)
+            api_ids.append(parsed['api_id'])
         except Exception:
             continue
-    return launches
+
+    if not parsed_launches:
+        return []
+
+    existing_launches = {
+        obj.api_id: obj for obj in Launch.objects.filter(api_id__in=api_ids)
+    }
+
+    to_create = []
+    to_update = []
+    seen_new_ids = set()
+
+    for parsed in parsed_launches:
+        api_id = parsed['api_id']
+        if api_id in existing_launches:
+            obj = existing_launches[api_id]
+            for k, v in parsed.items():
+                if k != 'api_id':
+                    setattr(obj, k, v)
+            to_update.append(obj)
+        elif api_id not in seen_new_ids:
+            to_create.append(Launch(**parsed))
+            seen_new_ids.add(api_id)
+
+    if to_create:
+        Launch.objects.bulk_create(to_create)
+    if to_update:
+        # Get list of fields to update from the first parsed launch
+        update_fields = [k for k in parsed_launches[0].keys() if k != 'api_id']
+        Launch.objects.bulk_update(to_update, update_fields)
+
+    # Return the objects from DB to ensure they have PKs and are current
+    return list(Launch.objects.filter(api_id__in=api_ids))
 
 
 def _is_actually_future(data: dict) -> bool:
