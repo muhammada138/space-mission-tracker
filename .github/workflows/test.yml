@@ -11,9 +11,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v3
     - name: Set up Python 3.12
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v4
       with:
         python-version: '3.12'
         cache: 'pip'
@@ -21,9 +21,11 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         cd backend
-        iconv -f UTF-16LE -t UTF-8 requirements.txt > reqs_utf8.txt
-        pip install -r reqs_utf8.txt
+        iconv -f UTF-16 -t UTF-8 requirements.txt > requirements.utf8.txt
+        pip install -r requirements.utf8.txt
     - name: Run Tests
       run: |
         cd backend
+        cp .env.example .env
+        python manage.py migrate
         python -m pytest
