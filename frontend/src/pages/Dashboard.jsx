@@ -210,9 +210,6 @@ export default function Dashboard() {
             <Trophy size={13} style={{ display: 'inline', marginRight: 4 }} />
             Achievements <span className="tab-count">{unlockedAchievements.length}/{totalAchievements}</span>
           </button>
-          <button className={`tab ${tab === 'leaderboard' ? 'active' : ''}`} onClick={() => setTab('leaderboard')}>
-            Leaderboard
-          </button>
         </div>
       </div>
 
@@ -347,45 +344,6 @@ export default function Dashboard() {
               </div>
             </div>
           )}
-        </div>
-      )}
-
-      {/* Leaderboard */}
-      {!loading && tab === 'leaderboard' && (
-        <div className="fade-up glass" style={{ padding: '24px' }}>
-          <h2 style={{ margin: '0 0 16px', fontSize: 20, fontWeight: 800 }}>Top Forecasters</h2>
-          <p style={{ margin: '0 0 24px', color: 'var(--text-secondary)', fontSize: 14 }}>
-            Earn points by correctly predicting if upcoming launches will be On Time, Delayed, or Scrubbed.
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {[
-              { rank: 1, user: 'AstroNut', points: 3450, accuracy: '89%' },
-              { rank: 2, user: 'StarGazer', points: 2980, accuracy: '82%' },
-              { rank: 3, user: 'OrbitJunkie', points: 2750, accuracy: '78%' },
-              { rank: 4, user: 'LaunchBoss', points: 2410, accuracy: '75%' },
-              { rank: 5, user: user?.username || 'You', points: 1250, accuracy: '65%' },
-            ].map((entry) => (
-              <div key={entry.rank} style={{
-                display: 'flex', alignItems: 'center', padding: '16px',
-                background: entry.user === (user?.username || 'You') ? 'rgba(0, 212, 255, 0.1)' : 'rgba(255,255,255,0.02)',
-                border: `1px solid ${entry.user === (user?.username || 'You') ? 'var(--accent)' : 'var(--border)'}`,
-                borderRadius: 8
-              }}>
-                <div style={{ width: 40, fontSize: 18, fontWeight: 800, color: entry.rank <= 3 ? 'var(--warning)' : 'var(--text-muted)' }}>
-                  #{entry.rank}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: entry.user === (user?.username || 'You') ? 'var(--accent)' : 'var(--text-primary)' }}>
-                    {entry.user}
-                  </div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 18, fontWeight: 800, fontFamily: 'var(--font-mono)' }}>{entry.points} pts</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{entry.accuracy} accuracy</div>
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
       )}
 
