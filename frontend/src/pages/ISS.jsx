@@ -117,6 +117,7 @@ function CrewModal({ person, onClose }) {
           width: '100%', 
           position: 'relative', 
           padding: 0, 
+        }}
         onClick={e => e.stopPropagation()}
       >
         <button
