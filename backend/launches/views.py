@@ -660,9 +660,11 @@ class SpaceWeatherView(APIView):
                 if noaa_resp.status_code == 200:
                     noaa_data = noaa_resp.json()
                     if noaa_data and isinstance(noaa_data, list):
-                        # Get the most recent valid Kp reading
-                        latest = noaa_data[-1]
-                        kp = latest.get('kp_index', 0)
+                        # Take the max of the last 60 minutes to smooth out drops to 0
+                        # which frequently occur on the most recent minute due to estimation lag
+                        recent = [d.get('kp_index', 0) for d in noaa_data[-60:]]
+                        if recent:
+                            kp = max(recent)
             except Exception as e:
                 logger.warning(f"NOAA Kp fetch failed: {e}")
 
