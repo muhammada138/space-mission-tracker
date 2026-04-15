@@ -162,10 +162,21 @@ class ActiveLaunchesView(APIView):
         # First check DB cache for in-flight matches.
         # Note: Missions with active spacecraft (but "Success" launch statuses, like Artemis II or Dragon)
         # will not be caught here and will instead fall through to the real-time LL2 query below.
-        active = list(Launch.objects.filter(
+        now = timezone.now()
+        raw_active = list(Launch.objects.filter(
             status__icontains='in flight'
         ).order_by('-launch_date'))
         
+        active = []
+        for l in raw_active:
+            ldate = _to_dt(l.launch_date, _FAR_PAST)
+            if ldate != _FAR_PAST and ldate < (now - timedelta(hours=24)):
+                refreshed = get_launch_by_api_id(l.api_id, force_refresh=True)
+                if refreshed and 'in flight' in (refreshed.status or '').lower():
+                    active.append(refreshed)
+            else:
+                active.append(l)
+
         # We purposely do NOT return early here because we want to also fetch recent success 
         # missions that have currently active spacecraft from the LL2 API.
 
@@ -208,10 +219,13 @@ class ActiveLaunchesView(APIView):
             # Fetch missions from the last 3 hours and force them to 'Active' 
             # while they climb to orbit, even if LL2 hasn't flagged them status 6 yet.
             recent_cutoff = now - timedelta(hours=3)
-            recent_successes = Launch.objects.filter(
-                launch_date__gte=recent_cutoff,
-                launch_date__lte=now
-            ).exclude(status__icontains='fail') # Don't force failures
+            recent_successes_raw = Launch.objects.all()
+            recent_successes = []
+            for l in recent_successes_raw:
+                if 'fail' in (l.status or '').lower(): continue
+                ldate = _to_dt(l.launch_date, _FAR_PAST)
+                if ldate != _FAR_PAST and recent_cutoff <= ldate <= now:
+                    recent_successes.append(l)
 
             for l in recent_successes:
                 # Ensure we don't duplicate missions already in 'results'
@@ -248,7 +262,8 @@ class ActiveLaunchesView(APIView):
                 # Ensure missions we manually identified as 'active' keep their 
                 # status flag in the final response objects.
                 for l in launches:
-                    if l.launch_date and (now - timedelta(hours=3)) <= l.launch_date <= (now + timedelta(minutes=5)):
+                    ldate = _to_dt(l.launch_date, _FAR_PAST)
+                    if ldate != _FAR_PAST and (now - timedelta(hours=3)) <= ldate <= (now + timedelta(minutes=5)):
                         # If it's a known success/fail, don't overwrite it unless it's very recent
                         if 'Success' not in (l.status or '') and 'Fail' not in (l.status or ''):
                             l.status = 'In Flight'
@@ -290,15 +305,16 @@ class LaunchDetailView(APIView):
             
             # If the mission is live/recent and missing a webcast, force a refresh from the API
             now = timezone.now()
-            is_active_window = launch.launch_date and (now - timedelta(hours=6)) <= launch.launch_date <= (now + timedelta(minutes=15))
+            ldate = _to_dt(launch.launch_date, _FAR_PAST)
+            is_active_window = ldate != _FAR_PAST and (now - timedelta(hours=6)) <= ldate <= (now + timedelta(minutes=15))
             if is_active_window and not launch.webcast_url:
                 refreshed = get_launch_by_api_id(api_id, force_refresh=True)
                 if refreshed:
                     launch = refreshed
             
             # Force status to In Flight if in the immediate post-launch window
-            if launch.launch_date and (now - timedelta(hours=3)) <= launch.launch_date <= now:
-                if 'fail' not in (launch.status or '').toLowerCase():
+            if ldate != _FAR_PAST and (now - timedelta(hours=3)) <= ldate <= now:
+                if 'fail' not in (launch.status or '').lower():
                     launch.status = 'In Flight'
             
             return Response(LaunchSerializer(launch).data)
