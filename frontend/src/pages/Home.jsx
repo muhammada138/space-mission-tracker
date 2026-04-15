@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, MapPin, Users } from 'lucide-react'
+import { Search, Filter, X, SlidersHorizontal } from 'lucide-react'
 import api from '../api/axios'
 import LaunchCard from '../components/LaunchCard'
 import HeroLaunch from '../components/HeroLaunch'
@@ -14,6 +14,11 @@ export default function Home({ tab = 'upcoming' }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
+  
+  // Filters
+  const [showFilters, setShowFilters] = useState(false)
+  const [missionFilter, setMissionFilter] = useState('all')
+  const [orbitFilter, setOrbitFilter] = useState('all')
 
   const setTab = (t) => {
     const routes = { upcoming: '/launches/upcoming', active: '/launches/active', past: '/launches/past', payloads: '/launches/payloads' }
@@ -30,19 +35,55 @@ export default function Home({ tab = 'upcoming' }) {
       .finally(() => setLoading(false))
   }, [tab, source])
 
+  // Get unique mission types and orbits for filter dropdowns
+  const filterOptions = useMemo(() => {
+    const missions = new Set()
+    const orbits = new Set()
+    launches.forEach(l => {
+      if (l.mission_type) missions.add(l.mission_type)
+      if (l.orbit) orbits.add(l.orbit)
+    })
+    return {
+      missions: Array.from(missions).sort(),
+      orbits: Array.from(orbits).sort()
+    }
+  }, [launches])
+
   const filteredLaunches = useMemo(() => {
-    if (!searchQuery.trim()) return launches
-    const q = searchQuery.toLowerCase()
-    return launches.filter(l =>
-      (l.name || '').toLowerCase().includes(q) ||
-      (l.rocket || '').toLowerCase().includes(q) ||
-      (l.launch_provider || '').toLowerCase().includes(q)
-    )
-  }, [launches, searchQuery])
+    let result = launches
+
+    // 1. Search Query
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
+      result = result.filter(l =>
+        (l.name || '').toLowerCase().includes(q) ||
+        (l.rocket || '').toLowerCase().includes(q) ||
+        (l.launch_provider || '').toLowerCase().includes(q) ||
+        (l.mission_description || '').toLowerCase().includes(q)
+      )
+    }
+
+    // 2. Mission Type Filter
+    if (missionFilter !== 'all') {
+      result = result.filter(l => l.mission_type === missionFilter)
+    }
+
+    // 3. Orbit Filter
+    if (orbitFilter !== 'all') {
+      result = result.filter(l => l.orbit === orbitFilter)
+    }
+
+    return result
+  }, [launches, searchQuery, missionFilter, orbitFilter])
+
+  const clearFilters = () => {
+    setSearchQuery('')
+    setMissionFilter('all')
+    setOrbitFilter('all')
+  }
 
   // Separate hero launch (first upcoming) from grid
-  // Separate hero launch (first upcoming) from grid
-  const heroLaunch = tab === 'upcoming' && !searchQuery && filteredLaunches.length > 0 
+  const heroLaunch = tab === 'upcoming' && !searchQuery && missionFilter === 'all' && orbitFilter === 'all' && filteredLaunches.length > 0 
     ? filteredLaunches.find(l => {
         const s = (l.status || '').toLowerCase()
         return !s.includes('success') && !s.includes('fail')
@@ -60,57 +101,123 @@ export default function Home({ tab = 'upcoming' }) {
               Mission <span style={{ color: 'var(--accent)' }}>Control</span>
             </h1>
             <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 14 }}>
-              Live launch data from Launch Library 2 and SpaceX
+              Live launch data and orbital payload tracking
             </p>
           </div>
-
         </div>
       </div>
 
       {/* Space weather widget */}
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: 32 }}>
         <SpaceWeather />
       </div>
 
-      {/* Controls row: Tabs */}
-      <div style={{ marginBottom: 24 }}>
-        <div className="tabs">
-          <button className={`tab ${tab === 'upcoming' ? 'active' : ''}`} onClick={() => setTab('upcoming')}>
-            Upcoming
-            {!loading && tab === 'upcoming' && <span className="tab-count">{launches.length}</span>}
-          </button>
-          <button className={`tab ${tab === 'active' ? 'active' : ''}`} onClick={() => setTab('active')}>
-            Currently Active
-          </button>
-          <button className={`tab ${tab === 'past' ? 'active' : ''}`} onClick={() => setTab('past')}>
-            Past
-            {!loading && tab === 'past' && <span className="tab-count">{launches.length}</span>}
-          </button>
-          <button className={`tab ${tab === 'payloads' ? 'active' : ''}`} onClick={() => setTab('payloads')}>
-            In Orbit
-            {!loading && tab === 'payloads' && <span className="tab-count">{launches.length}</span>}
-          </button>
-        </div>
+      {/* Main Controls Section */}
+      <div className="glass" style={{ padding: '12px', borderRadius: 16, marginBottom: 32, border: '1px solid var(--glass-border)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          
+          {/* Top row: Tab Navigation */}
+          <div className="tabs" style={{ borderBottom: 'none', padding: '4px', background: 'rgba(0,0,0,0.2)', borderRadius: 12, display: 'inline-flex', alignSelf: 'flex-start' }}>
+            {['upcoming', 'active', 'past', 'payloads'].map(t => (
+              <button 
+                key={t}
+                className={`tab ${tab === t ? 'active' : ''}`} 
+                onClick={() => setTab(t)}
+                style={{ borderRadius: 8, padding: '8px 16px', border: 'none', margin: 0 }}
+              >
+                {t.charAt(0).toUpperCase() + t.slice(1).replace('payloads', 'In Orbit')}
+                {!loading && tab === t && <span className="tab-count" style={{ marginLeft: 8 }}>{launches.length}</span>}
+              </button>
+            ))}
+          </div>
 
-        {tab !== 'active' && tab !== 'payloads' && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 12, flexWrap: 'wrap' }}>
-            <div className="tabs" style={{ borderBottom: 'none' }}>
-              <button className={`tab ${source === 'all' ? 'active' : ''}`} onClick={() => setSource('all')}>All Providers</button>
-              <button className={`tab ${source === 'll2' ? 'active' : ''}`} onClick={() => setSource('ll2')}>Launch Library</button>
-              <button className={`tab ${source === 'spacex' ? 'active' : ''}`} onClick={() => setSource('spacex')}>SpaceX API</button>
-            </div>
-
-            <div className="search-bar" style={{ flex: '0 1 300px' }}>
-              <Search size={14} className="search-icon" />
+          {/* Bottom row: Search and Filters */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <div className="search-bar" style={{ flex: '1 1 300px', margin: 0, height: 42 }}>
+              <Search size={16} className="search-icon" />
               <input
                 type="text"
-                placeholder="Search launches..."
+                placeholder={`Search ${tab} missions...`}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                style={{ fontSize: 14 }}
               />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery('')} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', padding: 8, cursor: 'pointer' }}>
+                  <X size={14} />
+                </button>
+              )}
             </div>
+
+            <button 
+              className={`btn ${showFilters ? 'btn-primary' : 'btn-ghost'}`}
+              onClick={() => setShowFilters(!showFilters)}
+              style={{ height: 42, display: 'flex', alignItems: 'center', gap: 8, padding: '0 16px', fontSize: 14 }}
+            >
+              <SlidersHorizontal size={16} />
+              Filters
+              {(missionFilter !== 'all' || orbitFilter !== 'all') && (
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#fff' }} />
+              )}
+            </button>
+
+            {tab !== 'active' && tab !== 'payloads' && (
+              <div className="tabs" style={{ borderBottom: 'none', height: 42, padding: '4px', background: 'rgba(0,0,0,0.1)', borderRadius: 8 }}>
+                {['all', 'll2', 'spacex'].map(s => (
+                  <button 
+                    key={s}
+                    className={`tab ${source === s ? 'active' : ''}`} 
+                    onClick={() => setSource(s)}
+                    style={{ borderRadius: 6, padding: '0 12px', fontSize: 12, height: '100%' }}
+                  >
+                    {s === 'all' ? 'All' : s === 'll2' ? 'LL2' : 'SpaceX'}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-        )}
+
+          {/* Expanded Filters Panel */}
+          {showFilters && (
+            <div className="fade-up" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.05)' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Mission Type</label>
+                <select 
+                  value={missionFilter} 
+                  onChange={(e) => setMissionFilter(e.target.value)}
+                  className="glass"
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, background: 'var(--bg-card)', color: '#fff', border: '1px solid var(--glass-border)' }}
+                >
+                  <option value="all">All Types</option>
+                  {filterOptions.missions.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Target Orbit</label>
+                <select 
+                  value={orbitFilter} 
+                  onChange={(e) => setOrbitFilter(e.target.value)}
+                  className="glass"
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, background: 'var(--bg-card)', color: '#fff', border: '1px solid var(--glass-border)' }}
+                >
+                  <option value="all">All Orbits</option>
+                  {filterOptions.orbits.map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                <button 
+                  onClick={clearFilters}
+                  className="btn btn-ghost"
+                  style={{ height: 38, width: '100%', fontSize: 13 }}
+                >
+                  Clear All
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Content */}
@@ -132,13 +239,11 @@ export default function Home({ tab = 'upcoming' }) {
       )}
 
       {!loading && !error && filteredLaunches.length === 0 && (
-        <div className="empty-state fade-up">
-          <div className="icon">🚀</div>
-          {searchQuery ? (
-            <p>No launches matching "{searchQuery}"</p>
-          ) : (
-            <p>No launches found for this filter.</p>
-          )}
+        <div className="empty-state fade-up" style={{ padding: '80px 0' }}>
+          <div className="icon" style={{ fontSize: 48, marginBottom: 20 }}>🛸</div>
+          <h3 style={{ margin: '0 0 8px' }}>No matches found</h3>
+          <p style={{ color: 'var(--text-muted)', marginBottom: 24 }}>Try adjusting your search or filters</p>
+          <button className="btn btn-primary" onClick={clearFilters}>Reset Filters</button>
         </div>
       )}
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Search, Plus } from 'lucide-react'
+import { Search, Plus, SlidersHorizontal, X, Info } from 'lucide-react'
 import api from '../api/axios'
 
 // ── 2D Rocket Comparison Data ───────────────────────────────────────────────
@@ -112,8 +112,8 @@ function RocketCompare({ allRockets }) {
   const selectedSpec = selectedRocket ? findSpec(selectedRocket.name) : null;
 
   return (
-    <div className="glass" style={{ marginBottom: 32, overflow: 'hidden' }}>
-      <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+    <div className="glass" style={{ marginBottom: 32, overflow: 'hidden', border: '1px solid var(--glass-border)', borderRadius: 16 }}>
+      <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <h2 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 800 }}>
             Size <span style={{ color: 'var(--accent)' }}>Comparison</span>
@@ -125,7 +125,7 @@ function RocketCompare({ allRockets }) {
         <div style={{ position: 'relative' }}>
           <button
             className="btn btn-ghost"
-            style={{ padding: '6px 10px', fontSize: 11 }}
+            style={{ padding: '6px 10px', fontSize: 11, background: 'rgba(255,255,255,0.05)' }}
             onClick={() => setIsPickerOpen(!isPickerOpen)}
             disabled={shownNames.length >= 6}
           >
@@ -134,7 +134,7 @@ function RocketCompare({ allRockets }) {
           </button>
 
           {isPickerOpen && (
-            <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 8, width: 220, background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 8, zIndex: 50, maxHeight: 300, overflowY: 'auto', boxShadow: 'var(--shadow-md)' }}>
+            <div className="glass" style={{ position: 'absolute', top: '100%', right: 0, marginTop: 8, width: 220, background: 'var(--bg-card)', border: '1px solid var(--glass-border)', borderRadius: 12, zIndex: 100, maxHeight: 300, overflowY: 'auto', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.5)' }}>
               {unshownRockets.length === 0 ? (
                 <div style={{ padding: 12, fontSize: 12, color: 'var(--text-muted)' }}>No more rockets available.</div>
               ) : (
@@ -142,7 +142,7 @@ function RocketCompare({ allRockets }) {
                   <button
                     key={r.name}
                     onClick={() => toggleRocket(r.name)}
-                    style={{ display: 'block', width: '100%', padding: '10px 12px', textAlign: 'left', background: 'none', border: 'none', borderBottom: '1px solid var(--border)', cursor: 'pointer', fontSize: 12, color: 'var(--text-primary)' }}
+                    style={{ display: 'block', width: '100%', padding: '10px 12px', textAlign: 'left', background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer', fontSize: 12, color: '#fff' }}
                   >
                     <div style={{ fontWeight: 600 }}>{r.name}</div>
                     <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{findSpec(r.name)?.manufacturer}</div>
@@ -154,9 +154,9 @@ function RocketCompare({ allRockets }) {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: selectedRocket ? '1fr 240px' : '1fr', transition: 'grid-template-columns 0.3s' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: selectedRocket ? '1fr 260px' : '1fr', transition: 'grid-template-columns 0.3s' }}>
         {/* SVG Canvas */}
-        <div style={{ height: 400, position: 'relative', overflowX: 'auto', overflowY: 'hidden' }}>
+        <div style={{ height: 400, position: 'relative', overflowX: 'auto', overflowY: 'hidden', background: 'rgba(0,0,0,0.2)' }}>
           <svg width={Math.max(shownRockets.length * 120, 600)} height="400" style={{ display: 'block', minWidth: '100%' }}>
             <defs>
               <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
@@ -166,7 +166,7 @@ function RocketCompare({ allRockets }) {
             <rect width="100%" height="100%" fill="url(#grid)" />
 
             {/* Ground line */}
-            <line x1="0" y1="340" x2="100%" y2="340" stroke="var(--border)" strokeWidth="2" />
+            <line x1="0" y1="340" x2="100%" y2="340" stroke="rgba(255,255,255,0.1)" strokeWidth="2" />
 
             {/* Height markers */}
             <g fill="var(--text-muted)" fontSize="10" fontFamily="var(--font-mono)">
@@ -193,8 +193,8 @@ function RocketCompare({ allRockets }) {
                   {/* Remove button (X) below the name */}
                   {isSelected && (
                     <g onClick={(e) => { e.stopPropagation(); toggleRocket(r.name); }} style={{ cursor: 'pointer' }} transform="translate(0, 40)">
-                      <circle r="10" fill="var(--danger-soft)" />
-                      <path d="M-3,-3 L3,3 M-3,3 L3,-3" stroke="var(--danger)" strokeWidth="1.5" />
+                      <circle r="10" fill="rgba(239, 68, 68, 0.2)" />
+                      <path d="M-3,-3 L3,3 M-3,3 L3,-3" stroke="#ef4444" strokeWidth="1.5" />
                     </g>
                   )}
                 </g>
@@ -205,7 +205,7 @@ function RocketCompare({ allRockets }) {
 
         {/* Spec panel for selected rocket */}
         {selectedRocket && selectedSpec && (
-          <div style={{ padding: '20px', borderLeft: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 12, background: 'var(--bg-surface)' }}>
+          <div className="fade-in" style={{ padding: '20px', borderLeft: '1px solid var(--glass-border)', display: 'flex', flexDirection: 'column', gap: 12, background: 'rgba(255,255,255,0.02)' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                 <div style={{ width: 12, height: 12, borderRadius: '50%', background: selectedSpec.color }} />
@@ -225,7 +225,7 @@ function RocketCompare({ allRockets }) {
             {/* Height comparison bar vs Starship */}
             <div style={{ marginTop: 'auto' }}>
               <p style={{ margin: '0 0 6px', fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>vs Tallest (Starship 121m)</p>
-              <div style={{ height: 4, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
+              <div style={{ height: 4, background: 'rgba(255,255,255,0.1)', borderRadius: 2, overflow: 'hidden' }}>
                 <div style={{ height: '100%', width: `${(selectedSpec.height / 121) * 100}%`, background: 'var(--accent)', borderRadius: 2 }} />
               </div>
               <p style={{ margin: '4px 0 0', fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>
@@ -248,6 +248,11 @@ export default function Rockets() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [selected, setSelected] = useState(null)
+  
+  // Filters
+  const [showFilters, setShowFilters] = useState(false)
+  const [missionFilter, setMissionFilter] = useState('all')
+  const [orbitFilter, setOrbitFilter] = useState('all')
 
   useEffect(() => {
     setLoading(true)
@@ -282,6 +287,20 @@ export default function Rockets() {
     Promise.all([fetchVehicles, fetchPayloads]).finally(() => setLoading(false))
   }, [])
 
+  // Options for filtering spacecraft
+  const payloadFilterOptions = useMemo(() => {
+    const missions = new Set()
+    const orbits = new Set()
+    payloads.forEach(p => {
+      if (p.mission_type) missions.add(p.mission_type)
+      if (p.orbit) orbits.add(p.orbit)
+    })
+    return {
+      missions: Array.from(missions).sort(),
+      orbits: Array.from(orbits).sort()
+    }
+  }, [payloads])
+
   const filteredRockets = useMemo(() => {
     if (!searchQuery.trim()) return rockets
     const q = searchQuery.toLowerCase()
@@ -289,12 +308,35 @@ export default function Rockets() {
   }, [rockets, searchQuery])
 
   const filteredPayloads = useMemo(() => {
-    if (!searchQuery.trim()) return payloads
-    const q = searchQuery.toLowerCase()
-    return payloads.filter(p => p.name.toLowerCase().includes(q) || (p.mission_type || '').toLowerCase().includes(q))
-  }, [payloads, searchQuery])
+    let result = payloads
+    
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
+      result = result.filter(p => 
+        p.name.toLowerCase().includes(q) || 
+        (p.mission_type || '').toLowerCase().includes(q) ||
+        (p.mission_description || '').toLowerCase().includes(q)
+      )
+    }
+
+    if (missionFilter !== 'all') {
+      result = result.filter(p => p.mission_type === missionFilter)
+    }
+
+    if (orbitFilter !== 'all') {
+      result = result.filter(p => p.orbit === orbitFilter)
+    }
+
+    return result
+  }, [payloads, searchQuery, missionFilter, orbitFilter])
 
   const items = view === 'vehicles' ? filteredRockets : filteredPayloads
+
+  const clearFilters = () => {
+    setSearchQuery('')
+    setMissionFilter('all')
+    setOrbitFilter('all')
+  }
 
   if (loading) return (
     <div className="page-container" style={{ paddingTop: 100, display: 'flex', justifyContent: 'center' }}>
@@ -304,130 +346,243 @@ export default function Rockets() {
 
   return (
     <div className="page-container" style={{ paddingTop: 36, paddingBottom: 80 }}>
-      <div className="fade-up" style={{ marginBottom: 24 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
-          <div>
-            <h1 style={{ margin: '0 0 6px', fontSize: 28, fontWeight: 800, letterSpacing: '-0.03em' }}>
-              Hardware <span style={{ color: 'var(--accent)' }}>Encyclopedia</span>
-            </h1>
-            <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 14 }}>
-              Technical specifications for {view === 'vehicles' ? `${rockets.length} rockets` : `${payloads.length} spacecraft`}
-            </p>
-          </div>
-          <div className="search-bar">
-            <Search size={14} className="search-icon" />
-            <input placeholder={`Search ${view}...`} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
-          </div>
+      <div className="fade-up" style={{ marginBottom: 32 }}>
+        <div>
+          <h1 style={{ margin: '0 0 6px', fontSize: 28, fontWeight: 800, letterSpacing: '-0.03em' }}>
+            Hardware <span style={{ color: 'var(--accent)' }}>Encyclopedia</span>
+          </h1>
+          <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 14 }}>
+            Technical specifications for {view === 'vehicles' ? `${rockets.length} rockets` : `${payloads.length} spacecraft`}
+          </p>
         </div>
       </div>
 
-      {/* View Switcher Tabs */}
-      <div className="tabs" style={{ marginBottom: 24 }}>
-        <button className={`tab ${view === 'vehicles' ? 'active' : ''}`} onClick={() => { setView('vehicles'); setSelected(null); }}>
-          Launch Vehicles
-        </button>
-        <button className={`tab ${view === 'payloads' ? 'active' : ''}`} onClick={() => { setView('payloads'); setSelected(null); }}>
-          Spacecraft & Payloads
-        </button>
+      {/* Main Controls Section */}
+      <div className="glass" style={{ padding: '12px', borderRadius: 16, marginBottom: 32, border: '1px solid var(--glass-border)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          
+          {/* Top row: View Switcher */}
+          <div className="tabs" style={{ borderBottom: 'none', padding: '4px', background: 'rgba(0,0,0,0.2)', borderRadius: 12, display: 'inline-flex', alignSelf: 'flex-start' }}>
+            <button 
+              className={`tab ${view === 'vehicles' ? 'active' : ''}`} 
+              onClick={() => { setView('vehicles'); setSelected(null); clearFilters(); }}
+              style={{ borderRadius: 8, padding: '8px 16px', border: 'none', margin: 0 }}
+            >
+              Launch Vehicles
+            </button>
+            <button 
+              className={`tab ${view === 'payloads' ? 'active' : ''}`} 
+              onClick={() => { setView('payloads'); setSelected(null); clearFilters(); }}
+              style={{ borderRadius: 8, padding: '8px 16px', border: 'none', margin: 0 }}
+            >
+              Spacecraft & Payloads
+            </button>
+          </div>
+
+          {/* Bottom row: Search and Filters */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <div className="search-bar" style={{ flex: '1 1 300px', margin: 0, height: 42 }}>
+              <Search size={16} className="search-icon" />
+              <input
+                type="text"
+                placeholder={`Search ${view === 'vehicles' ? 'rockets' : 'spacecraft'}...`}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{ fontSize: 14 }}
+              />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery('')} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', padding: 8, cursor: 'pointer' }}>
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            {view === 'payloads' && (
+              <button 
+                className={`btn ${showFilters ? 'btn-primary' : 'btn-ghost'}`}
+                onClick={() => setShowFilters(!showFilters)}
+                style={{ height: 42, display: 'flex', alignItems: 'center', gap: 8, padding: '0 16px', fontSize: 14 }}
+              >
+                <SlidersHorizontal size={16} />
+                Filters
+                {(missionFilter !== 'all' || orbitFilter !== 'all') && (
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#fff' }} />
+                )}
+              </button>
+            )}
+          </div>
+
+          {/* Expanded Filters Panel (Spacecraft View Only) */}
+          {view === 'payloads' && showFilters && (
+            <div className="fade-up" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.05)' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Mission Category</label>
+                <select 
+                  value={missionFilter} 
+                  onChange={(e) => setMissionFilter(e.target.value)}
+                  className="glass"
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, background: 'var(--bg-card)', color: '#fff', border: '1px solid var(--glass-border)' }}
+                >
+                  <option value="all">All Categories</option>
+                  {payloadFilterOptions.missions.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Target Orbit</label>
+                <select 
+                  value={orbitFilter} 
+                  onChange={(e) => setOrbitFilter(e.target.value)}
+                  className="glass"
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, background: 'var(--bg-card)', color: '#fff', border: '1px solid var(--glass-border)' }}
+                >
+                  <option value="all">All Orbits</option>
+                  {payloadFilterOptions.orbits.map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                <button 
+                  onClick={clearFilters}
+                  className="btn btn-ghost"
+                  style={{ height: 38, width: '100%', fontSize: 13 }}
+                >
+                  Clear All
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* 2D Size Comparison (Rockets Only) */}
-      {view === 'vehicles' && <RocketCompare allRockets={filteredRockets} />}
+      {view === 'vehicles' && !searchQuery && <RocketCompare allRockets={filteredRockets} />}
 
-      {/* Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: selected ? '1fr 400px' : '1fr', gap: 24 }}>
+      {/* Grid Layout */}
+      <div style={{ display: 'grid', gridTemplateColumns: selected ? '1fr 380px' : '1fr', gap: 32 }}>
         <div className="launches-grid">
-          {items.map((item, i) => (
-            <div
-              key={item.api_id || item.name}
-              className={`glass rocket-card fade-up ${selected?.name === item.name ? 'selected' : ''}`}
-              style={{ animationDelay: `${i * 30}ms`, borderColor: selected?.name === item.name ? 'var(--accent)' : undefined }}
-              onClick={() => setSelected(selected?.name === item.name ? null : item)}
-            >
-              {item.image || item.image_url ? (
-                <img src={item.image || item.image_url} alt={item.name} className="rocket-img" loading="lazy" />
-              ) : (
-                <div className="rocket-img" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 48 }}>
-                  {view === 'vehicles' ? '🚀' : '🛰️'}
-                </div>
-              )}
-              <div style={{ padding: '14px 16px 16px' }}>
-                <h3 style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700 }}>{item.name}</h3>
-                <p style={{ margin: '0 0 10px', fontSize: 12, color: 'var(--text-secondary)' }}>
-                  {view === 'vehicles' ? item.provider : (item.launch_provider || item.mission_type || 'Satellite')}
-                </p>
-                <div style={{ display: 'flex', gap: 12, fontSize: 12 }}>
-                  <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>
-                    {view === 'vehicles' ? `${item.launches.length} launches` : (item.orbit || 'In Orbit')}
-                  </span>
-                  {view === 'vehicles' && item.successCount > 0 && (
-                    <span style={{ color: 'var(--success)' }}>
-                      {Math.round((item.successCount / (item.successCount + item.failCount || 1)) * 100)}% success
+          {items.length === 0 ? (
+            <div className="empty-state fade-up" style={{ gridColumn: '1 / -1', padding: '100px 0' }}>
+              <div style={{ fontSize: 48, marginBottom: 20 }}>🛸</div>
+              <h3>No hardware found</h3>
+              <p style={{ color: 'var(--text-muted)' }}>Try adjusting your search or reset filters</p>
+              <button className="btn btn-ghost" style={{ marginTop: 20 }} onClick={clearFilters}>Reset All</button>
+            </div>
+          ) : (
+            items.map((item, i) => (
+              <div
+                key={item.api_id || item.name}
+                className={`glass rocket-card fade-up ${selected?.name === item.name || selected?.api_id === item.api_id ? 'selected' : ''}`}
+                style={{ 
+                  animationDelay: `${i * 30}ms`, 
+                  borderColor: (selected?.name === item.name || selected?.api_id === item.api_id) ? 'var(--accent)' : undefined,
+                  overflow: 'hidden'
+                }}
+                onClick={() => {
+                  const isSelected = selected?.api_id === item.api_id || selected?.name === item.name
+                  setSelected(isSelected ? null : item)
+                }}
+              >
+                {item.image || item.image_url ? (
+                  <img src={item.image || item.image_url} alt={item.name} className="rocket-img" loading="lazy" />
+                ) : (
+                  <div className="rocket-img" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 48, background: 'rgba(255,255,255,0.02)' }}>
+                    {view === 'vehicles' ? '🚀' : '🛰️'}
+                  </div>
+                )}
+                <div style={{ padding: '16px' }}>
+                  <h3 style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700, color: '#fff' }}>{item.name}</h3>
+                  <p style={{ margin: '0 0 12px', fontSize: 12, color: 'var(--text-secondary)' }}>
+                    {view === 'vehicles' ? item.provider : (item.launch_provider || item.mission_type || 'Satellite')}
+                  </p>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11, fontFamily: 'var(--font-mono)' }}>
+                    <span style={{ color: 'var(--accent)', fontWeight: 600 }}>
+                      {view === 'vehicles' ? `${item.launches.length} Missions` : (item.orbit || 'In Orbit')}
                     </span>
-                  )}
+                    {view === 'vehicles' && item.successCount > 0 && (
+                      <span style={{ color: 'var(--success)' }}>
+                        {Math.round((item.successCount / (item.successCount + item.failCount || 1)) * 100)}% Success
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
 
-        {/* Detail panel */}
+        {/* Detail sticky panel */}
         {selected && (
-          <div className="glass fade-up" style={{ padding: '24px', position: 'sticky', top: 80, alignSelf: 'start' }}>
+          <div className="glass fade-up" style={{ padding: '24px', position: 'sticky', top: 80, alignSelf: 'start', borderRadius: 20, border: '1px solid var(--accent)', boxShadow: '0 0 40px rgba(100, 100, 255, 0.1)' }}>
             <button
               onClick={() => setSelected(null)}
-              style={{ position: 'absolute', top: 12, right: 12, background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 18 }}
-            >×</button>
-            <h2 style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 800 }}>{selected.name}</h2>
-            <p style={{ margin: '0 0 20px', color: 'var(--text-secondary)', fontSize: 13 }}>
-              {view === 'vehicles' ? selected.provider : (selected.launch_provider || selected.mission_type)}
-            </p>
+              style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,0.05)', border: 'none', color: '#fff', cursor: 'pointer', width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            ><X size={14} /></button>
+            
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                <div style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--accent)' }} />
+                <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', color: 'var(--accent)', textTransform: 'uppercase' }}>
+                  {view === 'vehicles' ? 'Launch Vehicle' : 'Spacecraft Unit'}
+                </span>
+              </div>
+              <h2 style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 800 }}>{selected.name}</h2>
+              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 13 }}>
+                {view === 'vehicles' ? selected.provider : (selected.launch_provider || selected.mission_type)}
+              </p>
+            </div>
 
             {view === 'vehicles' ? (
               <>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
-                  <MiniStat label="Total Launches" value={selected.launches.length} />
-                  <MiniStat label="Successes" value={selected.successCount} />
-                  <MiniStat label="Failures" value={selected.failCount} />
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 28 }}>
+                  <MiniStat label="Total Flights" value={selected.launches.length} />
                   <MiniStat label="Success Rate" value={
                     selected.successCount + selected.failCount > 0
                       ? `${Math.round((selected.successCount / (selected.successCount + selected.failCount)) * 100)}%`
                       : 'N/A'
                   } />
+                  <MiniStat label="Successful" value={selected.successCount} color="var(--success)" />
+                  <MiniStat label="Failed" value={selected.failCount} color="var(--danger)" />
                 </div>
 
-                <h4 style={{ margin: '0 0 12px', fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'var(--font-mono)' }}>
-                  Launch History
-                </h4>
-                <div style={{ maxHeight: 300, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                  <SlidersHorizontal size={14} style={{ color: 'var(--text-muted)' }} />
+                  <h4 style={{ margin: 0, fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    Flight History
+                  </h4>
+                </div>
+                
+                <div className="custom-scrollbar" style={{ maxHeight: 350, overflowY: 'auto', paddingRight: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {selected.launches
                     .sort((a, b) => new Date(b.launch_date) - new Date(a.launch_date))
-                    .slice(0, 15)
                     .map((l, i) => (
-                      <a key={l.api_id || i} href={`/launch/${l.api_id}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--border)', fontSize: 12, color: 'var(--text-secondary)', textDecoration: 'none' }}>
-                        <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{l.name?.slice(0, 35)}</span>
-                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)' }}>
-                          {l.launch_date ? new Date(l.launch_date).toLocaleDateString('en', { month: 'short', year: '2-digit' }) : ''}
+                      <a key={l.api_id || i} href={`/launch/${l.api_id}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.02)', border: '1px solid transparent', fontSize: 12, color: 'var(--text-secondary)', textDecoration: 'none', transition: 'all 0.2s' }} onMouseEnter={e => e.currentTarget.style.borderColor='rgba(255,255,255,0.1)'} onMouseLeave={e => e.currentTarget.style.borderColor='transparent'}>
+                        <span style={{ color: '#fff', fontWeight: 500 }}>{l.name?.split('|').pop()?.trim().slice(0, 24)}</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, opacity: 0.6 }}>
+                          {l.launch_date ? new Date(l.launch_date).getFullYear() : ''}
                         </span>
                       </a>
                     ))}
                 </div>
               </>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div className="glass" style={{ padding: 16, background: 'rgba(255,255,255,0.02)' }}>
-                  <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
-                    {selected.mission_description || 'No detailed mission description available for this spacecraft.'}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                <div style={{ padding: 16, background: 'rgba(255,255,255,0.03)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.05)', display: 'flex', gap: 12 }}>
+                  <Info size={18} style={{ color: 'var(--accent)', flexShrink: 0, marginTop: 2 }} />
+                  <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: 'rgba(255,255,255,0.8)' }}>
+                    {selected.mission_description || 'Operational satellite currently in orbital service. No detailed technical abstract provided.'}
                   </p>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <MiniStat label="Orbit" value={selected.orbit || 'LEO'} />
-                  <MiniStat label="Type" value={selected.mission_type || 'Unknown'} />
-                  <MiniStat label="Launch Date" value={selected.launch_date ? new Date(selected.launch_date).toLocaleDateString() : 'Unknown'} />
-                  <MiniStat label="Rocket" value={selected.rocket?.split(' ')[0] || 'Unknown'} />
+                
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <MiniStat label="Orbit Path" value={selected.orbit || 'LEO'} />
+                  <MiniStat label="Mission Type" value={selected.mission_type?.split(' ')[0] || 'Unknown'} />
+                  <MiniStat label="Deployed" value={selected.launch_date ? new Date(selected.launch_date).getFullYear() : 'Unknown'} />
+                  <MiniStat label="Carrier" value={selected.rocket?.split(' ')[0] || 'Unknown'} />
                 </div>
-                <a href={`/launch/${selected.api_id}`} className="btn btn-primary" style={{ marginTop: 8, textAlign: 'center' }}>
-                  View Full Launch Details
+                
+                <a href={`/launch/${selected.api_id}`} className="btn btn-primary" style={{ height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, borderRadius: 10 }}>
+                  View Full Tracking Data
                 </a>
               </div>
             )}
@@ -438,20 +593,20 @@ export default function Rockets() {
   )
 }
 
-function MiniStat({ label, value }) {
+function MiniStat({ label, value, color = 'var(--accent)' }) {
   return (
-    <div style={{ padding: '10px 12px', background: 'rgba(255,255,255,0.02)', borderRadius: 8, border: '1px solid var(--border)' }}>
-      <div style={{ fontSize: 18, fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{value}</div>
-      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{label}</div>
+    <div style={{ padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.05)' }}>
+      <div style={{ fontSize: 18, fontWeight: 800, fontFamily: 'var(--font-mono)', color: color, marginBottom: 2 }}>{value}</div>
+      <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.02em' }}>{label}</div>
     </div>
   )
 }
 
 function SpecRow({ label, value }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: '1px solid var(--border)', fontSize: 12 }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 12 }}>
       <span style={{ color: 'var(--text-muted)' }}>{label}</span>
-      <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', fontWeight: 600 }}>{value}</span>
+      <span style={{ fontFamily: 'var(--font-mono)', color: '#fff', fontWeight: 600 }}>{value}</span>
     </div>
   )
 }

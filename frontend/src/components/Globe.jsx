@@ -7,6 +7,7 @@ function Earth() {
   const meshRef = useRef()
 
   const { gl } = useThree()
+  // Use the larger earth.jpg for more detail
   const colorMap = useTexture('/earth.jpg')
 
   useEffect(() => {
@@ -22,13 +23,23 @@ function Earth() {
       <mesh ref={meshRef} geometry={geometry}>
         <meshStandardMaterial
           map={colorMap}
-          roughness={0.8}
-          metalness={0.1}
-          color="#ffffff" // No tint multiplier so the map colors stay bright
+          roughness={0.6}
+          metalness={0.2}
+          emissive="#000"
+          color="#ffffff"
         />
       </mesh>
       {/* Atmosphere glow */}
-      <Sphere args={[2.05, 64, 64]}>
+      <Sphere args={[2.02, 64, 64]}>
+        <meshBasicMaterial
+          color="#00d4ff"
+          transparent
+          opacity={0.15}
+          side={THREE.BackSide}
+        />
+      </Sphere>
+      {/* Outer Atmosphere fringe */}
+      <Sphere args={[2.15, 64, 64]}>
         <meshBasicMaterial
           color="#00d4ff"
           transparent
@@ -36,6 +47,25 @@ function Earth() {
           side={THREE.BackSide}
         />
       </Sphere>
+      
+      {/* Label for the worldmap visualization */}
+      <Html position={[0, -2.4, 0]} center>
+        <div className="glass" style={{ 
+          padding: '6px 14px', 
+          borderRadius: '20px', 
+          fontSize: '10px', 
+          fontWeight: 800, 
+          letterSpacing: '0.1em',
+          color: 'var(--accent)',
+          border: '1px solid var(--accent-glow)',
+          textTransform: 'uppercase',
+          whiteSpace: 'nowrap',
+          backdropFilter: 'blur(8px)',
+          background: 'rgba(5, 10, 24, 0.6)'
+        }}>
+          Global Orbital Tracking Grid
+        </div>
+      </Html>
     </group>
   )
 }
