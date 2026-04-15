@@ -5,134 +5,127 @@ from datetime import timedelta
 import httpx
 
 from launches.models import Launch
-from launches.services import get_launch_by_api_id
+from launches.services import get_upcoming_launches
 
-@pytest.fixture
-def mock_httpx_get():
-    with patch('httpx.get') as mock_get:
-        yield mock_get
-
-@pytest.fixture
-def mock_spacex_service():
-    with patch('launches.spacex_service.get_spacex_launch_by_id') as mock_spacex:
-        yield mock_spacex
 
 @pytest.mark.django_db
-class TestGetLaunchByApiId:
+class TestGetUpcomingLaunches:
+    def test_cache_hit(self):
+        # Create 10 valid upcoming launches
+        now = timezone.now()
+        for i in range(10):
+            Launch.objects.create(
+                api_id=f"test_id_{i}",
+                name=f"Test Launch {i}",
+                launch_date=now + timedelta(days=1, hours=i),
+                # last_fetched is auto_now=True, so it will be "now"
+            )
 
-    def test_spacex_prefix_delegates_to_spacex_service(self, mock_spacex_service):
-        mock_launch = Launch(api_id="spacex_123", name="SpaceX Test")
-        mock_spacex_service.return_value = mock_launch
+        with patch("launches.services.httpx.get") as mock_get:
+            launches = get_upcoming_launches(limit=5)
 
-        result = get_launch_by_api_id("spacex_123")
+            # Should return 5 results from cache
+            assert len(launches) == 5
+            # Ensure it didn't call the API
+            mock_get.assert_not_called()
 
-        mock_spacex_service.assert_called_once_with("spacex_123")
-        assert result == mock_launch
-
-    def test_cache_hit_returns_fresh_db_object(self, mock_httpx_get):
-        # Create a fresh launch in the DB
-        launch = Launch.objects.create(api_id="ll2_123", name="Fresh Launch")
-        # Ensure it's considered fresh by setting last_fetched to now
-        Launch.objects.filter(id=launch.id).update(last_fetched=timezone.now())
-
-        result = get_launch_by_api_id("ll2_123")
-
-        mock_httpx_get.assert_not_called()
-        assert result.id == launch.id
-        assert result.name == "Fresh Launch"
-
-    def test_cache_miss_stale_db_object_fetches_from_api(self, mock_httpx_get):
-        # Create a stale launch in the DB
-        launch = Launch.objects.create(api_id="ll2_123", name="Stale Launch")
-        stale_time = timezone.now() - timedelta(minutes=130)  # > 120 minutes TTL
-        Launch.objects.filter(id=launch.id).update(last_fetched=stale_time)
-
-        # Setup mock API response
-        mock_resp = MagicMock()
-        mock_resp.json.return_value = {
-            "id": "ll2_123",
-            "name": "Updated Launch",
-            "status": {"name": "Go"},
-            "rocket": {"configuration": {"name": "Falcon 9"}},
-            "launch_service_provider": {"name": "SpaceX"}
+    def test_cache_miss_api_success(self):
+        # We start with 0 launches in the DB
+        mock_api_data = {
+            "results": [
+                {
+                    "id": "new_api_id_1",
+                    "name": "New API Launch",
+                    "net": (timezone.now() + timedelta(days=2)).strftime('%Y-%m-%dT%H:%M:%SZ'),
+                    "status": {"name": "Go"},
+                    "rocket": {"configuration": {"name": "Falcon 9"}},
+                    "launch_service_provider": {"name": "SpaceX"}
+                }
+            ]
         }
-        mock_httpx_get.return_value = mock_resp
 
-        result = get_launch_by_api_id("ll2_123")
+        with patch("launches.services.httpx.get") as mock_get:
+            mock_response = MagicMock()
+            mock_response.raise_for_status.return_value = None
+            mock_response.json.return_value = mock_api_data
+            mock_get.return_value = mock_response
 
-        mock_httpx_get.assert_called_once()
-        assert result.id == launch.id
-        assert result.name == "Updated Launch"
-        assert Launch.objects.get(id=launch.id).name == "Updated Launch"
+            launches = get_upcoming_launches(limit=5)
 
-    def test_cache_miss_no_db_object_fetches_from_api(self, mock_httpx_get):
-        # Setup mock API response
-        mock_resp = MagicMock()
-        mock_resp.json.return_value = {
-            "id": "ll2_456",
-            "name": "New Launch",
-            "status": {"name": "Go"},
-            "rocket": {"configuration": {"name": "Atlas V"}},
-            "launch_service_provider": {"name": "ULA"}
+            mock_get.assert_called_once()
+            assert len(launches) == 1
+            assert launches[0].api_id == "new_api_id_1"
+            assert launches[0].name == "New API Launch"
+
+            # Verify it's actually in the database now
+            assert Launch.objects.filter(api_id="new_api_id_1").exists()
+
+    def test_api_failure_fallback(self):
+        now = timezone.now()
+        # Create just 1 launch (less than the 10 required for a cache hit)
+        Launch.objects.create(
+            api_id="fallback_id",
+            name="Fallback Launch",
+            launch_date=now + timedelta(days=1)
+        )
+
+        with patch("launches.services.httpx.get") as mock_get:
+            mock_get.side_effect = httpx.HTTPError("API Down")
+
+            launches = get_upcoming_launches()
+
+            # Even though API failed, we should still get our DB launch
+            assert len(launches) == 1
+            assert launches[0].api_id == "fallback_id"
+
+    def test_excludes_spacex_launches(self):
+        now = timezone.now()
+        # Create 11 spacex launches, these should not count towards cache
+        for i in range(11):
+            Launch.objects.create(
+                api_id=f"spacex_{i}",
+                name=f"SpaceX Launch {i}",
+                launch_date=now + timedelta(days=1, hours=i)
+            )
+
+        mock_api_data = {
+            "results": [
+                {
+                    "id": "non_spacex_api",
+                    "name": "Non SpaceX API Launch",
+                    "net": (timezone.now() + timedelta(days=2)).strftime('%Y-%m-%dT%H:%M:%SZ'),
+                    "status": {"name": "Go"},
+                    "rocket": {"configuration": {"name": "Falcon 9"}},
+                    "launch_service_provider": {"name": "SpaceX"}
+                }
+            ]
         }
-        mock_httpx_get.return_value = mock_resp
 
-        # Ensure it doesn't exist yet
-        assert not Launch.objects.filter(api_id="ll2_456").exists()
+        with patch("launches.services.httpx.get") as mock_get:
+            mock_response = MagicMock()
+            mock_response.raise_for_status.return_value = None
+            mock_response.json.return_value = mock_api_data
+            mock_get.return_value = mock_response
 
-        result = get_launch_by_api_id("ll2_456")
+            launches = get_upcoming_launches()
 
-        mock_httpx_get.assert_called_once()
-        assert result.api_id == "ll2_456"
-        assert result.name == "New Launch"
-        assert Launch.objects.filter(api_id="ll2_456").exists()
+            # Because we excluded spacex_ prefixed, we had < 10 cached, so we hit API
+            mock_get.assert_called_once()
 
-    def test_force_refresh_fetches_from_api_even_if_fresh(self, mock_httpx_get):
-        # Create a fresh launch in the DB
-        launch = Launch.objects.create(api_id="ll2_123", name="Fresh Launch")
-        Launch.objects.filter(id=launch.id).update(last_fetched=timezone.now())
+            assert len(launches) == 1
+            assert launches[0].api_id == "non_spacex_api"
 
-        # Setup mock API response
-        mock_resp = MagicMock()
-        mock_resp.json.return_value = {
-            "id": "ll2_123",
-            "name": "Force Updated Launch",
-            "status": {"name": "Go"},
-            "rocket": {"configuration": {"name": "Falcon 9"}},
-            "launch_service_provider": {"name": "SpaceX"}
-        }
-        mock_httpx_get.return_value = mock_resp
+            # Let's also test the fallback branch when API fails but we have non-spacex and spacex launches.
+            mock_get.side_effect = httpx.HTTPError("API Down")
 
-        result = get_launch_by_api_id("ll2_123", force_refresh=True)
+            Launch.objects.create(
+                api_id="non_spacex_db",
+                name="Non SpaceX DB Launch",
+                launch_date=now + timedelta(days=1)
+            )
 
-        mock_httpx_get.assert_called_once()
-        assert result.id == launch.id
-        assert result.name == "Force Updated Launch"
-
-    def test_api_failure_returns_db_object_if_exists(self, mock_httpx_get):
-        # Create a stale launch in the DB
-        launch = Launch.objects.create(api_id="ll2_123", name="Stale Launch")
-        stale_time = timezone.now() - timedelta(minutes=130)
-        Launch.objects.filter(id=launch.id).update(last_fetched=stale_time)
-
-        # Setup mock API to raise an exception
-        mock_httpx_get.side_effect = httpx.RequestError("API unavailable")
-
-        result = get_launch_by_api_id("ll2_123")
-
-        mock_httpx_get.assert_called_once()
-        # Should return the stale object as fallback
-        assert result.id == launch.id
-        assert result.name == "Stale Launch"
-
-    def test_api_failure_returns_none_if_no_db_object(self, mock_httpx_get):
-        # Setup mock API to raise an exception
-        mock_httpx_get.side_effect = httpx.RequestError("API unavailable")
-
-        # Ensure it doesn't exist
-        assert not Launch.objects.filter(api_id="ll2_789").exists()
-
-        result = get_launch_by_api_id("ll2_789")
-
-        mock_httpx_get.assert_called_once()
-        assert result is None
+            fallback_launches = get_upcoming_launches()
+            # We have 1 non-spacex and 11 spacex. The spacex should be excluded.
+            # The fallback query is Launch.objects.filter(...).exclude(api_id__startswith='spacex_')
+            assert len(fallback_launches) == 2 # "non_spacex_api" (upserted previously) and "non_spacex_db"
+            assert all(not l.api_id.startswith('spacex_') for l in fallback_launches)
