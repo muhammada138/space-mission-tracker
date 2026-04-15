@@ -121,8 +121,17 @@ class PastLaunchesView(APIView):
     """GET /api/launches/past/?source=ll2|spacex|all"""
     permission_classes = [permissions.AllowAny]
 
+    _cache = {} # {source: (expires, data)}
+
     def get(self, request):
         source = request.query_params.get('source', 'all')
+        now = timezone.now()
+
+        # 1. Return memory cache if still fresh (1 hour TTL for past data)
+        cached = self._cache.get(source)
+        if cached and now < cached[0]:
+            return Response(cached[1])
+
         raw_launches = []
         
         # Always fetch LL2 since it has deep history and tracks SpaceX provider well
@@ -152,8 +161,6 @@ class PastLaunchesView(APIView):
         except Exception as e:
             logger.error(f"Failed to load history.json: {e}")
 
-        now = timezone.now()
-
         # Deduplicate and filter primary results, and ENSURE only past dates are shown
         final_launches, seen = _filter_and_deduplicate(serialized, source)
         final_launches = [l for l in final_launches if _to_dt(l.get('launch_date'), _FAR_FUTURE) < now]
@@ -170,23 +177,13 @@ class PastLaunchesView(APIView):
         final_launches.extend(history_launches)
 
         final_launches.sort(key=lambda l: _to_dt(l.get('launch_date'), _FAR_PAST), reverse=True)
-        
-        # FINAL CLEANUP: Ensure we don't show any mission in 'Past' that
-        # is currently listed as upcoming in the DB (handles reschedules/stale records).
-        try:
-            upcoming_names = set(
-                Launch.objects.filter(launch_date__gte=now)
-                .values_list('name', flat=True)
-            )
-            upcoming_names = {n.lower().strip() for n in upcoming_names if n}
-            final_launches = [
-                l for l in final_launches
-                if l.get('name', '').lower().strip() not in upcoming_names
-            ]
-        except Exception as e:
-            logger.warning(f"Name suppression failed: {e}")
+        final_data = final_launches[:2000]
 
-        return Response(final_launches[:2000])
+        # Update cache (1 hour TTL)
+        if final_data:
+            self._cache[source] = (now + timedelta(hours=1), final_data)
+
+        return Response(final_data)
 
 
 class ActiveLaunchesView(APIView):
@@ -357,7 +354,15 @@ class PayloadsInOrbitView(APIView):
     """GET /api/launches/payloads/ - spacecraft currently in orbit (long-duration missions)."""
     permission_classes = [permissions.AllowAny]
 
+    _cache = {'data': None, 'expires': None}
+
     def get(self, request):
+        now = timezone.now()
+        
+        # 1. Return memory cache if still fresh (6 hour TTL for orbital data)
+        if self._cache['data'] and self._cache['expires'] and now < self._cache['expires']:
+            return Response(self._cache['data'])
+
         try:
             # Increase limit to 200 to find more active long-duration missions (like ISS resupply)
             resp = httpx.get(
@@ -365,49 +370,53 @@ class PayloadsInOrbitView(APIView):
                 params={'mode': 'detailed', 'limit': 200},
                 timeout=15,
             )
-            if resp.status_code != 200:
-                return Response([])
-            past_data = resp.json().get('results', [])
+            
+            if resp.status_code == 200:
+                past_data = resp.json().get('results', [])
+                payloads = []
+                seen_ids = set()
+                for launch in past_data:
+                    # Logic to identify spacecraft
+                    stage = launch.get('rocket', {}).get('spacecraft_stage', {})
+                    is_sc = False
+                    if stage and isinstance(stage, dict):
+                        sc = stage.get('spacecraft', {})
+                        if sc and isinstance(sc, dict) and sc.get('in_space') is True:
+                            is_sc = True
+                    
+                    mission = launch.get('mission') or {}
+                    mtype = (mission.get('type') or '') if isinstance(mission, dict) else ''
+                    if not is_sc and mtype.lower() in ('planetary science', 'astrophysics', 'heliophysics', 'human exploration', 'resupply', 'communications', 'navigation'):
+                        ldate = _to_dt(launch.get('net'), _FAR_PAST)
+                        if ldate != _FAR_PAST and (timezone.now() - ldate) < timedelta(days=730):
+                            is_sc = True
 
-            payloads = []
-            seen_ids = set()
-            for launch in past_data:
-                # 1. Check spacecraft_stage (Dragon, Cygnus, etc.)
-                stage = launch.get('rocket', {}).get('spacecraft_stage', {})
-                is_sc = False
-                if stage and isinstance(stage, dict):
-                    sc = stage.get('spacecraft', {})
-                    if sc and isinstance(sc, dict) and sc.get('in_space') is True:
-                        is_sc = True
+                    if is_sc:
+                        lid = launch.get('id')
+                        if lid and lid not in seen_ids:
+                            payloads.append(launch)
+                            seen_ids.add(lid)
+
+                from .services import _upsert_launches
+                launches = list(_upsert_launches(payloads))
+                launches.sort(key=lambda x: x.launch_date if x.launch_date else x.last_fetched, reverse=True)
                 
-                # 2. Check mission type for long-duration satellites/probes
-                mission = launch.get('mission') or {}
-                mtype = (mission.get('type') or '') if isinstance(mission, dict) else ''
-                if not is_sc and mtype.lower() in ('planetary science', 'astrophysics', 'heliophysics', 'human exploration', 'resupply', 'communications', 'navigation'):
-                    # Only include if launched relatively recently (last 2 years) or specifically active
-                    ldate = _to_dt(launch.get('net'), _FAR_PAST)
-                    if ldate != _FAR_PAST and (timezone.now() - ldate) < timedelta(days=730):
-                        is_sc = True
-
-                if is_sc:
-                    lid = launch.get('id')
-                    if lid and lid not in seen_ids:
-                        payloads.append(launch)
-                        seen_ids.add(lid)
-
-            if not payloads:
-                return Response([])
-
-            from .services import _upsert_launches
-            launches = list(_upsert_launches(payloads))
-            launches.sort(
-                key=lambda x: x.launch_date if x.launch_date else x.last_fetched,
-                reverse=True,
-            )
-            return Response(LaunchSerializer(launches, many=True).data)
+                final_data = LaunchSerializer(launches, many=True).data
+                # Cache for 6 hours
+                PayloadsInOrbitView._cache = {
+                    'data': final_data,
+                    'expires': now + timedelta(hours=6)
+                }
+                return Response(final_data)
+            
+            # 2. If API fails (rate limit), fallback to stale cache if available
+            if self._cache['data']:
+                return Response(self._cache['data'])
+                
+            return Response([])
         except Exception as e:
             logger.error(f"Error in PayloadsInOrbitView: {e}", exc_info=True)
-            return Response([])
+            return Response(self._cache['data'] if self._cache['data'] else [])
 
 
 class LaunchDetailView(APIView):
