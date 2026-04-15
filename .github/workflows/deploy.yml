@@ -17,7 +17,8 @@ jobs:
           script: |
             set -e
             cd ~/space-mission-tracker
-            git pull origin master
+            git fetch origin master
+            git reset --hard origin/master
             source backend/venv/bin/activate
             iconv -f UTF-16 -t UTF-8 backend/requirements.txt > backend/req_utf8.txt
             pip install -r backend/req_utf8.txt --quiet

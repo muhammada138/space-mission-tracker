@@ -229,18 +229,19 @@ class ActiveLaunchesView(APIView):
                 if ldate != _FAR_PAST and recent_cutoff <= ldate <= now:
                     recent_successes.append(l)
 
+            # Pre-extract existing result IDs for O(1) lookup
+            existing_result_ids = set()
+            for r in results:
+                try:
+                    rid = r.get('id') if isinstance(r, dict) else (getattr(r, 'id', None) if not hasattr(r, '__getitem__') else r['id'])
+                    existing_result_ids.add(str(rid))
+                except Exception:
+                    pass
+
             for l in recent_successes:
                 # Ensure we don't duplicate missions already in 'results'
-                exists = False
-                for r in results:
-                    try:
-                        rid = r.get('id') if isinstance(r, dict) else (getattr(r, 'id', None) if not hasattr(r, '__getitem__') else r['id'])
-                        if str(rid) == str(l.api_id):
-                            exists = True
-                            break
-                    except Exception: pass
-                
-                if not exists:
+                api_id_str = str(l.api_id)
+                if api_id_str not in existing_result_ids:
                     # Convert model back to a dict mimicking LL2 results for _upsert
                     results.append({
                         'id': l.api_id,
@@ -250,6 +251,7 @@ class ActiveLaunchesView(APIView):
                         'rocket': {'configuration': {'name': l.rocket}},
                         'launch_service_provider': {'name': l.launch_provider},
                     })
+                    existing_result_ids.add(api_id_str)
 
             # Transition to active 5 minutes before scheduled launch
             active_threshold = now + timedelta(minutes=5)

@@ -99,3 +99,4 @@ Both external APIs have rate limits (LL2 especially - 15 requests/hour for unaut
 
 - [Launch Library 2](https://thespacedevs.com/llapi) (v2.2.0) - covers all global launch providers
 - [SpaceX API](https://github.com/r-spacex/SpaceX-API) (v5) - SpaceX-specific launch, rocket, and launchpad data
+
