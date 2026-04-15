@@ -1,27 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Users, Globe as GlobeIcon, Rocket, Calendar, Info, X } from 'lucide-react'
-
-function getFlag(nationality) {
-    if (!nationality) return '🌍'
-    const n = nationality.toLowerCase()
-    if (n.includes('american')) return '🇺🇸'
-    if (n.includes('russian')) return '🇷🇺'
-    if (n.includes('chinese')) return '🇨🇳'
-    if (n.includes('japanese')) return '🇯🇵'
-    if (n.includes('canadian')) return '🇨🇦'
-    if (n.includes('italian')) return '🇮🇹'
-    if (n.includes('french')) return '🇫🇷'
-    if (n.includes('german')) return '🇩🇪'
-    if (n.includes('british') || n.includes('uk')) return '🇬🇧'
-    if (n.includes('dutch')) return '🇳🇱'
-    if (n.includes('swedish')) return '🇸🇪'
-    if (n.includes('emirati') || n.includes('uae')) return '🇦🇪'
-    if (n.includes('saudi')) return '🇸🇦'
-    if (n.includes('indian')) return '🇮🇳'
-    if (n.includes('belgian')) return '🇧🇪'
-    if (n.includes('danish')) return '🇩🇰'
-    return '🌍'
-}
+import { getFlag } from '../utils/formatters'
 
 export default function Astronauts() {
     const [crew, setCrew] = useState([])
