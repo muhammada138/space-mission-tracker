@@ -19,7 +19,8 @@ jobs:
             cd ~/space-mission-tracker
             git pull origin master
             source backend/venv/bin/activate
-            pip install -r backend/requirements.txt --quiet
+            iconv -f UTF-16 -t UTF-8 backend/requirements.txt > backend/req_utf8.txt
+            pip install -r backend/req_utf8.txt --quiet
             python backend/manage.py migrate --no-input
             python backend/manage.py collectstatic --no-input
             sudo systemctl restart spacemission
