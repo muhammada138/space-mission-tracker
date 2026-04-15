@@ -80,7 +80,7 @@ def test_pad_weather_openweathermap_success(api_client):
         'weather': [{'description': 'clear sky', 'icon': '01d', 'main': 'Clear'}]
     })
 
-    with patch('os.environ.get', return_value='fake_api_key'), \
+    with patch.dict('os.environ', {'OPENWEATHERMAP_API_KEY': 'fake_api_key'}), \
          patch('httpx.get', return_value=mock_response):
         response = api_client.get('/api/launches/test_id_owm/pad-weather/')
         assert response.status_code == 200
@@ -100,7 +100,7 @@ def test_pad_weather_openmeteo_success(api_client):
         }
     })
 
-    with patch('os.environ.get', return_value=''), \
+    with patch.dict('os.environ', {'OPENWEATHERMAP_API_KEY': ''}), \
          patch('httpx.get', return_value=mock_response):
         response = api_client.get('/api/launches/test_id_om/pad-weather/')
         assert response.status_code == 200
@@ -112,7 +112,7 @@ def test_pad_weather_openmeteo_success(api_client):
 def test_pad_weather_api_error(api_client):
     Launch.objects.create(api_id='test_id_err', name='Test Error Launch', pad_latitude=28.5, pad_longitude=-80.6)
 
-    with patch('os.environ.get', return_value=''), \
+    with patch.dict('os.environ', {'OPENWEATHERMAP_API_KEY': ''}), \
          patch('httpx.get', side_effect=httpx.RequestError("Connection timeout", request=httpx.Request("GET", "https://api.open-meteo.com/v1/forecast"))):
         response = api_client.get('/api/launches/test_id_err/pad-weather/')
         assert response.status_code == 503
