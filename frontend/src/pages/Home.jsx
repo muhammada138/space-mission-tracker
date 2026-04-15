@@ -151,7 +151,11 @@ export default function Home({ tab = 'upcoming' }) {
           <div className="launches-grid">
             {gridLaunches.map((launch, i) => (
               <div key={launch.api_id || launch.id} className="fade-up" style={{ animationDelay: `${i * 35}ms` }}>
-                <LaunchCard launch={launch} showCountdown={tab === 'upcoming'} />
+                <LaunchCard 
+                  launch={launch} 
+                  showCountdown={tab === 'upcoming'} 
+                  isPayload={tab === 'payloads'}
+                />
               </div>
             ))}
           </div>

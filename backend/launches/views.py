@@ -403,20 +403,51 @@ class PayloadsInOrbitView(APIView):
         two_years_ago = now - timedelta(days=730)
 
         # 1. Start with local DB - these are launches we already know about
-        # Case-insensitive mission type match for local DB
+        # Only include successful launches in the past
         q_types = [t.title() for t in valid_types] + [t.lower() for t in valid_types]
         db_launches = Launch.objects.filter(
+            launch_date__lt=now,
             launch_date__gte=two_years_ago,
+            status__icontains='Success',
             mission_type__in=q_types
         ).order_by('-launch_date')
         
         payloads_map = {l.api_id: l for l in db_launches}
 
-        # 2. Try to fetch fresh data from API to find new things
+        # 2. Add history.json data (enriched and filtered for past successes)
+        history = []
+        try:
+            history_path = os.path.join(os.path.dirname(__file__), 'history.json')
+            if os.path.exists(history_path):
+                with open(history_path, 'r', encoding='utf-8') as f:
+                    history_data = json.load(f)
+                    for h in history_data:
+                        ldate = _to_dt(h.get('launch_date'), _FAR_PAST)
+                        # ONLY past, successful, within 2 years
+                        if ldate < now and ldate >= two_years_ago and 'Success' in (h.get('status') or ''):
+                            name = h.get('name', '')
+                            # Basic classification for history items that lack it
+                            mtype = h.get('mission_type', '')
+                            if not mtype:
+                                if 'Starlink' in name: mtype = 'Communications'
+                                elif 'Jilin-1' in name: mtype = 'Earth Science'
+                                elif 'OneWeb' in name: mtype = 'Communications'
+                                elif 'Galileo' in name: mtype = 'Navigation'
+                            
+                            if mtype.lower() in valid_types:
+                                aid = h.get('api_id')
+                                if aid and aid not in payloads_map:
+                                    # Convert dict to something Serializer can handle if needed
+                                    # but LaunchSerializer handles dicts too if they match fields
+                                    payloads_map[aid] = h
+        except Exception as e:
+            logger.error(f"Failed to load history in PayloadsInOrbitView: {e}")
+
+        # 3. Try to fetch fresh data from API to find new things
         try:
             resp = httpx.get(
                 'https://ll.thespacedevs.com/2.2.0/launch/previous/',
-                params={'mode': 'detailed', 'limit': 200},
+                params={'mode': 'detailed', 'limit': 100},
                 timeout=15,
             )
             
@@ -424,6 +455,10 @@ class PayloadsInOrbitView(APIView):
                 api_data = resp.json().get('results', [])
                 new_payloads = []
                 for launch in api_data:
+                    # Only successful launches
+                    if launch.get('status', {}).get('abbrev') != 'Success':
+                        continue
+
                     # Logic to identify spacecraft
                     stage = launch.get('rocket', {}).get('spacecraft_stage', {})
                     is_sc = False
@@ -453,7 +488,12 @@ class PayloadsInOrbitView(APIView):
 
             # Sort combined results
             all_payloads = list(payloads_map.values())
-            all_payloads.sort(key=lambda x: x.launch_date if x.launch_date else x.last_fetched, reverse=True)
+            
+            def sort_key(x):
+                d = getattr(x, 'launch_date', None) if hasattr(x, 'launch_date') else x.get('launch_date')
+                return _to_dt(d, _FAR_PAST)
+
+            all_payloads.sort(key=sort_key, reverse=True)
             
             final_data = LaunchSerializer(all_payloads, many=True).data
             
