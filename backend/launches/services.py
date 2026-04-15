@@ -131,37 +131,90 @@ def _parse_launch(data: dict) -> dict:
 def _upsert_launches(results: list) -> list:
     """Upsert LL2 launch dicts into the DB."""
     parsed_results = []
-    api_ids = []
+    requested_api_ids = []
+    seen_api_ids = set()
+
+    # Parse inputs, preserving the original requested order (including duplicates if any)
     for raw in results:
         try:
             parsed = _parse_launch(raw)
-            parsed_results.append(parsed)
-            api_ids.append(parsed['api_id'])
+            api_id = parsed['api_id']
+            requested_api_ids.append(api_id)
+            if api_id not in seen_api_ids:
+                seen_api_ids.add(api_id)
+                parsed_results.append(parsed)
         except Exception:
             continue
 
     if not parsed_results:
         return []
 
-    # Get all fields from the first parsed object, except api_id
-    update_fields = [key for key in parsed_results[0].keys() if key != 'api_id']
-    launches_to_upsert = [Launch(**parsed) for parsed in parsed_results]
-
-    Launch.objects.bulk_create(
-        launches_to_upsert,
-        update_conflicts=True,
-        unique_fields=['api_id'],
-        update_fields=update_fields
-    )
-
-    # Fetch updated/created objects to return them with correct PKs
-    fetched_launches = {
-        launch.api_id: launch
-        for launch in Launch.objects.filter(api_id__in=api_ids)
+    # Find existing records
+    unique_api_ids = list(seen_api_ids)
+    existing_records = {
+        obj.api_id: obj for obj in Launch.objects.filter(api_id__in=unique_api_ids)
     }
 
-    # Return in the original order
-    return [fetched_launches[api_id] for api_id in api_ids if api_id in fetched_launches]
+    to_create = []
+    to_update = []
+    successful_api_ids = set()
+
+    # Safely derive update fields from all dicts
+    update_fields_set = set()
+    for parsed in parsed_results:
+        update_fields_set.update(parsed.keys())
+    update_fields = [key for key in update_fields_set if key != 'api_id']
+
+    for parsed in parsed_results:
+        api_id = parsed.get('api_id')
+        try:
+            if api_id in existing_records:
+                obj = existing_records[api_id]
+                for field in update_fields:
+                    if field in parsed:
+                        setattr(obj, field, parsed[field])
+                to_update.append(obj)
+            else:
+                to_create.append(Launch(**parsed))
+            successful_api_ids.add(api_id)
+        except Exception:
+            # If a single item fails instantiation/setup, skip it
+            continue
+
+    # Perform bulk operations
+    try:
+        if to_create:
+            Launch.objects.bulk_create(to_create)
+        if to_update:
+            Launch.objects.bulk_update(to_update, fields=update_fields)
+    except Exception:
+        successful_api_ids.clear()
+        # Fallback to iterative update_or_create to preserve exact error handling behavior
+        for parsed in parsed_results:
+            try:
+                Launch.objects.update_or_create(
+                    api_id=parsed['api_id'],
+                    defaults=parsed,
+                )
+                successful_api_ids.add(parsed['api_id'])
+            except Exception:
+                continue
+
+    if not successful_api_ids:
+        return []
+
+    # Fetch fresh objects to return them in their requested order
+    fetched_launches = {
+        launch.api_id: launch
+        for launch in Launch.objects.filter(api_id__in=list(successful_api_ids))
+    }
+
+    # Return in the exact order requested by `results`, excluding those that failed
+    return [
+        fetched_launches[api_id]
+        for api_id in requested_api_ids
+        if api_id in fetched_launches
+    ]
 
 
 def get_upcoming_launches(limit: int = 20) -> list:
