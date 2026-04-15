@@ -18,12 +18,12 @@ export function useNotifications() {
 
   // Request permission on first use
   const requestPermission = useCallback(async () => {
-    if (!('Notification' in window)) {
+    if (!('Notification' in window) || !window.Notification) {
       toast.error('Browser notifications are not supported')
       return false
     }
-    if (Notification.permission === 'granted') return true
-    const result = await Notification.requestPermission()
+    if (window.Notification.permission === 'granted') return true
+    const result = await window.Notification.requestPermission()
     return result === 'granted'
   }, [])
 
@@ -81,22 +81,26 @@ export function useNotifications() {
 
         // 30 minute warning
         if (!r.notified30 && minutes <= 30 && minutes > 5) {
-          new Notification('Launch in 30 minutes!', {
-            body: r.name,
-            icon: '/rocket.svg',
-            tag: `launch-30-${r.api_id}`,
-          })
+          if (window.Notification) {
+            new window.Notification('Launch in 30 minutes!', {
+              body: r.name,
+              icon: '/rocket.svg',
+              tag: `launch-30-${r.api_id}`,
+            })
+          }
           r.notified30 = true
           updated = true
         }
 
         // 5 minute warning
         if (!r.notified5 && minutes <= 5 && minutes > 0) {
-          new Notification('Launch in 5 minutes!', {
-            body: r.name,
-            icon: '/rocket.svg',
-            tag: `launch-5-${r.api_id}`,
-          })
+          if (window.Notification) {
+            new window.Notification('Launch in 5 minutes!', {
+              body: r.name,
+              icon: '/rocket.svg',
+              tag: `launch-5-${r.api_id}`,
+            })
+          }
           r.notified5 = true
           updated = true
         }
