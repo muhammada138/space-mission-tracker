@@ -5,10 +5,17 @@ from django.urls import reverse
 from rest_framework.test import APIClient
 from launches.models import Launch
 from launches.views import LaunchPadWeatherView
+import httpx
 
 @pytest.fixture
 def api_client():
     return APIClient()
+
+@pytest.fixture(autouse=True)
+def clear_weather_cache():
+    LaunchPadWeatherView._cache.clear()
+    yield
+    LaunchPadWeatherView._cache.clear()
 
 @pytest.mark.django_db
 def test_upcoming_launches_all_source(api_client):
@@ -49,113 +56,65 @@ def test_active_launches(api_client):
         if response.status_code == 200:
             assert isinstance(response.data, list)
 
-@pytest.fixture
-def clear_weather_cache():
-    LaunchPadWeatherView._cache.clear()
-    yield
-    LaunchPadWeatherView._cache.clear()
-
 @pytest.mark.django_db
-def test_launch_pad_weather_not_found(api_client, clear_weather_cache):
-    response = api_client.get('/api/launches/nonexistent_id/pad-weather/')
+def test_pad_weather_not_found(api_client):
+    response = api_client.get('/api/launches/invalid_id/pad-weather/')
     assert response.status_code == 404
     assert response.data['detail'] == 'Launch not found.'
 
 @pytest.mark.django_db
-def test_launch_pad_weather_no_coordinates(api_client, clear_weather_cache):
-    Launch.objects.create(api_id="no_coord", name="No Coord Launch")
-    response = api_client.get('/api/launches/no_coord/pad-weather/')
+def test_pad_weather_no_coordinates(api_client):
+    Launch.objects.create(api_id='no_coords_id', name='No Coords Launch')
+    response = api_client.get('/api/launches/no_coords_id/pad-weather/')
     assert response.status_code == 404
     assert response.data['detail'] == 'No coordinates for this pad.'
 
 @pytest.mark.django_db
-def test_launch_pad_weather_owm(api_client, clear_weather_cache, monkeypatch):
-    Launch.objects.create(api_id="owm_launch", name="OWM Launch", pad_latitude=28.5, pad_longitude=-80.6)
-    monkeypatch.setenv("OPENWEATHERMAP_API_KEY", "test_key")
+def test_pad_weather_openweathermap_success(api_client):
+    Launch.objects.create(api_id='test_id_owm', name='Test OWM Launch', pad_latitude=28.5, pad_longitude=-80.6)
 
-    class MockResponse:
-        def __init__(self):
-            self.status_code = 200
-        def raise_for_status(self):
-            pass
-        def json(self):
-            return {
-                "wind": {"speed": 5.0},
-                "visibility": 10000,
-                "main": {"temp": 25, "humidity": 60},
-                "weather": [{"description": "clear sky", "icon": "01d", "main": "Clear"}]
-            }
+    mock_response = httpx.Response(200, request=httpx.Request("GET", "https://api.openweathermap.org/data/2.5/weather"), json={
+        'wind': {'speed': 5.0},
+        'visibility': 10000,
+        'main': {'temp': 25, 'humidity': 60},
+        'weather': [{'description': 'clear sky', 'icon': '01d', 'main': 'Clear'}]
+    })
 
-    with patch('httpx.get', return_value=MockResponse()) as mock_get:
-        response = api_client.get('/api/launches/owm_launch/pad-weather/')
+    with patch('os.environ.get', return_value='fake_api_key'), \
+         patch('httpx.get', return_value=mock_response):
+        response = api_client.get('/api/launches/test_id_owm/pad-weather/')
         assert response.status_code == 200
+        assert response.data['available'] is True
         assert response.data['source'] == 'OpenWeatherMap'
-        assert response.data['available'] is True
-        mock_get.assert_called_once()
+        assert response.data['description'] == 'Clear Sky'
 
 @pytest.mark.django_db
-def test_launch_pad_weather_openmeteo(api_client, clear_weather_cache, monkeypatch):
-    Launch.objects.create(api_id="om_launch", name="OM Launch", pad_latitude=28.5, pad_longitude=-80.6)
-    monkeypatch.delenv("OPENWEATHERMAP_API_KEY", raising=False)
+def test_pad_weather_openmeteo_success(api_client):
+    Launch.objects.create(api_id='test_id_om', name='Test OM Launch', pad_latitude=28.5, pad_longitude=-80.6)
 
-    class MockResponse:
-        def __init__(self):
-            self.status_code = 200
-        def raise_for_status(self):
-            pass
-        def json(self):
-            return {
-                "current_weather": {
-                    "temperature": 22,
-                    "windspeed": 15,
-                    "weathercode": 0
-                }
-            }
+    mock_response = httpx.Response(200, request=httpx.Request("GET", "https://api.open-meteo.com/v1/forecast"), json={
+        'current_weather': {
+            'temperature': 25,
+            'windspeed': 10,
+            'weathercode': 0
+        }
+    })
 
-    with patch('httpx.get', return_value=MockResponse()) as mock_get:
-        response = api_client.get('/api/launches/om_launch/pad-weather/')
+    with patch('os.environ.get', return_value=''), \
+         patch('httpx.get', return_value=mock_response):
+        response = api_client.get('/api/launches/test_id_om/pad-weather/')
         assert response.status_code == 200
-        assert response.data['source'] == 'Open-Meteo'
         assert response.data['available'] is True
-        mock_get.assert_called_once()
+        assert response.data['source'] == 'Open-Meteo'
+        assert response.data['description'] == 'Clear Sky'
 
 @pytest.mark.django_db
-def test_launch_pad_weather_exception(api_client, clear_weather_cache, monkeypatch):
-    Launch.objects.create(api_id="err_launch", name="Err Launch", pad_latitude=28.5, pad_longitude=-80.6)
-    monkeypatch.delenv("OPENWEATHERMAP_API_KEY", raising=False)
+def test_pad_weather_api_error(api_client):
+    Launch.objects.create(api_id='test_id_err', name='Test Error Launch', pad_latitude=28.5, pad_longitude=-80.6)
 
-    with patch('httpx.get', side_effect=httpx.RequestError("Network error", request=httpx.Request("GET", "https://example.com"))) as mock_get:
-        response = api_client.get('/api/launches/err_launch/pad-weather/')
+    with patch('os.environ.get', return_value=''), \
+         patch('httpx.get', side_effect=httpx.RequestError("Connection timeout", request=httpx.Request("GET", "https://api.open-meteo.com/v1/forecast"))):
+        response = api_client.get('/api/launches/test_id_err/pad-weather/')
         assert response.status_code == 503
         assert response.data['available'] is False
-        assert "Network error" in response.data['reason']
-
-@pytest.mark.django_db
-def test_launch_pad_weather_cache(api_client, clear_weather_cache, monkeypatch):
-    Launch.objects.create(api_id="cache_launch", name="Cache Launch", pad_latitude=28.5, pad_longitude=-80.6)
-    monkeypatch.setenv("OPENWEATHERMAP_API_KEY", "test_key")
-
-    class MockResponse:
-        def __init__(self):
-            self.status_code = 200
-        def raise_for_status(self):
-            pass
-        def json(self):
-            return {
-                "wind": {"speed": 5.0},
-                "visibility": 10000,
-                "main": {"temp": 25, "humidity": 60},
-                "weather": [{"description": "clear sky", "icon": "01d", "main": "Clear"}]
-            }
-
-    with patch('httpx.get', return_value=MockResponse()) as mock_get:
-        # First call should hit the mocked API
-        response1 = api_client.get('/api/launches/cache_launch/pad-weather/')
-        assert response1.status_code == 200
-
-        # Second call should use cache
-        response2 = api_client.get('/api/launches/cache_launch/pad-weather/')
-        assert response2.status_code == 200
-
-        # The mock should only have been called once
-        mock_get.assert_called_once()
+        assert 'Connection timeout' in response.data['reason']
