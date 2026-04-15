@@ -242,13 +242,16 @@ function RocketCompare({ allRockets }) {
 // ── Main Page ────────────────────────────────────────────────────────────────
 
 export default function Rockets() {
+  const [view, setView] = useState('vehicles') // 'vehicles' or 'payloads'
   const [rockets, setRockets] = useState([])
+  const [payloads, setPayloads] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [selected, setSelected] = useState(null)
 
   useEffect(() => {
-    Promise.all([
+    setLoading(true)
+    const fetchVehicles = Promise.all([
       api.get('/launches/upcoming/', { params: { source: 'all' } }).catch(() => ({ data: [] })),
       api.get('/launches/past/', { params: { source: 'all' } }).catch(() => ({ data: [] })),
     ]).then(([upRes, pastRes]) => {
@@ -268,16 +271,30 @@ export default function Rockets() {
         else if (s.includes('fail')) rocketMap[name].failCount++
         if (l.image_url && !rocketMap[name].image) rocketMap[name].image = l.image_url
       })
-
       setRockets(Object.values(rocketMap).sort((a, b) => b.launches.length - a.launches.length))
-    }).finally(() => setLoading(false))
+    })
+
+    const fetchPayloads = api.get('/launches/payloads/').then(({ data }) => {
+      const list = Array.isArray(data) ? data : data.results ?? []
+      setPayloads(list)
+    }).catch(() => setPayloads([]))
+
+    Promise.all([fetchVehicles, fetchPayloads]).finally(() => setLoading(false))
   }, [])
 
-  const filtered = useMemo(() => {
+  const filteredRockets = useMemo(() => {
     if (!searchQuery.trim()) return rockets
     const q = searchQuery.toLowerCase()
     return rockets.filter(r => r.name.toLowerCase().includes(q) || r.provider.toLowerCase().includes(q))
   }, [rockets, searchQuery])
+
+  const filteredPayloads = useMemo(() => {
+    if (!searchQuery.trim()) return payloads
+    const q = searchQuery.toLowerCase()
+    return payloads.filter(p => p.name.toLowerCase().includes(q) || (p.mission_type || '').toLowerCase().includes(q))
+  }, [payloads, searchQuery])
+
+  const items = view === 'vehicles' ? filteredRockets : filteredPayloads
 
   if (loading) return (
     <div className="page-container" style={{ paddingTop: 100, display: 'flex', justifyContent: 'center' }}>
@@ -291,45 +308,61 @@ export default function Rockets() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
           <div>
             <h1 style={{ margin: '0 0 6px', fontSize: 28, fontWeight: 800, letterSpacing: '-0.03em' }}>
-              Rocket <span style={{ color: 'var(--accent)' }}>Encyclopedia</span>
+              Hardware <span style={{ color: 'var(--accent)' }}>Encyclopedia</span>
             </h1>
             <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 14 }}>
-              {rockets.length} unique rockets tracked across all providers
+              Technical specifications for {view === 'vehicles' ? `${rockets.length} rockets` : `${payloads.length} spacecraft`}
             </p>
           </div>
           <div className="search-bar">
             <Search size={14} className="search-icon" />
-            <input placeholder="Search rockets..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+            <input placeholder={`Search ${view}...`} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
           </div>
         </div>
       </div>
 
-      {/* 2D Size Comparison */}
-      <RocketCompare allRockets={filtered} />
+      {/* View Switcher Tabs */}
+      <div className="tabs" style={{ marginBottom: 24 }}>
+        <button className={`tab ${view === 'vehicles' ? 'active' : ''}`} onClick={() => { setView('vehicles'); setSelected(null); }}>
+          Launch Vehicles
+        </button>
+        <button className={`tab ${view === 'payloads' ? 'active' : ''}`} onClick={() => { setView('payloads'); setSelected(null); }}>
+          Spacecraft & Payloads
+        </button>
+      </div>
 
-      {/* Rocket grid */}
+      {/* 2D Size Comparison (Rockets Only) */}
+      {view === 'vehicles' && <RocketCompare allRockets={filteredRockets} />}
+
+      {/* Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: selected ? '1fr 400px' : '1fr', gap: 24 }}>
         <div className="launches-grid">
-          {filtered.map((rocket, i) => (
+          {items.map((item, i) => (
             <div
-              key={rocket.name}
-              className={`glass rocket-card fade-up ${selected?.name === rocket.name ? 'selected' : ''}`}
-              style={{ animationDelay: `${i * 30}ms`, borderColor: selected?.name === rocket.name ? 'var(--accent)' : undefined }}
-              onClick={() => setSelected(selected?.name === rocket.name ? null : rocket)}
+              key={item.api_id || item.name}
+              className={`glass rocket-card fade-up ${selected?.name === item.name ? 'selected' : ''}`}
+              style={{ animationDelay: `${i * 30}ms`, borderColor: selected?.name === item.name ? 'var(--accent)' : undefined }}
+              onClick={() => setSelected(selected?.name === item.name ? null : item)}
             >
-              {rocket.image ? (
-                <img src={rocket.image} alt={rocket.name} className="rocket-img" loading="lazy" />
+              {item.image || item.image_url ? (
+                <img src={item.image || item.image_url} alt={item.name} className="rocket-img" loading="lazy" />
               ) : (
-                <div className="rocket-img" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 48 }}>🚀</div>
+                <div className="rocket-img" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 48 }}>
+                  {view === 'vehicles' ? '🚀' : '🛰️'}
+                </div>
               )}
               <div style={{ padding: '14px 16px 16px' }}>
-                <h3 style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700 }}>{rocket.name}</h3>
-                <p style={{ margin: '0 0 10px', fontSize: 12, color: 'var(--text-secondary)' }}>{rocket.provider}</p>
+                <h3 style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700 }}>{item.name}</h3>
+                <p style={{ margin: '0 0 10px', fontSize: 12, color: 'var(--text-secondary)' }}>
+                  {view === 'vehicles' ? item.provider : (item.launch_provider || item.mission_type || 'Satellite')}
+                </p>
                 <div style={{ display: 'flex', gap: 12, fontSize: 12 }}>
-                  <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{rocket.launches.length} launches</span>
-                  {rocket.successCount > 0 && (
+                  <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>
+                    {view === 'vehicles' ? `${item.launches.length} launches` : (item.orbit || 'In Orbit')}
+                  </span>
+                  {view === 'vehicles' && item.successCount > 0 && (
                     <span style={{ color: 'var(--success)' }}>
-                      {Math.round((rocket.successCount / (rocket.successCount + rocket.failCount || 1)) * 100)}% success
+                      {Math.round((item.successCount / (item.successCount + item.failCount || 1)) * 100)}% success
                     </span>
                   )}
                 </div>
@@ -346,35 +379,58 @@ export default function Rockets() {
               style={{ position: 'absolute', top: 12, right: 12, background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 18 }}
             >×</button>
             <h2 style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 800 }}>{selected.name}</h2>
-            <p style={{ margin: '0 0 20px', color: 'var(--text-secondary)', fontSize: 13 }}>{selected.provider}</p>
+            <p style={{ margin: '0 0 20px', color: 'var(--text-secondary)', fontSize: 13 }}>
+              {view === 'vehicles' ? selected.provider : (selected.launch_provider || selected.mission_type)}
+            </p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
-              <MiniStat label="Total Launches" value={selected.launches.length} />
-              <MiniStat label="Successes" value={selected.successCount} />
-              <MiniStat label="Failures" value={selected.failCount} />
-              <MiniStat label="Success Rate" value={
-                selected.successCount + selected.failCount > 0
-                  ? `${Math.round((selected.successCount / (selected.successCount + selected.failCount)) * 100)}%`
-                  : 'N/A'
-              } />
-            </div>
+            {view === 'vehicles' ? (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
+                  <MiniStat label="Total Launches" value={selected.launches.length} />
+                  <MiniStat label="Successes" value={selected.successCount} />
+                  <MiniStat label="Failures" value={selected.failCount} />
+                  <MiniStat label="Success Rate" value={
+                    selected.successCount + selected.failCount > 0
+                      ? `${Math.round((selected.successCount / (selected.successCount + selected.failCount)) * 100)}%`
+                      : 'N/A'
+                  } />
+                </div>
 
-            <h4 style={{ margin: '0 0 12px', fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'var(--font-mono)' }}>
-              Launch History
-            </h4>
-            <div style={{ maxHeight: 300, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {selected.launches
-                .sort((a, b) => new Date(b.launch_date) - new Date(a.launch_date))
-                .slice(0, 15)
-                .map((l, i) => (
-                  <a key={l.api_id || i} href={`/launch/${l.api_id}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--border)', fontSize: 12, color: 'var(--text-secondary)', textDecoration: 'none' }}>
-                    <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{l.name?.slice(0, 35)}</span>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)' }}>
-                      {l.launch_date ? new Date(l.launch_date).toLocaleDateString('en', { month: 'short', year: '2-digit' }) : ''}
-                    </span>
-                  </a>
-                ))}
-            </div>
+                <h4 style={{ margin: '0 0 12px', fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'var(--font-mono)' }}>
+                  Launch History
+                </h4>
+                <div style={{ maxHeight: 300, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {selected.launches
+                    .sort((a, b) => new Date(b.launch_date) - new Date(a.launch_date))
+                    .slice(0, 15)
+                    .map((l, i) => (
+                      <a key={l.api_id || i} href={`/launch/${l.api_id}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--border)', fontSize: 12, color: 'var(--text-secondary)', textDecoration: 'none' }}>
+                        <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{l.name?.slice(0, 35)}</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)' }}>
+                          {l.launch_date ? new Date(l.launch_date).toLocaleDateString('en', { month: 'short', year: '2-digit' }) : ''}
+                        </span>
+                      </a>
+                    ))}
+                </div>
+              </>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div className="glass" style={{ padding: 16, background: 'rgba(255,255,255,0.02)' }}>
+                  <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
+                    {selected.mission_description || 'No detailed mission description available for this spacecraft.'}
+                  </p>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <MiniStat label="Orbit" value={selected.orbit || 'LEO'} />
+                  <MiniStat label="Type" value={selected.mission_type || 'Unknown'} />
+                  <MiniStat label="Launch Date" value={selected.launch_date ? new Date(selected.launch_date).toLocaleDateString() : 'Unknown'} />
+                  <MiniStat label="Rocket" value={selected.rocket?.split(' ')[0] || 'Unknown'} />
+                </div>
+                <a href={`/launch/${selected.api_id}`} className="btn btn-primary" style={{ marginTop: 8, textAlign: 'center' }}>
+                  View Full Launch Details
+                </a>
+              </div>
+            )}
           </div>
         )}
       </div>

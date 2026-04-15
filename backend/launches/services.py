@@ -107,6 +107,23 @@ def _parse_launch(data: dict) -> dict:
     except (KeyError, TypeError):
         pass
 
+    # Landing pad info
+    landing_pad = ''
+    try:
+        launcher_stages = data.get('rocket', {}).get('launcher_stage', [])
+        if launcher_stages and isinstance(launcher_stages, list):
+            # Try to find a successful landing or at least a landing location
+            for ls in launcher_stages:
+                landing = ls.get('landing')
+                if landing and isinstance(landing, dict):
+                    loc = landing.get('location')
+                    if loc and isinstance(loc, dict):
+                        landing_pad = loc.get('name', '')
+                        if landing_pad:
+                            break
+    except (KeyError, TypeError):
+        pass
+
     return {
         'api_id': str(data['id']),
         'name': data.get('name', ''),
@@ -125,6 +142,7 @@ def _parse_launch(data: dict) -> dict:
         'webcast_url': webcast_url,
         'wiki_url': wiki_url,
         'infographic_url': infographic_url,
+        'landing_pad': landing_pad,
     }
 
 
@@ -266,11 +284,11 @@ def get_past_launches(limit: int = 20) -> list:
         # Don't serve from cache if any recently-launched mission still has a
         # non-terminal status AND hasn't been refreshed within the last 30 minutes.
         # This ensures "To Be Confirmed" missions get updated after they fly.
-        week_ago = now - timedelta(days=7)
+        month_ago = now - timedelta(days=30)
         short_cutoff = now - timedelta(minutes=30)
         has_stale_unresolved = Launch.objects.filter(
             launch_date__lt=now,
-            launch_date__gte=week_ago,
+            launch_date__gte=month_ago,
             last_fetched__lte=short_cutoff,
         ).exclude(api_id__startswith='spacex_').exclude(
             status__icontains='success'

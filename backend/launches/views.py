@@ -359,9 +359,10 @@ class PayloadsInOrbitView(APIView):
 
     def get(self, request):
         try:
+            # Increase limit to 200 to find more active long-duration missions (like ISS resupply)
             resp = httpx.get(
                 'https://ll.thespacedevs.com/2.2.0/launch/previous/',
-                params={'mode': 'detailed', 'limit': 100},
+                params={'mode': 'detailed', 'limit': 200},
                 timeout=15,
             )
             if resp.status_code != 200:
@@ -371,8 +372,24 @@ class PayloadsInOrbitView(APIView):
             payloads = []
             seen_ids = set()
             for launch in past_data:
+                # 1. Check spacecraft_stage (Dragon, Cygnus, etc.)
                 stage = launch.get('rocket', {}).get('spacecraft_stage', {})
-                if stage and stage.get('spacecraft', {}).get('in_space') is True:
+                is_sc = False
+                if stage and isinstance(stage, dict):
+                    sc = stage.get('spacecraft', {})
+                    if sc and isinstance(sc, dict) and sc.get('in_space') is True:
+                        is_sc = True
+                
+                # 2. Check mission type for long-duration satellites/probes
+                mission = launch.get('mission') or {}
+                mtype = (mission.get('type') or '') if isinstance(mission, dict) else ''
+                if not is_sc and mtype.lower() in ('planetary science', 'astrophysics', 'heliophysics', 'human exploration', 'resupply', 'communications', 'navigation'):
+                    # Only include if launched relatively recently (last 2 years) or specifically active
+                    ldate = _to_dt(launch.get('net'), _FAR_PAST)
+                    if ldate != _FAR_PAST and (timezone.now() - ldate) < timedelta(days=730):
+                        is_sc = True
+
+                if is_sc:
                     lid = launch.get('id')
                     if lid and lid not in seen_ids:
                         payloads.append(launch)
