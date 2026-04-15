@@ -19,6 +19,21 @@ def auth_client():
     return client
 
 @pytest.mark.django_db
+class TestMeView:
+    url = '/api/auth/me/'
+
+    def test_me_unauthenticated(self, api_client):
+        response = api_client.get(self.url)
+        assert response.status_code == 401
+
+    def test_me_authenticated(self, auth_client):
+        response = auth_client.get(self.url)
+        assert response.status_code == 200
+        assert response.data['username'] == auth_client.user.username
+        assert response.data['email'] == auth_client.user.email
+
+
+@pytest.mark.django_db
 class TestProfileView:
     url = '/api/auth/profile/'
 

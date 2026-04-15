@@ -13,7 +13,11 @@ from .models import Launch
 from .serializers import LaunchSerializer
 from .services import get_upcoming_launches, get_past_launches, get_launch_by_api_id
 from .spacex_service import get_spacex_upcoming_launches, get_spacex_past_launches
+import copy
 import httpx
+import json
+import urllib.parse
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from django.utils import timezone
 from datetime import timedelta
 
@@ -127,13 +131,11 @@ class PastLaunchesView(APIView):
         try:
             history_path = os.path.join(os.path.dirname(__file__), 'history.json')
             if os.path.exists(history_path):
-                import json
                 with open(history_path, 'r', encoding='utf-8') as f:
                     history = json.load(f)
         except Exception as e:
             logger.error(f"Failed to load history.json: {e}")
 
-        from django.utils import timezone
         now = timezone.now()
 
         # Deduplicate and filter primary results
@@ -341,7 +343,6 @@ class LaunchUpdatesView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request, api_id):
-        import httpx
         try:
             # Only LL2 has updates (SpaceX IDs are prefixed with spacex_)
             if api_id.startswith('spacex_'):
@@ -378,7 +379,6 @@ class ISSCrewView(APIView):
     @staticmethod
     def _get_wiki_summary_sync(client, name):
         """Helper to fetch Wikipedia summary synchronously with disambiguation checks"""
-        import urllib.parse
         
         def _fetch(title):
             try:
@@ -413,9 +413,6 @@ class ISSCrewView(APIView):
         return wiki_data or {}
 
     def get(self, request):
-        import httpx
-        from concurrent.futures import ThreadPoolExecutor, as_completed
-        from django.utils import timezone
 
         now = timezone.now()
 
@@ -493,7 +490,6 @@ class ISSCrewView(APIView):
 
             # --- Attempt 3: Hardcoded fallback ---
             if not crew:
-                import copy
                 crew = copy.deepcopy(self._FALLBACK_CREW)
                 source = 'fallback'
                 logger.info('Using hardcoded fallback crew data')
@@ -537,8 +533,6 @@ class LaunchPadWeatherView(APIView):
     _cache: dict = {}
 
     def get(self, request, api_id):
-        import httpx, os
-        from django.utils import timezone
 
         now = timezone.now()
 
