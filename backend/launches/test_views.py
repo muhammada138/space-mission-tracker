@@ -57,6 +57,57 @@ def test_active_launches(api_client):
             assert isinstance(response.data, list)
 
 @pytest.mark.django_db
+def test_active_launches_deduplication(api_client):
+    """
+    Tests that the ActiveLaunchesView successfully handles deduplication via the O(1)
+    lookup mechanism when fetching recent successes and mapping them onto results.
+    """
+    from django.utils import timezone
+    from datetime import timedelta
+    now = timezone.now()
+
+    # 1. Create a recent successful launch
+    Launch.objects.create(
+        api_id='duplicate_mission_1',
+        name='Duplicate Mission',
+        launch_date=now - timedelta(hours=1),
+        status='Success',
+        rocket='Falcon 9',
+        launch_provider='SpaceX'
+    )
+
+    # 2. Mock the HTTP response such that it returns the EXACT SAME mission in the 'results'
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        'results': [
+            {
+                'id': 'duplicate_mission_1',
+                'name': 'Duplicate Mission',
+                'net': (now - timedelta(hours=1)).isoformat(),
+                'status': {'name': 'In Flight', 'abbrev': 'In Flight'}
+            }
+        ]
+    }
+
+    with patch('httpx.get', return_value=mock_response), \
+         patch('launches.services._upsert_launches') as mock_upsert:
+        # We need to simulate that _upsert_launches returns the combined list of launches as objects
+        # so we don't crash in `for l in launches:` later
+        mock_upsert.return_value = [
+            Launch(api_id='duplicate_mission_1', name='Duplicate Mission', launch_date=now - timedelta(hours=1), status='In Flight')
+        ]
+
+        response = api_client.get('/api/launches/active/')
+
+        assert response.status_code == 200
+
+        # Verify that we only have ONE item in the result, meaning no duplication occurred
+        data = response.json()
+        assert len(data) == 1
+        assert data[0].get('api_id') == 'duplicate_mission_1'
+
+@pytest.mark.django_db
 def test_pad_weather_not_found(api_client):
     response = api_client.get('/api/launches/invalid_id/pad-weather/')
     assert response.status_code == 404

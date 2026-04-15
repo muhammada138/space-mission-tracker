@@ -229,8 +229,9 @@ class ActiveLaunchesView(APIView):
                 if ldate != _FAR_PAST and recent_cutoff <= ldate <= now:
                     recent_successes.append(l)
 
-            # Pre-extract existing result IDs for O(1) lookup
-            existing_result_ids = set()
+            # Pre-extract existing result IDs into a set for O(1) lookup.
+            # This avoids an O(N*M) nested loop when iterating over recent_successes below.
+            existing_result_ids: set[str] = set()
             for r in results:
                 try:
                     rid = r.get('id') if isinstance(r, dict) else (getattr(r, 'id', None) if not hasattr(r, '__getitem__') else r['id'])
