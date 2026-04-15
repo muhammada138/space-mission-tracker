@@ -179,6 +179,22 @@ class PastLaunchesView(APIView):
         final_launches.sort(key=lambda l: _to_dt(l.get('launch_date'), _FAR_PAST), reverse=True)
         final_data = final_launches[:2000]
 
+        # Smart Suppression: Hide "Past" records if the mission is actually rescheduled for the future
+        # (prevents same mission appearing twice if LL2 hasn't cleaned up the old scheduled record)
+        try:
+            upcoming_names = set(
+                Launch.objects.filter(launch_date__gt=now)
+                .values_list('name', flat=True)
+            )
+            # Only suppress if the 'past' record is more than 6 hours old (prevents hiding actual recent flights)
+            suppress_cutoff = now - timedelta(hours=6)
+            final_data = [
+                l for l in final_data
+                if l.get('name') not in upcoming_names or _to_dt(l.get('launch_date'), _FAR_PAST) > suppress_cutoff
+            ]
+        except Exception:
+            pass
+
         # Update cache (1 hour TTL)
         if final_data:
             self._cache[source] = (now + timedelta(hours=1), final_data)
@@ -386,7 +402,8 @@ class PayloadsInOrbitView(APIView):
                     
                     mission = launch.get('mission') or {}
                     mtype = (mission.get('type') or '') if isinstance(mission, dict) else ''
-                    if not is_sc and mtype.lower() in ('planetary science', 'astrophysics', 'heliophysics', 'human exploration', 'resupply', 'communications', 'navigation'):
+                    # Include more types for satellite/payload detection
+                    if not is_sc and mtype.lower() in ('planetary science', 'astrophysics', 'heliophysics', 'human exploration', 'resupply', 'communications', 'navigation', 'earth science', 'technology demonstration'):
                         ldate = _to_dt(launch.get('net'), _FAR_PAST)
                         if ldate != _FAR_PAST and (timezone.now() - ldate) < timedelta(days=730):
                             is_sc = True
@@ -402,11 +419,13 @@ class PayloadsInOrbitView(APIView):
                 launches.sort(key=lambda x: x.launch_date if x.launch_date else x.last_fetched, reverse=True)
                 
                 final_data = LaunchSerializer(launches, many=True).data
-                # Cache for 6 hours
-                PayloadsInOrbitView._cache = {
-                    'data': final_data,
-                    'expires': now + timedelta(hours=6)
-                }
+                
+                # Only cache if we actually found items
+                if final_data:
+                    PayloadsInOrbitView._cache = {
+                        'data': final_data,
+                        'expires': now + timedelta(hours=6)
+                    }
                 return Response(final_data)
             
             # 2. If API fails (rate limit), fallback to stale cache if available
