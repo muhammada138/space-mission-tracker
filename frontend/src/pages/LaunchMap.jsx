@@ -137,7 +137,8 @@ export default function LaunchMap() {
             center={mapConfig.center} 
             zoom={mapConfig.zoom} 
             minZoom={2}
-            maxZoom={20}
+            maxZoom={18}
+            worldCopyJump={true}
             style={{ height: '100%', width: '100%', background: '#050a18' }}
             zoomControl={false}
           >
