@@ -66,24 +66,38 @@ def _filter_and_deduplicate(launches, source, seen=None):
 
     final = []
     seen_names: set[str] = set()  # Secondary dedup — prevents same mission showing twice
+
+    is_spacex = source == 'spacex'
+    is_ll2 = source == 'll2'
+
     for l in launches:
         api_id = l.get('api_id')
-        name_key = (l.get('name') or '').lower().strip()
-        if api_id not in seen and name_key not in seen_names:
-            if source == 'spacex':
-                # Filter for SpaceX provider
-                provider = l.get('launch_provider', '')
-                if not (provider and 'SpaceX' in provider):
-                    continue
-            elif source == 'll2':
-                # Filter out SpaceX-prefixed IDs
-                if str(api_id or '').startswith('spacex_'):
-                    continue
+        if api_id in seen:
+            continue
 
-            final.append(l)
-            seen.add(api_id)
-            if name_key:
-                seen_names.add(name_key)
+        if is_spacex:
+            # Filter for SpaceX provider
+            provider = l.get('launch_provider')
+            if not provider or 'SpaceX' not in provider:
+                continue
+
+        name_raw = l.get('name')
+        if name_raw:
+            name_key = name_raw.lower().strip()
+            if name_key in seen_names:
+                continue
+        else:
+            name_key = None
+
+        if is_ll2 and str(api_id or '').startswith('spacex_'):
+            # Filter out SpaceX-prefixed IDs
+            continue
+
+        final.append(l)
+        seen.add(api_id)
+        if name_key:
+            seen_names.add(name_key)
+
     return final, seen
 
 
