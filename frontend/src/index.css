@@ -70,6 +70,11 @@ p, h1, h2, h3, h4, h5, h6 { overflow-wrap: break-word; }
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: var(--accent-glow); border-radius: 2px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
 /* ====================================================================
    RESET AND BASE
    ==================================================================== */
