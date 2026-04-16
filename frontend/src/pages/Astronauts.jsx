@@ -197,7 +197,7 @@ export default function Astronauts() {
                     onClick={() => setSelectedPerson(null)}
                 >
                     <div style={{
-                        minHeight: '100%',
+                        minHeight: '100vh',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
