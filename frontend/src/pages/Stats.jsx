@@ -88,9 +88,11 @@ export default function Stats() {
       const pastData = Array.isArray(pastRes.data) ? pastRes.data : pastRes.data?.results ?? []
       const seen = new Set()
       const unique = []
-      for (const l of [...upData, ...pastData]) {
-        const key = l.api_id || l.id
-        if (key && !seen.has(key)) { seen.add(key); unique.push(l) }
+      for (const arr of [upData, pastData]) {
+        for (const l of arr) {
+          const key = l.api_id || l.id
+          if (key && !seen.has(key)) { seen.add(key); unique.push(l) }
+        }
       }
       setLaunches(unique)
     }).finally(() => setLoading(false))
