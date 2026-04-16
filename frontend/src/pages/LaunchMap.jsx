@@ -137,7 +137,7 @@ export default function LaunchMap() {
             center={mapConfig.center} 
             zoom={mapConfig.zoom} 
             minZoom={2}
-            maxZoom={12}
+            maxZoom={20}
             maxBounds={[[-90, -180], [90, 180]]}
             maxBoundsViscosity={1.0}
             style={{ height: '100%', width: '100%', background: '#050a18' }}
