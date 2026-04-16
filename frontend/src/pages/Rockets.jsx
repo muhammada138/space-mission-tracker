@@ -80,6 +80,7 @@ function RocketCompare({ allRockets }) {
   const [shownNames, setShownNames] = useState([]);
   const [selectedName, setSelectedName] = useState(null);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [pickerSearch, setPickerSearch] = useState('');
 
   useEffect(() => {
     if (availableRockets.length >= 2 && shownNames.length === 0) {
@@ -92,9 +93,12 @@ function RocketCompare({ allRockets }) {
     return shownNames.map(name => availableRockets.find(r => r.name === name)).filter(Boolean);
   }, [shownNames, availableRockets]);
 
-  const unshownRockets = useMemo(() => {
-    return availableRockets.filter(r => !shownNames.includes(r.name));
-  }, [availableRockets, shownNames]);
+  const filteredUnshown = useMemo(() => {
+    const unshown = availableRockets.filter(r => !shownNames.includes(r.name));
+    if (!pickerSearch.trim()) return unshown;
+    const q = pickerSearch.toLowerCase();
+    return unshown.filter(r => r.name.toLowerCase().includes(q));
+  }, [availableRockets, shownNames, pickerSearch]);
 
   const toggleRocket = (name) => {
     if (shownNames.includes(name)) {
@@ -107,6 +111,7 @@ function RocketCompare({ allRockets }) {
       }
     }
     setIsPickerOpen(false);
+    setPickerSearch('');
   };
 
   const selectedRocket = shownRockets.find(r => r.name === selectedName);
@@ -133,11 +138,14 @@ function RocketCompare({ allRockets }) {
         <div style={{ position: 'relative' }}>
           <button
             className="btn btn-ghost"
-            style={{ padding: '6px 10px', fontSize: 11, background: 'rgba(255,255,255,0.05)' }}
-            onClick={() => setIsPickerOpen(!isPickerOpen)}
+            style={{ padding: '6px 12px', fontSize: 11, background: 'rgba(255,255,255,0.05)', borderRadius: 8 }}
+            onClick={() => {
+              setIsPickerOpen(!isPickerOpen);
+              if (!isPickerOpen) setPickerSearch('');
+            }}
             disabled={shownNames.length >= 6}
           >
-            <Plus size={13} />
+            <Plus size={13} style={{ marginRight: 6 }} />
             Add Rocket
           </button>
 
@@ -148,22 +156,66 @@ function RocketCompare({ allRockets }) {
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: -4 }}
                 className="glass" 
-                style={{ position: 'absolute', top: '100%', right: 0, marginTop: 8, width: 220, background: 'var(--bg-card)', border: '1px solid var(--glass-border)', borderRadius: 12, zIndex: 100, maxHeight: 300, overflowY: 'auto', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.5)' }}
+                style={{ 
+                  position: 'absolute', 
+                  top: '100%', 
+                  right: 0, 
+                  marginTop: 8, 
+                  width: 240, 
+                  background: 'var(--bg-surface)', 
+                  border: '1px solid var(--glass-border)', 
+                  borderRadius: 12, 
+                  zIndex: 100, 
+                  maxHeight: 400, 
+                  display: 'flex',
+                  flexDirection: 'column',
+                  overflow: 'hidden', 
+                  boxShadow: '0 20px 40px rgba(0,0,0,0.6)' 
+                }}
               >
-                {unshownRockets.length === 0 ? (
-                  <div style={{ padding: 12, fontSize: 12, color: 'var(--text-muted)' }}>No more rockets available.</div>
-                ) : (
-                  unshownRockets.map(r => (
-                    <button
-                      key={r.name}
-                      onClick={() => toggleRocket(r.name)}
-                      style={{ display: 'block', width: '100%', padding: '10px 12px', textAlign: 'left', background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer', fontSize: 12, color: '#fff' }}
-                    >
-                      <div style={{ fontWeight: 600 }}>{r.name}</div>
-                      <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{findSpec(r.name)?.manufacturer}</div>
-                    </button>
-                  ))
-                )}
+                {/* Picker Search Bar */}
+                <div style={{ padding: 10, borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.02)' }}>
+                  <div style={{ position: 'relative' }}>
+                    <Search size={12} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }} />
+                    <input
+                      autoFocus
+                      type="text"
+                      placeholder="Search vehicles..."
+                      value={pickerSearch}
+                      onChange={(e) => setPickerSearch(e.target.value)}
+                      style={{ 
+                        width: '100%', 
+                        background: 'rgba(0,0,0,0.4)', 
+                        border: '1px solid rgba(255,255,255,0.1)', 
+                        borderRadius: 6, 
+                        padding: '6px 10px 6px 28px', 
+                        fontSize: 11, 
+                        color: '#fff',
+                        outline: 'none'
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div className="custom-scrollbar" style={{ overflowY: 'auto' }}>
+                  {filteredUnshown.length === 0 ? (
+                    <div style={{ padding: 16, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center' }}>
+                      {pickerSearch ? 'No matches found' : 'No more rockets available'}
+                    </div>
+                  ) : (
+                    filteredUnshown.map(r => (
+                      <button
+                        key={r.name}
+                        onClick={() => toggleRocket(r.name)}
+                        style={{ display: 'block', width: '100%', padding: '10px 14px', textAlign: 'left', background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.03)', cursor: 'pointer', transition: 'background 0.2s' }}
+                        className="hover-bg-soft"
+                      >
+                        <div style={{ fontWeight: 600, fontSize: 12, color: '#fff' }}>{r.name}</div>
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{findSpec(r.name)?.manufacturer}</div>
+                      </button>
+                    ))
+                  )}
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
