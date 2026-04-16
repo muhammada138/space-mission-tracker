@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
@@ -16,8 +16,22 @@ L.Icon.Default.mergeOptions({
 // Custom fly-to component
 function ChangeView({ center, zoom }) {
   const map = useMap()
+  const prevCenter = useRef(null)
+  const prevZoom = useRef(null)
+
   useEffect(() => {
-    if (center) map.flyTo(center, zoom, { duration: 1.5 })
+    if (!center) return
+    
+    const isSameCenter = prevCenter.current && 
+                         prevCenter.current[0] === center[0] && 
+                         prevCenter.current[1] === center[1]
+    const isSameZoom = prevZoom.current === zoom
+
+    if (!isSameCenter || !isSameZoom) {
+      map.flyTo(center, zoom, { duration: 1.5 })
+      prevCenter.current = center
+      prevZoom.current = zoom
+    }
   }, [center, zoom, map])
   return null
 }
@@ -175,7 +189,10 @@ export default function LaunchMap() {
           {selectedPad && isPanelVisible && (
             <div className="glass fade-in" style={{ position: 'absolute', bottom: 24, left: 24, right: 24, zIndex: 1000, padding: 24, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
               <button 
-                onClick={() => setIsPanelVisible(false)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsPanelVisible(false);
+                }}
                 className="btn-ghost"
                 style={{ position: 'absolute', top: 12, right: 12, padding: 4, borderRadius: '50%', color: 'var(--text-muted)' }}
               >
@@ -230,7 +247,10 @@ export default function LaunchMap() {
           {selectedPad && !isPanelVisible && (
             <button 
               className="glass fade-in btn-accent" 
-              onClick={() => setIsPanelVisible(true)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsPanelVisible(true);
+              }}
               style={{ 
                 position: 'absolute', 
                 bottom: 24, 
