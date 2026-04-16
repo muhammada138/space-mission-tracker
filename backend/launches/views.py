@@ -13,7 +13,6 @@ from .models import Launch
 from .serializers import LaunchSerializer, BriefLaunchSerializer
 from .services import get_upcoming_launches, get_past_launches, get_launch_by_api_id
 from .spacex_service import get_spacex_upcoming_launches, get_spacex_past_launches
-import copy
 import httpx
 import json
 import urllib.parse
@@ -596,14 +595,6 @@ class ISSCrewView(APIView):
 
     _cache = {'data': None, 'expires': None}
 
-    # Hardcoded fallback crew for when ALL external APIs are down
-    _FALLBACK_CREW = [
-        {'name': 'Sunita Williams', 'craft': 'ISS', 'nationality': 'American', 'agency': {'name': 'NASA', 'abbrev': 'NASA', 'type': 'Government'}, 'bio': 'Sunita "Suni" Williams is a NASA astronaut. She previously held the record for total spacewalks by a woman and has spent over 322 days in space.', 'profile_image': '', 'date_of_birth': '1965-09-19', 'flights_count': 3, 'status': {'name': 'Active'}, 'wiki_url': 'https://en.wikipedia.org/wiki/Sunita_Williams'},
-        {'name': 'Butch Wilmore', 'craft': 'ISS', 'nationality': 'American', 'agency': {'name': 'NASA', 'abbrev': 'NASA', 'type': 'Government'}, 'bio': 'Barry "Butch" Wilmore is a NASA astronaut and a United States Navy test pilot. He has logged over 178 days in space.', 'profile_image': '', 'date_of_birth': '1962-06-29', 'flights_count': 3, 'status': {'name': 'Active'}, 'wiki_url': 'https://en.wikipedia.org/wiki/Butch_Wilmore'},
-        {'name': 'Oleg Kononenko', 'craft': 'ISS', 'nationality': 'Russian', 'agency': {'name': 'Russian Federal Space Agency', 'abbrev': 'RFSA', 'type': 'Government'}, 'bio': 'Oleg Kononenko is a Russian cosmonaut who holds the record for the most cumulative time spent in space.', 'profile_image': '', 'date_of_birth': '1964-06-21', 'flights_count': 5, 'status': {'name': 'Active'}, 'wiki_url': 'https://en.wikipedia.org/wiki/Oleg_Kononenko'},
-        {'name': 'Nikolai Chub', 'craft': 'ISS', 'nationality': 'Russian', 'agency': {'name': 'Russian Federal Space Agency', 'abbrev': 'RFSA', 'type': 'Government'}, 'bio': 'Nikolai Chub is a Russian cosmonaut selected in 2012.', 'profile_image': '', 'date_of_birth': '1984-04-10', 'flights_count': 1, 'status': {'name': 'Active'}, 'wiki_url': 'https://en.wikipedia.org/wiki/Nikolai_Chub'},
-        {'name': 'Don Pettit', 'craft': 'ISS', 'nationality': 'American', 'agency': {'name': 'NASA', 'abbrev': 'NASA', 'type': 'Government'}, 'bio': 'Donald Roy Pettit is an American chemical engineer and NASA astronaut known for his creative experiments aboard the ISS.', 'profile_image': '', 'date_of_birth': '1955-04-20', 'flights_count': 4, 'status': {'name': 'Active'}, 'wiki_url': 'https://en.wikipedia.org/wiki/Don_Pettit'},
-    ]
 
     @staticmethod
     def _get_wiki_summary_sync(client, name):
@@ -717,11 +708,10 @@ class ISSCrewView(APIView):
                 except Exception as e2:
                     logger.warning(f'Open-Notify fallback also failed: {e2}')
 
-            # --- Attempt 3: Hardcoded fallback ---
+            # If all sources failed, return 503 so the frontend shows its error state
             if not crew:
-                crew = copy.deepcopy(self._FALLBACK_CREW)
-                source = 'fallback'
-                logger.info('Using hardcoded fallback crew data')
+                logger.warning('All crew data sources failed, returning 503')
+                return Response({'error': 'Crew data temporarily unavailable'}, status=503)
 
             # --- Enrich with Wikipedia data using thread pool ---
             try:
