@@ -10,7 +10,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import Launch
-from .serializers import LaunchSerializer
+from .serializers import LaunchSerializer, BriefLaunchSerializer
 from .services import get_upcoming_launches, get_past_launches, get_launch_by_api_id
 from .spacex_service import get_spacex_upcoming_launches, get_spacex_past_launches
 import copy
@@ -105,7 +105,7 @@ class UpcomingLaunchesView(APIView):
                 logger.warning(f"Upcoming SpaceX fetch failed: {e}")
                 
         # Serialize model objects
-        serialized = LaunchSerializer(raw_launches, many=True).data
+        serialized = BriefLaunchSerializer(raw_launches, many=True).data
         
         # Deduplicate and filter, and ENSURE only upcoming dates are shown
         final_launches, _ = _filter_and_deduplicate(serialized, source)
@@ -149,7 +149,7 @@ class PastLaunchesView(APIView):
                 logger.warning(f"Past SpaceX fetch failed: {e}")
 
         # Serialize model objects to dicts
-        serialized = LaunchSerializer(raw_launches, many=True).data
+        serialized = BriefLaunchSerializer(raw_launches, many=True).data
 
         # Load deep history statically seeded JSON
         history = []
@@ -368,16 +368,16 @@ class ActiveLaunchesView(APIView):
                 # Sort the combined objects by launch date descending
                 launches.sort(key=lambda x: x.launch_date if x.launch_date else x.last_fetched, reverse=True)
                 
-                return Response(LaunchSerializer(launches, many=True).data)
+                return Response(BriefLaunchSerializer(launches, many=True).data)
             elif active:
-                return Response(LaunchSerializer(active, many=True).data)
+                return Response(BriefLaunchSerializer(active, many=True).data)
                 
             # Transitions...
             return Response([])
         except Exception as e:
             logger.error(f"Critical error in ActiveLaunchesView: {e}", exc_info=True)
             if active:
-                return Response(LaunchSerializer(active, many=True).data)
+                return Response(BriefLaunchSerializer(active, many=True).data)
             return Response([], status=200) # Graceful empty
 
 
@@ -495,12 +495,12 @@ class PayloadsInOrbitView(APIView):
 
             all_payloads.sort(key=sort_key, reverse=True)
             
-            final_data = LaunchSerializer(all_payloads, many=True).data
+            final_data = BriefLaunchSerializer(all_payloads, many=True).data
             
             if final_data:
                 self._cache = {
                     'data': final_data,
-                    'expires': now + timedelta(hours=6)
+                    'expires': now + timedelta(hours=24)
                 }
             return Response(final_data)
 
@@ -509,7 +509,7 @@ class PayloadsInOrbitView(APIView):
             # If API fails, return what we have in DB
             all_payloads = list(payloads_map.values())
             all_payloads.sort(key=lambda x: x.launch_date if x.launch_date else x.last_fetched, reverse=True)
-            return Response(LaunchSerializer(all_payloads, many=True).data)
+            return Response(BriefLaunchSerializer(all_payloads, many=True).data)
 
 
 class LaunchDetailView(APIView):

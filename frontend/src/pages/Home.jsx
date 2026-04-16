@@ -14,6 +14,12 @@ export default function Home({ tab = 'upcoming' }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedSearch(searchQuery), 300)
+    return () => clearTimeout(handler)
+  }, [searchQuery])
   
   // Filters
   const [showFilters, setShowFilters] = useState(false)
@@ -61,8 +67,8 @@ export default function Home({ tab = 'upcoming' }) {
     let result = launches
 
     // 1. Search Query
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase()
+    if (debouncedSearch.trim()) {
+      const q = debouncedSearch.toLowerCase()
       result = result.filter(l =>
         (l.name || '').toLowerCase().includes(q) ||
         (l.rocket || '').toLowerCase().includes(q) ||
@@ -92,10 +98,11 @@ export default function Home({ tab = 'upcoming' }) {
     }
 
     return result
-  }, [launches, searchQuery, missionFilter, orbitFilter, rocketFilter, agencyFilter])
+  }, [launches, debouncedSearch, missionFilter, orbitFilter, rocketFilter, agencyFilter])
 
   const clearFilters = () => {
     setSearchQuery('')
+    setDebouncedSearch('')
     setMissionFilter('all')
     setOrbitFilter('all')
     setRocketFilter('all')
@@ -103,7 +110,7 @@ export default function Home({ tab = 'upcoming' }) {
   }
 
   // Separate hero launch (first upcoming) from grid
-  const heroLaunch = tab === 'upcoming' && !searchQuery && missionFilter === 'all' && orbitFilter === 'all' && filteredLaunches.length > 0 
+  const heroLaunch = tab === 'upcoming' && !debouncedSearch && missionFilter === 'all' && orbitFilter === 'all' && filteredLaunches.length > 0 
     ? filteredLaunches.find(l => {
         const s = (l.status || '').toLowerCase()
         return !s.includes('success') && !s.includes('fail')

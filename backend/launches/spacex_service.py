@@ -16,9 +16,13 @@ from .models import Launch
 SPACEX_BASE = 'https://api.spacexdata.com/v5'
 CACHE_TTL_MINUTES = 30
 
-# Module-level cache for landpads (static data that rarely changes)
+# Module-level cache for static data (rarely change)
 _landpads_cache: dict = {}
 _landpads_cache_time = None
+_rockets_cache: dict = {}
+_rockets_cache_time = None
+_launchpads_cache: dict = {}
+_launchpads_cache_time = None
 
 
 def _parse_spacex_launch(data: dict, rockets_map: dict = None, launchpads_map: dict = None, landpads_map: dict = None) -> dict:
@@ -97,21 +101,37 @@ def _parse_spacex_launch(data: dict, rockets_map: dict = None, launchpads_map: d
 
 
 def _get_rockets_map() -> dict:
+    global _rockets_cache, _rockets_cache_time
+    now = timezone.now()
+    if _rockets_cache and _rockets_cache_time:
+        if (now - _rockets_cache_time).total_seconds() < 86400:
+            return _rockets_cache
     try:
         resp = httpx.get(f'{SPACEX_BASE}/rockets', timeout=10)
         resp.raise_for_status()
-        return {r['id']: r['name'] for r in resp.json()}
+        result = {r['id']: r['name'] for r in resp.json()}
+        _rockets_cache = result
+        _rockets_cache_time = now
+        return result
     except Exception:
-        return {}
+        return _rockets_cache if _rockets_cache else {}
 
 
 def _get_launchpads_map() -> dict:
+    global _launchpads_cache, _launchpads_cache_time
+    now = timezone.now()
+    if _launchpads_cache and _launchpads_cache_time:
+        if (now - _launchpads_cache_time).total_seconds() < 86400:
+            return _launchpads_cache
     try:
         resp = httpx.get(f'{SPACEX_BASE}/launchpads', timeout=10)
         resp.raise_for_status()
-        return {p['id']: p for p in resp.json()}
+        result = {p['id']: p for p in resp.json()}
+        _launchpads_cache = result
+        _launchpads_cache_time = now
+        return result
     except Exception:
-        return {}
+        return _launchpads_cache if _launchpads_cache else {}
 
 
 def _get_landpads_map() -> dict:
@@ -201,7 +221,7 @@ def get_spacex_upcoming_launches(limit: int = 20) -> list:
         launch_date__gte=timezone.now(),
         last_fetched__gte=cutoff,
     )
-    if cached.count() >= 5:
+    if cached.exists():
         return list(cached.order_by('launch_date')[:limit])
 
     try:
