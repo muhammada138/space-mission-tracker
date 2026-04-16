@@ -5,7 +5,7 @@ from datetime import timedelta
 import httpx
 
 from launches.models import Launch
-from launches.spacex_service import get_spacex_past_launches, CACHE_TTL_MINUTES
+from launches.spacex_service import get_spacex_past_launches
 
 @pytest.mark.django_db
 def test_get_spacex_past_launches_cache_hit():
