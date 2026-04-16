@@ -297,7 +297,7 @@ export default function Globe({ pads = [], onPadClick, stations = [], spin = tru
         ref={controlsRef}
         enablePan={false}
         enableZoom={true}
-        minDistance={2.5}
+        minDistance={2.1}
         maxDistance={6}
         autoRotate={false}
         dampingFactor={0.08}
