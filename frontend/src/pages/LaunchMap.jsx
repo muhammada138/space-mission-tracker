@@ -138,8 +138,6 @@ export default function LaunchMap() {
             zoom={mapConfig.zoom} 
             minZoom={2}
             maxZoom={20}
-            maxBounds={[[-90, -180], [90, 180]]}
-            maxBoundsViscosity={1.0}
             style={{ height: '100%', width: '100%', background: '#050a18' }}
             zoomControl={false}
           >
