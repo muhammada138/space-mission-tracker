@@ -36,13 +36,14 @@ export default function Timeline() {
           return Array.isArray(d) ? d : d?.results ?? []
         })
 
-        const unique = []
-        const seen = new Set()
+        const uniqueMap = new Map()
         for (const l of all) {
-          if (!seen.has(l.api_id)) { seen.add(l.api_id); unique.push(l) }
+          if (l.launch_date && !uniqueMap.has(l.api_id)) {
+            uniqueMap.set(l.api_id, l)
+          }
         }
 
-        setLaunches(unique.filter(l => l.launch_date).sort((a, b) => new Date(a.launch_date) - new Date(b.launch_date)))
+        setLaunches(Array.from(uniqueMap.values()).sort((a, b) => Date.parse(a.launch_date) - Date.parse(b.launch_date)))
       })
       .finally(() => setLoading(false))
   }, [mode])
