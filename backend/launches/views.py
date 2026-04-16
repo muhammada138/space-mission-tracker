@@ -16,7 +16,7 @@ from .spacex_service import get_spacex_upcoming_launches, get_spacex_past_launch
 import httpx
 import json
 import urllib.parse
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import asyncio
 from django.utils import timezone
 from datetime import timedelta
 
@@ -597,13 +597,13 @@ class ISSCrewView(APIView):
 
 
     @staticmethod
-    def _get_wiki_summary_sync(client, name):
-        """Helper to fetch Wikipedia summary synchronously with disambiguation checks"""
+    async def _get_wiki_summary_async(client, name):
+        """Helper to fetch Wikipedia summary asynchronously with disambiguation checks"""
         
-        def _fetch(title):
+        async def _fetch(title):
             try:
                 slug = urllib.parse.quote(title.replace(' ', '_'))
-                resp = client.get(
+                resp = await client.get(
                     f'https://en.wikipedia.org/api/rest_v1/page/summary/{slug}',
                     timeout=6,
                     headers={'User-Agent': 'SpaceTracker/1.0'},
@@ -624,11 +624,13 @@ class ISSCrewView(APIView):
             return None
 
         # Tier 1: Exact name
-        wiki_data = _fetch(name)
+        wiki_data = await _fetch(name)
         
         # Tier 2: Name (astronaut) or Name (cosmonaut) - specifically for crew enrichment
         if not wiki_data or len(wiki_data.get('wiki_extract', '')) < 50:
-            wiki_data = _fetch(f"{name} (astronaut)") or _fetch(f"{name} (cosmonaut)") or wiki_data
+            wiki_data = await _fetch(f"{name} (astronaut)")
+            if not wiki_data or len(wiki_data.get('wiki_extract', '')) < 50:
+                wiki_data = await _fetch(f"{name} (cosmonaut)") or wiki_data
 
         return wiki_data or {}
 
@@ -733,28 +735,34 @@ class ISSCrewView(APIView):
                 logger.warning('All crew data sources failed, returning 503')
                 return Response({'error': 'Crew data temporarily unavailable'}, status=503)
 
-            # --- Enrich with Wikipedia data using thread pool ---
+            # --- Enrich with Wikipedia data using asyncio ---
             try:
-                def _enrich(entry_and_client):
-                    entry, wiki_client = entry_and_client
-                    wiki = self._get_wiki_summary_sync(wiki_client, entry['name'])
-                    return (entry, wiki)
+                async def _enrich_all(crew_list):
+                    async with httpx.AsyncClient(timeout=8) as wiki_client:
+                        async def _enrich_single(entry):
+                            wiki = await self._get_wiki_summary_async(wiki_client, entry['name'])
+                            return (entry, wiki)
 
-                with httpx.Client(timeout=8) as wiki_client:
-                    with ThreadPoolExecutor(max_workers=6) as pool:
-                        futures = [pool.submit(_enrich, (e, wiki_client)) for e in crew]
-                        for future in as_completed(futures):
-                            try:
-                                entry, wiki = future.result()
-                                if wiki:
-                                    if wiki.get('wiki_thumbnail'):
-                                        entry['profile_image'] = wiki['wiki_thumbnail']
-                                    if wiki.get('wiki_extract') and len(wiki['wiki_extract']) > len(entry.get('bio', '')):
-                                        entry['bio'] = wiki['wiki_extract']
-                                    if wiki.get('wiki_url'):
-                                        entry['wiki_url'] = wiki['wiki_url']
-                            except Exception:
-                                pass
+                        tasks = [_enrich_single(e) for e in crew_list]
+                        return await asyncio.gather(*tasks, return_exceptions=True)
+
+                results = asyncio.run(_enrich_all(crew))
+
+                for result in results:
+                    if isinstance(result, Exception):
+                        continue
+                    try:
+                        entry, wiki = result
+                        if wiki:
+                            if wiki.get('wiki_thumbnail'):
+                                entry['profile_image'] = wiki['wiki_thumbnail']
+                            if wiki.get('wiki_extract') and len(wiki.get('wiki_extract', '')) > len(entry.get('bio', '')):
+                                entry['bio'] = wiki['wiki_extract']
+                            if wiki.get('wiki_url'):
+                                entry['wiki_url'] = wiki['wiki_url']
+                    except Exception:
+                        pass
+
             except Exception as e:
                 logger.warning(f'Wikipedia enrichment failed: {e}')
 
