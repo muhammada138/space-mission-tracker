@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
 import api from '../api/axios'
-import { MapPin, Info, CloudRain, Wind, Navigation } from 'lucide-react'
+import { MapPin, Info, CloudRain, Wind, Navigation, X, ChevronUp } from 'lucide-react'
 
 // Fix for default marker icons in Leaflet with React
 delete L.Icon.Default.prototype._getIconUrl
@@ -26,6 +26,7 @@ export default function LaunchMap() {
   const [launches, setLaunches] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedPad, setSelectedPad] = useState(null)
+  const [isPanelVisible, setIsPanelVisible] = useState(true)
   const [padWeather, setPadWeather] = useState(null)
   const [mapConfig, setMapConfig] = useState({ center: [20, 0], zoom: 2 })
 
@@ -65,7 +66,8 @@ export default function LaunchMap() {
 
   const handlePadClick = (pad) => {
     setSelectedPad(pad)
-    setMapConfig({ center: [pad.lat, pad.lng], zoom: 8 })
+    setIsPanelVisible(true) // Auto-show on selection
+    setMapConfig({ center: [pad.lat, pad.lng], zoom: 16 })
     
     // Fetch weather for the next upcoming launch at this pad
     const nextLaunch = pad.launches
@@ -170,8 +172,16 @@ export default function LaunchMap() {
           </MapContainer>
 
           {/* Map Overlays */}
-          {selectedPad && (
+          {selectedPad && isPanelVisible && (
             <div className="glass fade-in" style={{ position: 'absolute', bottom: 24, left: 24, right: 24, zIndex: 1000, padding: 24, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+              <button 
+                onClick={() => setIsPanelVisible(false)}
+                className="btn-ghost"
+                style={{ position: 'absolute', top: 12, right: 12, padding: 4, borderRadius: '50%', color: 'var(--text-muted)' }}
+              >
+                <X size={18} />
+              </button>
+
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                   <MapPin className="text-accent" size={20} />
@@ -215,6 +225,30 @@ export default function LaunchMap() {
                 </div>
               )}
             </div>
+          )}
+
+          {selectedPad && !isPanelVisible && (
+            <button 
+              className="glass fade-in btn-accent" 
+              onClick={() => setIsPanelVisible(true)}
+              style={{ 
+                position: 'absolute', 
+                bottom: 24, 
+                left: '50%', 
+                transform: 'translateX(-50%)', 
+                zIndex: 1000, 
+                padding: '8px 16px', 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 8,
+                borderRadius: 20,
+                fontSize: 12,
+                fontWeight: 700,
+                boxShadow: 'var(--shadow-lg)'
+              }}
+            >
+              <ChevronUp size={16} /> Show Port Intelligence
+            </button>
           )}
         </div>
       </div>
