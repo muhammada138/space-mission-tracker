@@ -298,7 +298,7 @@ class ActiveLaunchesView(APIView):
 
             # --- Bridge the LL2 "Status 6" gap ---
             # Fetch missions from the last 3 hours and force them to 'Active' 
-            # while they climb to orbit, even if LL2 hasn't flagged them status 6 yet.
+            # as they climb to orbit, even if LL2 hasn't flagged them status 6 yet.
             recent_cutoff = now - timedelta(hours=3)
             recent_successes_raw = Launch.objects.all()
             recent_successes = []
