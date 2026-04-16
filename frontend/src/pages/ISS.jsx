@@ -65,7 +65,6 @@ const AstronautCard = memo(({ person, onClick }) => (
 
 function CrewModal({ person, onClose }) {
   useEffect(() => {
-    document.body.style.overflow = 'hidden'
     return () => { document.body.style.overflow = 'unset' }
   }, [])
 
@@ -73,29 +72,30 @@ function CrewModal({ person, onClose }) {
 
   return (
     <div
-      style={{ 
-        position: 'fixed', inset: 0, 
-        background: 'rgba(5, 10, 24, 0.9)', 
-        backdropFilter: 'blur(10px)', 
-        zIndex: 1000, 
-        display: 'flex', 
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '24px 16px',
+      style={{
+        position: 'fixed', inset: 0,
+        background: 'rgba(5, 10, 24, 0.9)',
+        backdropFilter: 'blur(10px)',
+        zIndex: 1000,
+        overflowY: 'auto',
         WebkitOverflowScrolling: 'touch'
       }}
       onClick={onClose}
     >
+      <div style={{
+        minHeight: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '24px 16px',
+      }}>
       <div
         className="glass fade-up"
-        style={{ 
-          maxWidth: 900, 
-          width: '100%', 
-          maxHeight: '90vh',
-          position: 'relative', 
-          padding: 0, 
-          display: 'flex',
-          flexDirection: 'column',
+        style={{
+          maxWidth: 900,
+          width: '100%',
+          position: 'relative',
+          padding: 0,
           overflow: 'hidden',
           borderRadius: 20,
           border: '1px solid rgba(255,255,255,0.12)',
@@ -105,21 +105,20 @@ function CrewModal({ person, onClose }) {
       >
         <button
           onClick={onClose}
-          style={{ 
-            position: 'absolute', top: 20, right: 20, 
-            background: 'rgba(0,0,0,0.5)', border: 'none', 
-            color: '#fff', cursor: 'pointer', 
-            width: 40, height: 40, borderRadius: '50%', 
-            display: 'flex', alignItems: 'center', justifyContent: 'center', 
-            zIndex: 100, backdropFilter: 'blur(8px)', transition: 'all 0.2s' 
+          style={{
+            position: 'absolute', top: 20, right: 20,
+            background: 'rgba(0,0,0,0.5)', border: 'none',
+            color: '#fff', cursor: 'pointer',
+            width: 40, height: 40, borderRadius: '50%',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 100, backdropFilter: 'blur(8px)', transition: 'all 0.2s'
           }}
           className="hover-scale"
         >
           <X size={20} style={{ strokeWidth: 3 }} />
         </button>
 
-        <div className="custom-scrollbar" style={{ overflowY: 'auto', width: '100%' }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap-reverse', width: '100%' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap-reverse', width: '100%' }}>
             <div style={{ flex: '1 1 500px', padding: '48px', minWidth: 0 }}>
               <div style={{ marginBottom: 40 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>

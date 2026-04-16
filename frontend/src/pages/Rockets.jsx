@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Search, Plus, SlidersHorizontal, X, Info } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import api from '../api/axios'
 
 // ── 2D Rocket Comparison Data ───────────────────────────────────────────────
@@ -112,7 +113,14 @@ function RocketCompare({ allRockets }) {
   const selectedSpec = selectedRocket ? findSpec(selectedRocket.name) : null;
 
   return (
-    <div className="glass" style={{ marginBottom: 32, overflow: 'hidden', border: '1px solid var(--glass-border)', borderRadius: 16 }}>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.6 }}
+      className="glass" 
+      style={{ marginBottom: 32, overflow: 'hidden', border: '1px solid var(--glass-border)', borderRadius: 16 }}
+    >
       <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <h2 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 800 }}>
@@ -133,24 +141,32 @@ function RocketCompare({ allRockets }) {
             Add Rocket
           </button>
 
-          {isPickerOpen && (
-            <div className="glass" style={{ position: 'absolute', top: '100%', right: 0, marginTop: 8, width: 220, background: 'var(--bg-card)', border: '1px solid var(--glass-border)', borderRadius: 12, zIndex: 100, maxHeight: 300, overflowY: 'auto', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.5)' }}>
-              {unshownRockets.length === 0 ? (
-                <div style={{ padding: 12, fontSize: 12, color: 'var(--text-muted)' }}>No more rockets available.</div>
-              ) : (
-                unshownRockets.map(r => (
-                  <button
-                    key={r.name}
-                    onClick={() => toggleRocket(r.name)}
-                    style={{ display: 'block', width: '100%', padding: '10px 12px', textAlign: 'left', background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer', fontSize: 12, color: '#fff' }}
-                  >
-                    <div style={{ fontWeight: 600 }}>{r.name}</div>
-                    <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{findSpec(r.name)?.manufacturer}</div>
-                  </button>
-                ))
-              )}
-            </div>
-          )}
+          <AnimatePresence>
+            {isPickerOpen && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                className="glass" 
+                style={{ position: 'absolute', top: '100%', right: 0, marginTop: 8, width: 220, background: 'var(--bg-card)', border: '1px solid var(--glass-border)', borderRadius: 12, zIndex: 100, maxHeight: 300, overflowY: 'auto', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.5)' }}
+              >
+                {unshownRockets.length === 0 ? (
+                  <div style={{ padding: 12, fontSize: 12, color: 'var(--text-muted)' }}>No more rockets available.</div>
+                ) : (
+                  unshownRockets.map(r => (
+                    <button
+                      key={r.name}
+                      onClick={() => toggleRocket(r.name)}
+                      style={{ display: 'block', width: '100%', padding: '10px 12px', textAlign: 'left', background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer', fontSize: 12, color: '#fff' }}
+                    >
+                      <div style={{ fontWeight: 600 }}>{r.name}</div>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{findSpec(r.name)?.manufacturer}</div>
+                    </button>
+                  ))
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
@@ -205,7 +221,11 @@ function RocketCompare({ allRockets }) {
 
         {/* Spec panel for selected rocket */}
         {selectedRocket && selectedSpec && (
-          <div className="fade-in" style={{ padding: '20px', borderLeft: '1px solid var(--glass-border)', display: 'flex', flexDirection: 'column', gap: 12, background: 'rgba(255,255,255,0.02)' }}>
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            style={{ padding: '20px', borderLeft: '1px solid var(--glass-border)', display: 'flex', flexDirection: 'column', gap: 12, background: 'rgba(255,255,255,0.02)' }}
+          >
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                 <div style={{ width: 12, height: 12, borderRadius: '50%', background: selectedSpec.color }} />
@@ -232,10 +252,10 @@ function RocketCompare({ allRockets }) {
                 {Math.round((selectedSpec.height / 121) * 100)}% of Starship
               </p>
             </div>
-          </div>
+          </motion.div>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -346,7 +366,7 @@ export default function Rockets() {
 
   return (
     <div className="page-container" style={{ paddingTop: 36, paddingBottom: 80 }}>
-      <div className="fade-up" style={{ marginBottom: 32 }}>
+      <header className="fade-up" style={{ marginBottom: 32 }}>
         <div>
           <h1 style={{ margin: '0 0 6px', fontSize: 28, fontWeight: 800, letterSpacing: '-0.03em' }}>
             Hardware <span style={{ color: 'var(--accent)' }}>Encyclopedia</span>
@@ -355,7 +375,7 @@ export default function Rockets() {
             Technical specifications for {view === 'vehicles' ? `${rockets.length} rockets` : `${payloads.length} spacecraft`}
           </p>
         </div>
-      </div>
+      </header>
 
       {/* Main Controls Section */}
       <div className="glass" style={{ padding: '12px', borderRadius: 16, marginBottom: 32, border: '1px solid var(--glass-border)' }}>
@@ -412,52 +432,62 @@ export default function Rockets() {
           </div>
 
           {/* Expanded Filters Panel (Spacecraft View Only) */}
-          {view === 'payloads' && showFilters && (
-            <div className="fade-up" style={{ 
-              display: 'grid', 
-              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', 
-              gap: 20, 
-              padding: '24px', 
-              background: 'rgba(255,255,255,0.02)', 
-              borderRadius: 16, 
-              border: '1px solid rgba(255,255,255,0.05)',
-              boxShadow: 'inset 0 0 30px rgba(0,0,0,0.2)'
-            }}>
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <label className="filter-label">Mission Category</label>
-                <select 
-                  value={missionFilter} 
-                  onChange={(e) => setMissionFilter(e.target.value)}
-                  className="filter-select"
-                >
-                  <option value="all">All Categories</option>
-                  {payloadFilterOptions.missions.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
-              </div>
+          <AnimatePresence>
+            {view === 'payloads' && showFilters && (
+              <motion.div 
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                style={{ overflow: 'hidden' }}
+              >
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', 
+                  gap: 20, 
+                  padding: '24px', 
+                  background: 'rgba(255,255,255,0.02)', 
+                  borderRadius: 16, 
+                  border: '1px solid rgba(255,255,255,0.05)',
+                  boxShadow: 'inset 0 0 30px rgba(0,0,0,0.2)',
+                  marginBottom: 16
+                }}>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <label className="filter-label">Mission Category</label>
+                    <select 
+                      value={missionFilter} 
+                      onChange={(e) => setMissionFilter(e.target.value)}
+                      className="filter-select"
+                    >
+                      <option value="all">All Categories</option>
+                      {payloadFilterOptions.missions.map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                  </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <label className="filter-label">Target Orbit</label>
-                <select 
-                  value={orbitFilter} 
-                  onChange={(e) => setOrbitFilter(e.target.value)}
-                  className="filter-select"
-                >
-                  <option value="all">All Orbits</option>
-                  {payloadFilterOptions.orbits.map(o => <option key={o} value={o}>{o}</option>)}
-                </select>
-              </div>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <label className="filter-label">Target Orbit</label>
+                    <select 
+                      value={orbitFilter} 
+                      onChange={(e) => setOrbitFilter(e.target.value)}
+                      className="filter-select"
+                    >
+                      <option value="all">All Orbits</option>
+                      {payloadFilterOptions.orbits.map(o => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  </div>
 
-              <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-                <button 
-                  onClick={clearFilters}
-                  className="btn btn-ghost"
-                  style={{ height: 42, width: '100%', fontSize: 13, borderRadius: 10 }}
-                >
-                  Reset All Filters
-                </button>
-              </div>
-            </div>
-          )}
+                  <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                    <button 
+                      onClick={clearFilters}
+                      className="btn btn-ghost"
+                      style={{ height: 42, width: '100%', fontSize: 13, borderRadius: 10 }}
+                    >
+                      Reset All Filters
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
@@ -476,13 +506,17 @@ export default function Rockets() {
             </div>
           ) : (
             items.map((item, i) => (
-              <div
+              <motion.div
                 key={item.api_id || item.name}
-                className={`glass rocket-card fade-up ${selected?.name === item.name || selected?.api_id === item.api_id ? 'selected' : ''}`}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: '-40px' }}
+                transition={{ duration: 0.5, delay: (i % 6) * 0.05 }}
+                className={`glass rocket-card ${selected?.name === item.name || selected?.api_id === item.api_id ? 'selected' : ''}`}
                 style={{ 
-                  animationDelay: `${i * 30}ms`, 
                   borderColor: (selected?.name === item.name || selected?.api_id === item.api_id) ? 'var(--accent)' : undefined,
-                  overflow: 'hidden'
+                  overflow: 'hidden',
+                  cursor: 'pointer'
                 }}
                 onClick={() => {
                   const isSelected = selected?.api_id === item.api_id || selected?.name === item.name
@@ -512,88 +546,96 @@ export default function Rockets() {
                     )}
                   </div>
                 </div>
-              </div>
+              </motion.div>
             ))
           )}
         </div>
 
         {/* Detail sticky panel */}
-        {selected && (
-          <div className="glass fade-up" style={{ padding: '24px', position: 'sticky', top: 80, alignSelf: 'start', borderRadius: 20, border: '1px solid var(--accent)', boxShadow: '0 0 40px rgba(100, 100, 255, 0.1)' }}>
-            <button
-              onClick={() => setSelected(null)}
-              style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,0.05)', border: 'none', color: '#fff', cursor: 'pointer', width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-            ><X size={14} /></button>
-            
-            <div style={{ marginBottom: 24 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                <div style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--accent)' }} />
-                <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', color: 'var(--accent)', textTransform: 'uppercase' }}>
-                  {view === 'vehicles' ? 'Launch Vehicle' : 'Spacecraft Unit'}
-                </span>
+        <AnimatePresence>
+          {selected && (
+            <motion.div 
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              className="glass" 
+              style={{ padding: '24px', position: 'sticky', top: 80, alignSelf: 'start', borderRadius: 20, border: '1px solid var(--accent)', boxShadow: '0 0 40px rgba(100, 100, 255, 0.1)' }}
+            >
+              <button
+                onClick={() => setSelected(null)}
+                style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,0.05)', border: 'none', color: '#fff', cursor: 'pointer', width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              ><X size={14} /></button>
+              
+              <div style={{ marginBottom: 24 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--accent)' }} />
+                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', color: 'var(--accent)', textTransform: 'uppercase' }}>
+                    {view === 'vehicles' ? 'Launch Vehicle' : 'Spacecraft Unit'}
+                  </span>
+                </div>
+                <h2 style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 800 }}>{selected.name}</h2>
+                <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 13 }}>
+                  {view === 'vehicles' ? selected.provider : (selected.launch_provider || selected.mission_type)}
+                </p>
               </div>
-              <h2 style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 800 }}>{selected.name}</h2>
-              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 13 }}>
-                {view === 'vehicles' ? selected.provider : (selected.launch_provider || selected.mission_type)}
-              </p>
-            </div>
 
-            {view === 'vehicles' ? (
-              <>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 28 }}>
-                  <MiniStat label="Total Flights" value={selected.launches.length} />
-                  <MiniStat label="Success Rate" value={
-                    selected.successCount + selected.failCount > 0
-                      ? `${Math.round((selected.successCount / (selected.successCount + selected.failCount)) * 100)}%`
-                      : 'N/A'
-                  } />
-                  <MiniStat label="Successful" value={selected.successCount} color="var(--success)" />
-                  <MiniStat label="Failed" value={selected.failCount} color="var(--danger)" />
-                </div>
+              {view === 'vehicles' ? (
+                <>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 28 }}>
+                    <MiniStat label="Total Flights" value={selected.launches.length} />
+                    <MiniStat label="Success Rate" value={
+                      selected.successCount + selected.failCount > 0
+                        ? `${Math.round((selected.successCount / (selected.successCount + selected.failCount)) * 100)}%`
+                        : 'N/A'
+                    } />
+                    <MiniStat label="Successful" value={selected.successCount} color="var(--success)" />
+                    <MiniStat label="Failed" value={selected.failCount} color="var(--danger)" />
+                  </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                  <SlidersHorizontal size={14} style={{ color: 'var(--text-muted)' }} />
-                  <h4 style={{ margin: 0, fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                    Flight History
-                  </h4>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                    <SlidersHorizontal size={14} style={{ color: 'var(--text-muted)' }} />
+                    <h4 style={{ margin: 0, fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      Flight History
+                    </h4>
+                  </div>
+                  
+                  <div className="custom-scrollbar" style={{ maxHeight: 350, overflowY: 'auto', paddingRight: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {selected.launches
+                      .sort((a, b) => new Date(b.launch_date) - new Date(a.launch_date))
+                      .map((l, i) => (
+                        <a key={l.api_id || i} href={`/launch/${l.api_id}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.02)', border: '1px solid transparent', fontSize: 12, color: 'var(--text-secondary)', textDecoration: 'none', transition: 'all 0.2s' }} onMouseEnter={e => e.currentTarget.style.borderColor='rgba(255,255,255,0.1)'} onMouseLeave={e => e.currentTarget.style.borderColor='transparent'}>
+                          <span style={{ color: '#fff', fontWeight: 500 }}>{l.name?.split('|').pop()?.trim().slice(0, 24)}</span>
+                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, opacity: 0.6 }}>
+                            {l.launch_date ? new Date(l.launch_date).getFullYear() : ''}
+                          </span>
+                        </a>
+                      ))}
+                  </div>
+                </>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                  <div style={{ padding: 16, background: 'rgba(255,255,255,0.03)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.05)', display: 'flex', gap: 12 }}>
+                    <Info size={18} style={{ color: 'var(--accent)', flexShrink: 0, marginTop: 2 }} />
+                    <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: 'rgba(255,255,255,0.8)' }}>
+                      {selected.mission_description || 'Operational satellite currently in orbital service. No detailed technical abstract provided.'}
+                    </p>
+                  </div>
+                  
+                  <div style={{ display: grid, gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <MiniStat label="Orbit Path" value={selected.orbit || 'LEO'} />
+                    <MiniStat label="Mission Type" value={selected.mission_type?.split(' ')[0] || 'Unknown'} />
+                    <MiniStat label="Deployed" value={selected.launch_date ? new Date(selected.launch_date).getFullYear() : 'Unknown'} />
+                    <MiniStat label="Carrier" value={selected.rocket?.split(' ')[0] || 'Unknown'} />
+                  </div>
+                  
+                  <a href={`/launch/${selected.api_id}`} className="btn btn-primary" style={{ height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, borderRadius: 10 }}>
+                    View Full Tracking Data
+                  </a>
                 </div>
-                
-                <div className="custom-scrollbar" style={{ maxHeight: 350, overflowY: 'auto', paddingRight: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  {selected.launches
-                    .sort((a, b) => new Date(b.launch_date) - new Date(a.launch_date))
-                    .map((l, i) => (
-                      <a key={l.api_id || i} href={`/launch/${l.api_id}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.02)', border: '1px solid transparent', fontSize: 12, color: 'var(--text-secondary)', textDecoration: 'none', transition: 'all 0.2s' }} onMouseEnter={e => e.currentTarget.style.borderColor='rgba(255,255,255,0.1)'} onMouseLeave={e => e.currentTarget.style.borderColor='transparent'}>
-                        <span style={{ color: '#fff', fontWeight: 500 }}>{l.name?.split('|').pop()?.trim().slice(0, 24)}</span>
-                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, opacity: 0.6 }}>
-                          {l.launch_date ? new Date(l.launch_date).getFullYear() : ''}
-                        </span>
-                      </a>
-                    ))}
-                </div>
-              </>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                <div style={{ padding: 16, background: 'rgba(255,255,255,0.03)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.05)', display: 'flex', gap: 12 }}>
-                  <Info size={18} style={{ color: 'var(--accent)', flexShrink: 0, marginTop: 2 }} />
-                  <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: 'rgba(255,255,255,0.8)' }}>
-                    {selected.mission_description || 'Operational satellite currently in orbital service. No detailed technical abstract provided.'}
-                  </p>
-                </div>
-                
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                  <MiniStat label="Orbit Path" value={selected.orbit || 'LEO'} />
-                  <MiniStat label="Mission Type" value={selected.mission_type?.split(' ')[0] || 'Unknown'} />
-                  <MiniStat label="Deployed" value={selected.launch_date ? new Date(selected.launch_date).getFullYear() : 'Unknown'} />
-                  <MiniStat label="Carrier" value={selected.rocket?.split(' ')[0] || 'Unknown'} />
-                </div>
-                
-                <a href={`/launch/${selected.api_id}`} className="btn btn-primary" style={{ height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, borderRadius: 10 }}>
-                  View Full Tracking Data
-                </a>
-              </div>
-            )}
-          </div>
-        )}
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   )

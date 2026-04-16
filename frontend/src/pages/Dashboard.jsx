@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { format } from 'date-fns'
 import { Trash2, NotebookPen, Trophy } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import api from '../api/axios'
 import CountdownTimer from '../components/CountdownTimer'
 import LogModal from '../components/LogModal'
@@ -80,7 +81,10 @@ const ACHIEVEMENTS = [
 function AchievementBadge({ achievement, unlocked }) {
   const [hovered, setHovered] = useState(false)
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9 }}
+      whileInView={{ opacity: 1, scale: 1 }}
+      viewport={{ once: true }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
@@ -94,7 +98,7 @@ function AchievementBadge({ achievement, unlocked }) {
         background: unlocked ? `color-mix(in srgb, ${achievement.color} 8%, rgba(10,17,40,0.8))` : 'rgba(10,17,40,0.5)',
         border: `1px solid ${unlocked ? achievement.color : 'rgba(255,255,255,0.04)'}`,
         opacity: unlocked ? 1 : 0.4,
-        transition: 'transform 0.2s, box-shadow 0.2s',
+        transition: 'all 0.3s cubic-bezier(0.22, 1, 0.36, 1)',
         cursor: unlocked ? 'default' : 'not-allowed',
         transform: hovered && unlocked ? 'translateY(-2px)' : 'none',
         boxShadow: hovered && unlocked ? `0 8px 24px color-mix(in srgb, ${achievement.color} 20%, transparent)` : 'none',
@@ -113,7 +117,7 @@ function AchievementBadge({ achievement, unlocked }) {
       {unlocked && (
         <div style={{ position: 'absolute', top: 8, right: 8, width: 8, height: 8, borderRadius: '50%', background: achievement.color, boxShadow: `0 0 6px ${achievement.color}` }} />
       )}
-    </div>
+    </motion.div>
   )
 }
 
@@ -173,27 +177,37 @@ export default function Dashboard() {
   return (
     <div className="page-container" style={{ paddingTop: 36, paddingBottom: 80 }}>
       {/* Header */}
-      <div className="fade-up" style={{ marginBottom: 28 }}>
+      <motion.header
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        style={{ marginBottom: 28 }}
+      >
         <h1 style={{ margin: '0 0 4px', fontSize: 28, fontWeight: 800, letterSpacing: '-0.03em' }}>
           Mission <span style={{ color: 'var(--accent)' }}>Control</span>
         </h1>
         <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 14 }}>
           Welcome back, <span style={{ color: 'var(--accent)', fontWeight: 700 }}>{user?.username}</span>
         </p>
-      </div>
+      </motion.header>
 
       {/* Stats strip */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14, marginBottom: 28 }} className="fade-up">
-        <StatCard label="Tracked Missions" value={watchlist.length} color="#00d4ff" />
-        <StatCard label="Mission Logs" value={logs.length} color="#7c3aed" />
-        <StatCard label="Achievements" value={unlockedAchievements.length} suffix={`/${totalAchievements}`} color="#fbbf24" />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14, marginBottom: 28 }}>
+        <StatCard label="Tracked Missions" value={watchlist.length} color="#00d4ff" delay={0} />
+        <StatCard label="Mission Logs" value={logs.length} color="#7c3aed" delay={0.05} />
+        <StatCard label="Achievements" value={unlockedAchievements.length} suffix={`/${totalAchievements}`} color="#fbbf24" delay={0.1} />
         {nextWatched && (
-          <div className="glass" style={{ padding: '16px 20px' }}>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.15 }}
+            className="glass" 
+            style={{ padding: '16px 20px' }}
+          >
             <p style={{ margin: '0 0 6px', fontSize: 10, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
               Next Watched Launch
             </p>
             <CountdownTimer targetDate={nextWatched.launch.launch_date} />
-          </div>
+          </motion.div>
         )}
       </div>
 
@@ -218,134 +232,190 @@ export default function Dashboard() {
       )}
 
       {/* Watchlist as timeline */}
-      {!loading && tab === 'watchlist' && (
-        watchlist.length === 0 ? (
-          <div className="empty-state fade-up">
-            <div className="icon">🎯</div>
-            <p style={{ marginBottom: 16, color: 'var(--text-secondary)' }}>No tracked missions yet.</p>
-            <button className="btn btn-primary" onClick={() => navigate('/')}>Browse Launches</button>
-          </div>
-        ) : (
-          <div style={{ position: 'relative', paddingLeft: 24 }}>
-            <div style={{ position: 'absolute', top: 0, bottom: 0, left: 8, width: 2, background: 'var(--border)' }} />
-            {sortedWatchlist.map((entry, i) => {
-              const isUpcoming = entry.launch?.launch_date && new Date(entry.launch.launch_date) > new Date()
-              return (
-                <div key={entry.id} className="fade-up" style={{ position: 'relative', marginBottom: 16, animationDelay: `${i * 40}ms` }}>
-                  <div style={{
-                    position: 'absolute', left: -20, top: 20,
-                    width: 10, height: 10, borderRadius: '50%',
-                    background: isUpcoming ? 'var(--accent)' : 'var(--text-muted)',
-                    border: '2px solid var(--bg-base)',
-                    boxShadow: isUpcoming ? '0 0 8px var(--accent)' : 'none',
-                  }} />
-                  <div className="glass" style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', cursor: 'pointer' }}
-                    onClick={() => navigate(`/launch/${entry.launch.api_id}`)}>
-                    {entry.launch.image_url ? (
-                      <img src={entry.launch.image_url} alt="" style={{ width: 64, height: 48, objectFit: 'cover', borderRadius: 8, flexShrink: 0 }} />
-                    ) : (
-                      <div style={{ width: 64, height: 48, borderRadius: 8, background: 'linear-gradient(135deg,#0a1428,#150d2e)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>🚀</div>
-                    )}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ margin: '0 0 2px', fontWeight: 700, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.launch.name}</p>
-                      <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                        {entry.launch.launch_date ? format(new Date(entry.launch.launch_date), 'MMM d, yyyy') : 'TBD'}
-                      </p>
-                    </div>
-                    {isUpcoming && entry.launch.launch_date && (
-                      <div style={{ flexShrink: 0 }}>
-                        <CountdownTimer targetDate={entry.launch.launch_date} />
+      <AnimatePresence mode="wait">
+        {!loading && tab === 'watchlist' && (
+          watchlist.length === 0 ? (
+            <motion.div 
+              key="empty-w"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="empty-state"
+            >
+              <div className="icon">🎯</div>
+              <p style={{ marginBottom: 16, color: 'var(--text-secondary)' }}>No tracked missions yet.</p>
+              <button className="btn btn-primary" onClick={() => navigate('/')}>Browse Launches</button>
+            </motion.div>
+          ) : (
+            <motion.div 
+              key="watchlist-grid"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              style={{ position: 'relative', paddingLeft: 24 }}
+            >
+              <div style={{ position: 'absolute', top: 0, bottom: 0, left: 8, width: 2, background: 'var(--border)' }} />
+              {sortedWatchlist.map((entry, i) => {
+                const isUpcoming = entry.launch?.launch_date && new Date(entry.launch.launch_date) > new Date()
+                return (
+                  <motion.div 
+                    key={entry.id} 
+                    initial={{ opacity: 0, x: -10 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: i * 0.05 }}
+                    style={{ position: 'relative', marginBottom: 16 }}
+                  >
+                    <div style={{
+                      position: 'absolute', left: -20, top: 20,
+                      width: 10, height: 10, borderRadius: '50%',
+                      background: isUpcoming ? 'var(--accent)' : 'var(--text-muted)',
+                      border: '2px solid var(--bg-base)',
+                      boxShadow: isUpcoming ? '0 0 8px var(--accent)' : 'none',
+                    }} />
+                    <div className="glass" style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', cursor: 'pointer' }}
+                      onClick={() => navigate(`/launch/${entry.launch.api_id}`)}>
+                      {entry.launch.image_url ? (
+                        <img src={entry.launch.image_url} alt="" style={{ width: 64, height: 48, objectFit: 'cover', borderRadius: 8, flexShrink: 0 }} />
+                      ) : (
+                        <div style={{ width: 64, height: 48, borderRadius: 8, background: 'linear-gradient(135deg,#0a1428,#150d2e)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>🚀</div>
+                      )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ margin: '0 0 2px', fontWeight: 700, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.launch.name}</p>
+                        <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                          {entry.launch.launch_date ? format(new Date(entry.launch.launch_date), 'MMM d, yyyy') : 'TBD'}
+                        </p>
                       </div>
-                    )}
-                    <button className="btn btn-danger" style={{ padding: '6px 10px', flexShrink: 0 }}
-                      onClick={e => { e.stopPropagation(); removeFromWatchlist(entry.id) }}>
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )
-      )}
-
-      {/* Mission logs as journal entries */}
-      {!loading && tab === 'logs' && (
-        logs.length === 0 ? (
-          <div className="empty-state fade-up">
-            <div className="icon">📓</div>
-            <p style={{ color: 'var(--text-secondary)' }}>No mission logs yet. Visit a launch and write your first log!</p>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {logs
-              .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-              .map((log, i) => (
-                <div key={log.id} className="glass fade-up" style={{ padding: '20px 24px', animationDelay: `${i * 35}ms` }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-                    <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => navigate(`/launch/${log.launch.api_id}`)}>
-                      <p style={{ margin: '0 0 4px', fontSize: 10, fontWeight: 700, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--accent)' }}>
-                        {log.launch.name}
-                      </p>
-                      <h3 style={{ margin: '0 0 8px', fontSize: 16, fontWeight: 700 }}>{log.title}</h3>
-                      <p style={{ margin: '0 0 10px', color: 'var(--text-secondary)', lineHeight: 1.65, fontSize: 13 }}>{log.body}</p>
-                      <p style={{ margin: 0, fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                        {format(new Date(log.created_at), 'MMM d, yyyy / HH:mm')}
-                      </p>
-                    </div>
-                    <div style={{ display: 'flex', gap: 6, flexShrink: 0, paddingTop: 4 }}>
-                      <button className="btn btn-ghost" style={{ padding: '6px 10px', fontSize: 11 }}
-                        onClick={() => { setEditLog(log); setShowLogModal(true) }}>
-                        <NotebookPen size={13} />
-                      </button>
-                      <button className="btn btn-danger" style={{ padding: '6px 10px' }}
-                        onClick={() => deleteLog(log.id)}>
+                      {isUpcoming && entry.launch.launch_date && (
+                        <div style={{ flexShrink: 0 }}>
+                          <CountdownTimer targetDate={entry.launch.launch_date} />
+                        </div>
+                      )}
+                      <button className="btn btn-danger" style={{ padding: '6px 10px', flexShrink: 0 }}
+                        onClick={e => { e.stopPropagation(); removeFromWatchlist(entry.id) }}>
                         <Trash2 size={13} />
                       </button>
                     </div>
-                  </div>
-                </div>
-              ))}
-          </div>
-        )
-      )}
+                  </motion.div>
+                )
+              })}
+            </motion.div>
+          )
+        )}
 
-      {/* Achievements */}
-      {!loading && tab === 'achievements' && (
-        <div className="fade-up">
-          <div style={{ marginBottom: 20 }}>
-            <p style={{ margin: '0 0 6px', fontSize: 14, color: 'var(--text-secondary)' }}>
-              You've unlocked <span style={{ color: '#fbbf24', fontWeight: 700 }}>{unlockedAchievements.length}</span> of {totalAchievements} achievements.
-            </p>
-            {/* Overall progress bar */}
-            <div style={{ height: 6, background: 'var(--border)', borderRadius: 3, overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${(unlockedAchievements.length / totalAchievements) * 100}%`, background: 'linear-gradient(90deg, #fbbf24, #f59e0b)', borderRadius: 3, transition: 'width 0.8s ease' }} />
-            </div>
-          </div>
+        {/* Mission logs as journal entries */}
+        {!loading && tab === 'logs' && (
+          logs.length === 0 ? (
+            <motion.div 
+              key="empty-l"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="empty-state"
+            >
+              <div className="icon">📓</div>
+              <p style={{ color: 'var(--text-secondary)' }}>No mission logs yet. Visit a launch and write your first log!</p>
+            </motion.div>
+          ) : (
+            <motion.div 
+              key="logs-list"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              style={{ display: 'flex', flexDirection: 'column', gap: 14 }}
+            >
+              {logs
+                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+                .map((log, i) => (
+                  <motion.div 
+                    key={log.id} 
+                    initial={{ opacity: 0, y: 10 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: i * 0.04 }}
+                    className="glass" 
+                    style={{ padding: '20px 24px' }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                      <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => navigate(`/launch/${log.launch.api_id}`)}>
+                        <p style={{ margin: '0 0 4px', fontSize: 10, fontWeight: 700, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--accent)' }}>
+                          {log.launch.name}
+                        </p>
+                        <h3 style={{ margin: '0 0 8px', fontSize: 16, fontWeight: 700 }}>{log.title}</h3>
+                        <p style={{ margin: '0 0 10px', color: 'var(--text-secondary)', lineHeight: 1.65, fontSize: 13 }}>{log.body}</p>
+                        <p style={{ margin: 0, fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                          {format(new Date(log.created_at), 'MMM d, yyyy / HH:mm')}
+                        </p>
+                      </div>
+                      <div style={{ display: 'flex', gap: 6, flexShrink: 0, paddingTop: 4 }}>
+                        <button className="btn btn-ghost" style={{ padding: '6px 10px', fontSize: 11 }}
+                          onClick={() => { setEditLog(log); setShowLogModal(true) }}>
+                          <NotebookPen size={13} />
+                        </button>
+                        <button className="btn btn-danger" style={{ padding: '6px 10px' }}
+                          onClick={() => deleteLog(log.id)}>
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+            </motion.div>
+          )
+        )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
-            {ACHIEVEMENTS.map(a => (
-              <AchievementBadge
-                key={a.id}
-                achievement={a}
-                unlocked={a.check(watchlist.length, logs.length)}
-              />
-            ))}
-          </div>
-
-          {unlockedAchievements.length < totalAchievements && (
-            <div className="glass" style={{ marginTop: 24, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span style={{ fontSize: 20 }}>💡</span>
-              <div>
-                <p style={{ margin: '0 0 2px', fontSize: 13, fontWeight: 600 }}>Keep exploring</p>
-                <p style={{ margin: 0, fontSize: 12, color: 'var(--text-secondary)' }}>
-                  {totalAchievements - unlockedAchievements.length} more achievements to unlock. Track more missions and write your logs!
-                </p>
+        {/* Achievements */}
+        {!loading && tab === 'achievements' && (
+          <motion.div 
+            key="achievements-grid"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <div style={{ marginBottom: 20 }}>
+              <p style={{ margin: '0 0 6px', fontSize: 14, color: 'var(--text-secondary)' }}>
+                You've unlocked <span style={{ color: '#fbbf24', fontWeight: 700 }}>{unlockedAchievements.length}</span> of {totalAchievements} achievements.
+              </p>
+              {/* Overall progress bar */}
+              <div style={{ height: 6, background: 'var(--border)', borderRadius: 3, overflow: 'hidden' }}>
+                <motion.div 
+                  initial={{ width: 0 }}
+                  whileInView={{ width: `${(unlockedAchievements.length / totalAchievements) * 100}%` }}
+                  transition={{ duration: 1, ease: "easeOut" }}
+                  style={{ height: '100%', background: 'linear-gradient(90deg, #fbbf24, #f59e0b)', borderRadius: 3 }} 
+                />
               </div>
             </div>
-          )}
-        </div>
-      )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
+              {ACHIEVEMENTS.map(a => (
+                <AchievementBadge
+                  key={a.id}
+                  achievement={a}
+                  unlocked={a.check(watchlist.length, logs.length)}
+                />
+              ))}
+            </div>
+
+            {unlockedAchievements.length < totalAchievements && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                className="glass" 
+                style={{ marginTop: 24, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12 }}
+              >
+                <span style={{ fontSize: 20 }}>💡</span>
+                <div>
+                  <p style={{ margin: '0 0 2px', fontSize: 13, fontWeight: 600 }}>Keep exploring</p>
+                  <p style={{ margin: 0, fontSize: 12, color: 'var(--text-secondary)' }}>
+                    {totalAchievements - unlockedAchievements.length} more achievements to unlock. Track more missions and write your logs!
+                  </p>
+                </div>
+              </motion.div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {showLogModal && editLog && (
         <LogModal
@@ -359,7 +429,7 @@ export default function Dashboard() {
   )
 }
 
-function StatCard({ label, value, suffix = '', color }) {
+function StatCard({ label, value, suffix = '', color, delay = 0 }) {
   const [display, setDisplay] = useState(0)
   const mounted = useRef(false)
   useEffect(() => {
@@ -375,13 +445,18 @@ function StatCard({ label, value, suffix = '', color }) {
   }, [value])
 
   return (
-    <div className="glass stat-card">
+    <motion.div 
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ delay }}
+      className="glass stat-card"
+    >
       <div>
         <div className="stat-card-value" style={{ color }}>
           {display}{suffix}
         </div>
         <div className="stat-card-label">{label}</div>
       </div>
-    </div>
+    </motion.div>
   )
 }
