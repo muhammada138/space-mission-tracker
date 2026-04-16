@@ -130,10 +130,14 @@ export default function Navbar() {
 
             {/* Next launch ticker */}
             {nextLaunch && (
-              <div className="nav-ticker" style={{ margin: '0 8px' }}>
+              <Link 
+                to={`/launch/${nextLaunch.api_id}`}
+                className="nav-ticker" 
+                style={{ margin: '0 8px', textDecoration: 'none', cursor: 'pointer' }}
+              >
                 <span className="ticker-label">Next:</span>
                 <MiniCountdown targetDate={nextLaunch.launch_date} />
-              </div>
+              </Link>
             )}
 
             <div style={{ width: 1, height: 24, background: 'rgba(255,255,255,0.1)', margin: '0 8px' }} />
