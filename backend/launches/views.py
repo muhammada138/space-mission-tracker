@@ -24,6 +24,23 @@ from datetime import timedelta
 _FAR_FUTURE = dt.datetime(9999, 1, 1, tzinfo=dt.timezone.utc)
 _FAR_PAST = dt.datetime(1970, 1, 1, tzinfo=dt.timezone.utc)
 
+_GLOBAL_HISTORY_CACHE = None
+
+def _get_history_data():
+    global _GLOBAL_HISTORY_CACHE
+    if _GLOBAL_HISTORY_CACHE is None:
+        try:
+            history_path = os.path.join(os.path.dirname(__file__), 'history.json')
+            if os.path.exists(history_path):
+                with open(history_path, 'r', encoding='utf-8') as f:
+                    _GLOBAL_HISTORY_CACHE = json.load(f)
+            else:
+                _GLOBAL_HISTORY_CACHE = []
+        except Exception as e:
+            logger.error(f"Failed to load history.json: {e}")
+            _GLOBAL_HISTORY_CACHE = []
+    return _GLOBAL_HISTORY_CACHE
+
 
 def _to_dt(val, fallback):
     """Coerce a value to a datetime for safe sorting."""
@@ -151,14 +168,7 @@ class PastLaunchesView(APIView):
         serialized = BriefLaunchSerializer(raw_launches, many=True).data
 
         # Load deep history statically seeded JSON
-        history = []
-        try:
-            history_path = os.path.join(os.path.dirname(__file__), 'history.json')
-            if os.path.exists(history_path):
-                with open(history_path, 'r', encoding='utf-8') as f:
-                    history = json.load(f)
-        except Exception as e:
-            logger.error(f"Failed to load history.json: {e}")
+        history = _get_history_data()
 
         # Deduplicate and filter primary results, and ENSURE only past dates are shown
         final_launches, seen = _filter_and_deduplicate(serialized, source)
@@ -414,31 +424,27 @@ class PayloadsInOrbitView(APIView):
         payloads_map = {l.api_id: l for l in db_launches}
 
         # 2. Add history.json data (enriched and filtered for past successes)
-        history = []
+        history_data = _get_history_data()
         try:
-            history_path = os.path.join(os.path.dirname(__file__), 'history.json')
-            if os.path.exists(history_path):
-                with open(history_path, 'r', encoding='utf-8') as f:
-                    history_data = json.load(f)
-                    for h in history_data:
-                        ldate = _to_dt(h.get('launch_date'), _FAR_PAST)
-                        # ONLY past, successful, within 2 years
-                        if ldate < now and ldate >= two_years_ago and 'Success' in (h.get('status') or ''):
-                            name = h.get('name', '')
-                            # Basic classification for history items that lack it
-                            mtype = h.get('mission_type', '')
-                            if not mtype:
-                                if 'Starlink' in name: mtype = 'Communications'
-                                elif 'Jilin-1' in name: mtype = 'Earth Science'
-                                elif 'OneWeb' in name: mtype = 'Communications'
-                                elif 'Galileo' in name: mtype = 'Navigation'
-                            
-                            if mtype.lower() in valid_types:
-                                aid = h.get('api_id')
-                                if aid and aid not in payloads_map:
-                                    # Convert dict to something Serializer can handle if needed
-                                    # but LaunchSerializer handles dicts too if they match fields
-                                    payloads_map[aid] = h
+            for h in history_data:
+                ldate = _to_dt(h.get('launch_date'), _FAR_PAST)
+                # ONLY past, successful, within 2 years
+                if ldate < now and ldate >= two_years_ago and 'Success' in (h.get('status') or ''):
+                    name = h.get('name', '')
+                    # Basic classification for history items that lack it
+                    mtype = h.get('mission_type', '')
+                    if not mtype:
+                        if 'Starlink' in name: mtype = 'Communications'
+                        elif 'Jilin-1' in name: mtype = 'Earth Science'
+                        elif 'OneWeb' in name: mtype = 'Communications'
+                        elif 'Galileo' in name: mtype = 'Navigation'
+
+                    if mtype.lower() in valid_types:
+                        aid = h.get('api_id')
+                        if aid and aid not in payloads_map:
+                            # Convert dict to something Serializer can handle if needed
+                            # but LaunchSerializer handles dicts too if they match fields
+                            payloads_map[aid] = h
         except Exception as e:
             logger.error(f"Failed to load history in PayloadsInOrbitView: {e}")
 
