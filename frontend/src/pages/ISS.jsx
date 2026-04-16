@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, Suspense, useCallback, useMemo, memo } from 'react'
 import Globe from '../components/Globe'
-import { Bell, BellOff, MapPin, Navigation, AlertCircle, Users, Globe as GlobeIcon, Rocket, Calendar, Info, X, RotateCcw } from 'lucide-react'
+import { Bell, BellOff, MapPin, Navigation, AlertCircle, RotateCcw } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { twoline2satrec, propagate, gstime, eciToGeodetic } from 'satellite.js'
 import CrewModal from '../components/CrewModal'
