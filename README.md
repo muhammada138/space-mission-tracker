@@ -2,7 +2,7 @@
 
 A professional mission control dashboard that brings the scale of space exploration to your screen. This full-stack application provides real-time tracking for global rocket launches and the International Space Station, featuring an interactive 3D WebGL globe and a dedicated telemetry monitor for Starship flight testing.
 
-**[Live Site](https://space-mission-tracker-nine.vercel.app/)**
+**Live at [SpaceTracker](https://space-mission-tracker-nine.vercel.app/)**
 
 
 ---
