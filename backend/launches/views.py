@@ -635,9 +635,10 @@ class ISSCrewView(APIView):
     def get(self, request):
 
         now = timezone.now()
+        force_refresh = request.query_params.get('force_refresh') == 'true'
 
         # Return cached response if still fresh
-        if self._cache['data'] and self._cache['expires'] and now < self._cache['expires']:
+        if not force_refresh and self._cache['data'] and self._cache['expires'] and now < self._cache['expires']:
             return Response(self._cache['data'])
 
         with httpx.Client(timeout=15) as client:
@@ -654,6 +655,10 @@ class ISSCrewView(APIView):
                 results = resp.json().get('results', [])
 
                 for a in results:
+                    # Robust in_space double check
+                    if a.get('in_space') is False:
+                        continue
+
                     entry = {
                         'name': a.get('name', ''),
                         'nationality': a.get('nationality', ''),
@@ -669,17 +674,32 @@ class ISSCrewView(APIView):
                         'status': {'name': (a.get('status') or {}).get('name', 'Active')},
                         'wiki_url': a.get('wiki', ''),
                     }
-                    craft = 'ISS'
-                    try:
-                        last_flight = (a.get('last_flight') or '')
-                        if 'shenzhou' in last_flight.lower() or 'tiangong' in last_flight.lower():
+                    
+                    # Improved Craft Detection
+                    craft = 'ISS' # Default fallback
+                    ss = a.get('spacestation')
+                    if ss and isinstance(ss, dict):
+                        ss_name = ss.get('name', '')
+                        if 'International Space Station' in ss_name:
+                            craft = 'ISS'
+                        elif 'Tiangong' in ss_name or 'CSS' in ss_name:
                             craft = 'Tiangong'
-                        for f in (a.get('flights', []) or []):
-                            if 'shenzhou' in (f.get('name') or '').lower():
+                        else:
+                            craft = ss_name
+                    else:
+                        # Transit detection fallback
+                        try:
+                            last_flight = (a.get('last_flight') or '')
+                            if 'shenzhou' in last_flight.lower() or 'tiangong' in last_flight.lower():
                                 craft = 'Tiangong'
-                                break
-                    except Exception:
-                        pass
+                            else:
+                                for f in (a.get('flights', []) or []):
+                                    if 'shenzhou' in (f.get('name') or '').lower():
+                                        craft = 'Tiangong'
+                                        break
+                        except Exception:
+                            pass
+                            
                     entry['craft'] = craft
                     crew.append(entry)
 
@@ -739,7 +759,7 @@ class ISSCrewView(APIView):
                 logger.warning(f'Wikipedia enrichment failed: {e}')
 
             result = {'crew': crew, 'count': len(crew), 'source': source}
-            ttl = dt.timedelta(hours=2) if source == 'll2' else dt.timedelta(minutes=30)
+            ttl = dt.timedelta(minutes=30)
             ISSCrewView._cache = {'data': result, 'expires': now + ttl}
             return Response(result)
 

@@ -1,18 +1,24 @@
 import { useState, useEffect } from 'react'
-import { Users, Globe as GlobeIcon, Rocket, Calendar, Info } from 'lucide-react'
+import { Users, Globe as GlobeIcon, Rocket, Calendar, Info, RotateCcw } from 'lucide-react'
 import { getFlag } from '../utils/getFlag'
 import CrewModal from '../components/CrewModal'
+import toast from 'react-hot-toast'
 
 export default function Astronauts() {
     const [crew, setCrew] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(false)
     const [selectedPerson, setSelectedPerson] = useState(null)
+    const [refreshing, setRefreshing] = useState(false)
 
-    const fetchCrew = () => {
-        setLoading(true)
+    const fetchCrew = (force = false) => {
+        if (force) setRefreshing(true)
+        else setLoading(true)
+        
         setError(false)
-        fetch('/api/iss-crew/')
+        const url = force ? '/api/iss-crew/?force_refresh=true' : '/api/iss-crew/'
+        
+        fetch(url)
             .then(r => {
                 if (!r.ok) throw new Error(r.status)
                 return r.json()
@@ -21,11 +27,17 @@ export default function Astronauts() {
                 const filteredCrew = (data.crew || []).filter(p => !p.name.toLowerCase().includes('starman'))
                 if (filteredCrew.length > 0) {
                     setCrew(filteredCrew)
+                    if (force) toast.success('Personnel data updated')
                 } else {
                     throw new Error('Empty crew from backend')
                 }
             })
             .catch(err => {
+                if (force) {
+                    toast.error('Refresh failed')
+                    setRefreshing(false)
+                    return
+                }
                 console.warn('Backend crew fetch failed, trying LL2 direct:', err)
                 fetch('https://ll.thespacedevs.com/2.2.0/astronaut/?in_space=true&mode=detailed&limit=30')
                     .then(r => r.json())
@@ -102,9 +114,20 @@ export default function Astronauts() {
                 <h1 style={{ margin: '0 0 10px', fontSize: 36, fontWeight: 900, letterSpacing: '-0.04em' }}>
                     Humans in <span style={{ color: 'var(--accent)' }}>Orbit</span>
                 </h1>
-                <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 16, fontWeight: 500 }}>
-                    Currently tracking {crew.length} active personnel aboard orbital platforms
-                </p>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20 }}>
+                    <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 16, fontWeight: 500 }}>
+                        Currently tracking {crew.length} active personnel aboard orbital platforms
+                    </p>
+                    <button 
+                        className={`btn ${refreshing ? 'btn-disabled' : 'btn-ghost'}`} 
+                        onClick={() => fetchCrew(true)}
+                        disabled={refreshing}
+                        style={{ padding: '8px 16px', fontSize: 13, gap: 8 }}
+                    >
+                        <RotateCcw size={14} className={refreshing ? 'spin' : ''} />
+                        {refreshing ? 'Updating...' : 'Force Refresh'}
+                    </button>
+                </div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 60 }}>

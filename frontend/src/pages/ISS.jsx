@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, Suspense, useCallback, useMemo, memo } from 'react'
 import Globe from '../components/Globe'
-import { Bell, BellOff, MapPin, Navigation, AlertCircle, Users, Globe as GlobeIcon, Rocket, Calendar, Info, X } from 'lucide-react'
+import { Bell, BellOff, MapPin, Navigation, AlertCircle, Users, Globe as GlobeIcon, Rocket, Calendar, Info, X, RotateCcw } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { twoline2satrec, propagate, gstime, eciToGeodetic } from 'satellite.js'
 import CrewModal from '../components/CrewModal'
@@ -226,10 +226,11 @@ export default function ISS() {
   }, [])
 
   // Fetch crew data with robust fallback
-  const fetchCrew = useCallback(() => {
+  const fetchCrew = useCallback((force = false) => {
     setCrewLoading(true)
     setCrewError(false)
-    fetch('/api/iss-crew/')
+    const url = force ? '/api/iss-crew/?force_refresh=true' : '/api/iss-crew/'
+    fetch(url)
       .then(r => {
         if (!r.ok) throw new Error(r.status)
         return r.json()
@@ -238,11 +239,17 @@ export default function ISS() {
         const filtered = (data.crew || []).filter(p => !p.name.toLowerCase().includes('starman'))
         if (filtered.length > 0) {
           setCrew(filtered)
+          if (force) toast.success('Crew data refreshed')
         } else {
           throw new Error('Empty crew')
         }
       })
       .catch(() => {
+        if (force) {
+          toast.error('Failed to force refresh crew')
+          setCrewLoading(false)
+          return
+        }
         // Direct fallback to LL2
         fetch('https://ll.thespacedevs.com/2.2.0/astronaut/?in_space=true&mode=detailed&limit=30')
           .then(r => r.json())
@@ -342,6 +349,18 @@ export default function ISS() {
           </div>
         ) : (
           <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, letterSpacing: '-0.02em' }}>Current Personnel</h3>
+              <button 
+                className="btn btn-ghost" 
+                onClick={() => fetchCrew(true)}
+                disabled={crewLoading}
+                style={{ padding: '6px 12px', fontSize: 12, gap: 6 }}
+              >
+                <RotateCcw size={12} className={crewLoading ? 'spin' : ''} />
+                Refresh
+              </button>
+            </div>
             {Object.entries(groupedCrew).map(([craft, members]) => (
               <div key={craft} style={{ marginBottom: 24 }}>
                 <h4 style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'var(--font-mono)' }}>
