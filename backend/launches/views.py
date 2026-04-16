@@ -938,16 +938,38 @@ class StarshipTestsView(APIView):
                 tx_resp = httpx.get('https://syndication.twitter.com/srv/timeline-profile/screen-name/SpaceX', timeout=8)
                 if tx_resp.status_code == 200:
                     import re
+
+                    # Pre-extract all keywords for fast path checking
+                    all_keywords = []
+                    for d in checklist_defs:
+                        all_keywords.extend(d['keywords'])
+
                     # Look for text in the timeline JSON
                     tweets = re.findall(r'\"text\":\"([^\"]+)\"', tx_resp.text)
                     for tweet in tweets:
-                        t_lower = tweet.lower().encode('utf-8').decode('unicode-escape', 'ignore')
+                        t_lower = tweet.lower()
+
+                        # Fast path: check if ANY keyword is in the raw lowercase tweet.
+                        # If not, skip the expensive decode.
+                        match_found = False
+                        for k in all_keywords:
+                            if k in t_lower:
+                                match_found = True
+                                break
+
+                        if not match_found:
+                            continue
+
+                        t_lower_decoded = t_lower.encode('utf-8').decode('unicode-escape', 'ignore')
+
                         for d in checklist_defs:
-                            if any(k in t_lower for k in d['keywords']):
-                                if 'static fire' in t_lower and 'complete' in t_lower:
-                                    task_status[d['key']] = 'complete'
-                                if 'stacked' in t_lower or 'stacking' in t_lower:
-                                    task_status[d['key']] = 'complete'
+                            for k in d['keywords']:
+                                if k in t_lower_decoded:
+                                    if 'static fire' in t_lower_decoded and 'complete' in t_lower_decoded:
+                                        task_status[d['key']] = 'complete'
+                                    if 'stacked' in t_lower_decoded or 'stacking' in t_lower_decoded:
+                                        task_status[d['key']] = 'complete'
+                                    break
             except Exception:
                 pass
 
