@@ -1,11 +1,9 @@
 import httpx
 import pytest
 from unittest.mock import patch, MagicMock
-from django.urls import reverse
 from rest_framework.test import APIClient
 from launches.models import Launch
 from launches.views import LaunchPadWeatherView
-import httpx
 
 @pytest.fixture
 def api_client():
