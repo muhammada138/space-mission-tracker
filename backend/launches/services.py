@@ -327,6 +327,29 @@ def get_past_launches(limit: int = 20) -> list:
     )
 
 
+def refresh_launches_by_api_ids(api_ids: list[str]) -> list[Launch]:
+    """Fetch multiple launches by LL2 api_ids in a single API call."""
+    if not api_ids:
+        return []
+
+    # Do not include spacex_ prefixed ids, they are not valid LL2 ids
+    ll2_ids = [str(api_id) for api_id in api_ids if not str(api_id).startswith('spacex_')]
+    if not ll2_ids:
+        return []
+
+    try:
+        resp = httpx.get(
+            f'{LL2_BASE}/launch/',
+            params={'id__in': ','.join(ll2_ids), 'mode': 'detailed', 'limit': len(ll2_ids)},
+            timeout=15,
+        )
+        resp.raise_for_status()
+        results = resp.json().get('results', [])
+        return _upsert_launches(results)
+    except Exception:
+        return list(Launch.objects.filter(api_id__in=ll2_ids))
+
+
 def get_launch_by_api_id(api_id: str, force_refresh: bool = False) -> Launch | None:
     """Fetch a single launch by LL2 api_id, refreshing cache if stale."""
     # Handle SpaceX-prefixed IDs by routing to SpaceX service

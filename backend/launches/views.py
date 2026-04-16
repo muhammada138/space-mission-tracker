@@ -11,7 +11,7 @@ from rest_framework.views import APIView
 
 from .models import Launch
 from .serializers import LaunchSerializer, BriefLaunchSerializer
-from .services import get_upcoming_launches, get_past_launches, get_launch_by_api_id
+from .services import get_upcoming_launches, get_past_launches, get_launch_by_api_id, refresh_launches_by_api_ids
 from .spacex_service import get_spacex_upcoming_launches, get_spacex_past_launches
 import httpx
 import json
@@ -241,6 +241,9 @@ class ActiveLaunchesView(APIView):
         ).order_by('-launch_date'))
         
         active = []
+        needs_refresh = []
+        spacex_refresh = []
+
         for l in raw_active:
             ldate = _to_dt(l.launch_date, _FAR_PAST)
             # 24h safety cutoff for "In Flight" status
@@ -250,14 +253,34 @@ class ActiveLaunchesView(APIView):
                 if ldate < (now - timedelta(hours=48)):
                     continue
                 # If between 24-48h old, try to refresh once to confirm it's over
-                try:
-                    refreshed = get_launch_by_api_id(l.api_id, force_refresh=True)
-                    if refreshed and 'in flight' in (refreshed.status or '').lower():
-                        active.append(refreshed)
-                except Exception:
-                    pass
+                if str(l.api_id).startswith('spacex_'):
+                    spacex_refresh.append(l)
+                else:
+                    needs_refresh.append(l)
             else:
                 active.append(l)
+
+        # Batch refresh LL2 launches
+        if needs_refresh:
+            try:
+                refreshed_list = refresh_launches_by_api_ids([l.api_id for l in needs_refresh])
+                for refreshed in refreshed_list:
+                    if refreshed and 'in flight' in (refreshed.status or '').lower():
+                        active.append(refreshed)
+            except Exception:
+                pass
+
+        # Fallback to individual refresh for SpaceX launches (not supported by LL2)
+        for l in spacex_refresh:
+            try:
+                refreshed = get_launch_by_api_id(l.api_id, force_refresh=True)
+                if refreshed and 'in flight' in (refreshed.status or '').lower():
+                    active.append(refreshed)
+            except Exception:
+                pass
+
+        # Re-sort to preserve the expected chronological order
+        active.sort(key=lambda x: x.launch_date, reverse=True)
 
         # We purposely do NOT return early here because we want to also fetch recent success 
         # missions that have currently active spacecraft from the LL2 API.
