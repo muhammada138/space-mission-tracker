@@ -9,8 +9,8 @@ class RegisterViewTests(APITestCase):
         self.valid_payload = {
             'username': 'testuser',
             'email': 'testuser@example.com',
-            'password': 'testpassword123',
-            'password2': 'testpassword123'
+            'password': 'StrongTestP4ssw0rd!',
+            'password2': 'StrongTestP4ssw0rd!'
         }
 
     def test_user_registration_success(self):
@@ -44,6 +44,18 @@ class RegisterViewTests(APITestCase):
         payload = self.valid_payload.copy()
         payload['password'] = 'short'
         payload['password2'] = 'short'
+        response = self.client.post(self.register_url, payload, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(User.objects.count(), 0)
+        self.assertIn('password', response.data)
+
+    def test_user_registration_weak_password(self):
+        """
+        Ensure registration fails if password is too common or weak.
+        """
+        payload = self.valid_payload.copy()
+        payload['password'] = 'password123'
+        payload['password2'] = 'password123'
         response = self.client.post(self.register_url, payload, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(User.objects.count(), 0)

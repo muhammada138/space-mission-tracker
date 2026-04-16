@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { CloudRain, Wind, Eye, Thermometer, Droplets, Zap, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
+import { CloudRain, Wind, Eye, Thermometer, Droplets, Zap, CheckCircle, XCircle } from 'lucide-react'
 import api from '../api/axios'
 
 function RuleRow({ rule }) {
