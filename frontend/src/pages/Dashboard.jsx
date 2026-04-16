@@ -18,7 +18,7 @@ const ACHIEVEMENTS = [
     name: 'First Contact',
     desc: 'Save your first mission to watchlist',
     color: '#00d4ff',
-    check: (w, l) => w >= 1,
+    check: (w) => w >= 1,
   },
   {
     id: 'watch5',
@@ -26,7 +26,7 @@ const ACHIEVEMENTS = [
     name: 'Mission Analyst',
     desc: 'Track 5 missions',
     color: '#7c3aed',
-    check: (w, l) => w >= 5,
+    check: (w) => w >= 5,
   },
   {
     id: 'watch20',
@@ -34,7 +34,7 @@ const ACHIEVEMENTS = [
     name: 'Deep Space Observer',
     desc: 'Track 20 missions',
     color: '#f59e0b',
-    check: (w, l) => w >= 20,
+    check: (w) => w >= 20,
   },
   {
     id: 'first_log',
@@ -42,7 +42,7 @@ const ACHIEVEMENTS = [
     name: 'Field Reporter',
     desc: 'Write your first mission log',
     color: '#34d399',
-    check: (w, l) => l >= 1,
+    check: (_, l) => l >= 1,
   },
   {
     id: 'log5',
@@ -50,7 +50,7 @@ const ACHIEVEMENTS = [
     name: 'Correspondent',
     desc: 'Write 5 mission logs',
     color: '#fb923c',
-    check: (w, l) => l >= 5,
+    check: (_, l) => l >= 5,
   },
   {
     id: 'log20',
@@ -58,7 +58,7 @@ const ACHIEVEMENTS = [
     name: 'Space Historian',
     desc: 'Write 20 mission logs',
     color: '#e879f9',
-    check: (w, l) => l >= 20,
+    check: (_, l) => l >= 20,
   },
   {
     id: 'scholar',
@@ -121,6 +121,199 @@ function AchievementBadge({ achievement, unlocked }) {
   )
 }
 
+// ── Tab Components ─────────────────────────────────────────────────────────
+
+function WatchlistTab({ watchlist, sortedWatchlist, navigate, removeFromWatchlist }) {
+  if (watchlist.length === 0) {
+    return (
+      <motion.div
+        key="empty-w"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="empty-state"
+      >
+        <div className="icon">🎯</div>
+        <p style={{ marginBottom: 16, color: 'var(--text-secondary)' }}>No tracked missions yet.</p>
+        <button className="btn btn-primary" onClick={() => navigate('/')}>Browse Launches</button>
+      </motion.div>
+    )
+  }
+
+  return (
+    <motion.div
+      key="watchlist-grid"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      style={{ position: 'relative', paddingLeft: 24 }}
+    >
+      <div style={{ position: 'absolute', top: 0, bottom: 0, left: 8, width: 2, background: 'var(--border)' }} />
+      {sortedWatchlist.map((entry, i) => {
+        const isUpcoming = entry.launch?.launch_date && new Date(entry.launch.launch_date) > new Date()
+        return (
+          <motion.div
+            key={entry.id}
+            initial={{ opacity: 0, x: -10 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: i * 0.05 }}
+            style={{ position: 'relative', marginBottom: 16 }}
+          >
+            <div style={{
+              position: 'absolute', left: -20, top: 20,
+              width: 10, height: 10, borderRadius: '50%',
+              background: isUpcoming ? 'var(--accent)' : 'var(--text-muted)',
+              border: '2px solid var(--bg-base)',
+              boxShadow: isUpcoming ? '0 0 8px var(--accent)' : 'none',
+            }} />
+            <div className="glass" style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', cursor: 'pointer' }}
+              onClick={() => navigate(`/launch/${entry.launch.api_id}`)}>
+              {entry.launch.image_url ? (
+                <img src={entry.launch.image_url} alt="" style={{ width: 64, height: 48, objectFit: 'cover', borderRadius: 8, flexShrink: 0 }} />
+              ) : (
+                <div style={{ width: 64, height: 48, borderRadius: 8, background: 'linear-gradient(135deg,#0a1428,#150d2e)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>🚀</div>
+              )}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ margin: '0 0 2px', fontWeight: 700, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.launch.name}</p>
+                <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                  {entry.launch.launch_date ? format(new Date(entry.launch.launch_date), 'MMM d, yyyy') : 'TBD'}
+                </p>
+              </div>
+              {isUpcoming && entry.launch.launch_date && (
+                <div style={{ flexShrink: 0 }}>
+                  <CountdownTimer targetDate={entry.launch.launch_date} />
+                </div>
+              )}
+              <button className="btn btn-danger" style={{ padding: '6px 10px', flexShrink: 0 }}
+                onClick={e => { e.stopPropagation(); removeFromWatchlist(entry.id) }}>
+                <Trash2 size={13} />
+              </button>
+            </div>
+          </motion.div>
+        )
+      })}
+    </motion.div>
+  )
+}
+
+function LogsTab({ logs, navigate, setEditLog, setShowLogModal, deleteLog }) {
+  if (logs.length === 0) {
+    return (
+      <motion.div
+        key="empty-l"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="empty-state"
+      >
+        <div className="icon">📓</div>
+        <p style={{ color: 'var(--text-secondary)' }}>No mission logs yet. Visit a launch and write your first log!</p>
+      </motion.div>
+    )
+  }
+
+  return (
+    <motion.div
+      key="logs-list"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      style={{ display: 'flex', flexDirection: 'column', gap: 14 }}
+    >
+      {logs
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        .map((log, i) => (
+          <motion.div
+            key={log.id}
+            initial={{ opacity: 0, y: 10 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: i * 0.04 }}
+            className="glass"
+            style={{ padding: '20px 24px' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+              <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => navigate(`/launch/${log.launch.api_id}`)}>
+                <p style={{ margin: '0 0 4px', fontSize: 10, fontWeight: 700, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--accent)' }}>
+                  {log.launch.name}
+                </p>
+                <h3 style={{ margin: '0 0 8px', fontSize: 16, fontWeight: 700 }}>{log.title}</h3>
+                <p style={{ margin: '0 0 10px', color: 'var(--text-secondary)', lineHeight: 1.65, fontSize: 13 }}>{log.body}</p>
+                <p style={{ margin: 0, fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                  {format(new Date(log.created_at), 'MMM d, yyyy / HH:mm')}
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexShrink: 0, paddingTop: 4 }}>
+                <button className="btn btn-ghost" style={{ padding: '6px 10px', fontSize: 11 }}
+                  onClick={() => { setEditLog(log); setShowLogModal(true) }}>
+                  <NotebookPen size={13} />
+                </button>
+                <button className="btn btn-danger" style={{ padding: '6px 10px' }}
+                  onClick={() => deleteLog(log.id)}>
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        ))}
+    </motion.div>
+  )
+}
+
+function AchievementsTab({ unlockedAchievements, totalAchievements, watchlist, logs }) {
+  return (
+    <motion.div
+      key="achievements-grid"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      <div style={{ marginBottom: 20 }}>
+        <p style={{ margin: '0 0 6px', fontSize: 14, color: 'var(--text-secondary)' }}>
+          You've unlocked <span style={{ color: '#fbbf24', fontWeight: 700 }}>{unlockedAchievements.length}</span> of {totalAchievements} achievements.
+        </p>
+        {/* Overall progress bar */}
+        <div style={{ height: 6, background: 'var(--border)', borderRadius: 3, overflow: 'hidden' }}>
+          <motion.div
+            initial={{ width: 0 }}
+            whileInView={{ width: `${(unlockedAchievements.length / totalAchievements) * 100}%` }}
+            transition={{ duration: 1, ease: "easeOut" }}
+            style={{ height: '100%', background: 'linear-gradient(90deg, #fbbf24, #f59e0b)', borderRadius: 3 }}
+          />
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
+        {ACHIEVEMENTS.map(a => (
+          <AchievementBadge
+            key={a.id}
+            achievement={a}
+            unlocked={a.check(watchlist.length, logs.length)}
+          />
+        ))}
+      </div>
+
+      {unlockedAchievements.length < totalAchievements && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          className="glass"
+          style={{ marginTop: 24, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12 }}
+        >
+          <span style={{ fontSize: 20 }}>💡</span>
+          <div>
+            <p style={{ margin: '0 0 2px', fontSize: 13, fontWeight: 600 }}>Keep exploring</p>
+            <p style={{ margin: 0, fontSize: 12, color: 'var(--text-secondary)' }}>
+              {totalAchievements - unlockedAchievements.length} more achievements to unlock. Track more missions and write your logs!
+            </p>
+          </div>
+        </motion.div>
+      )}
+    </motion.div>
+  )
+}
+
 // ── Main Dashboard ──────────────────────────────────────────────────────────
 
 export default function Dashboard() {
@@ -134,15 +327,27 @@ export default function Dashboard() {
   const [showLogModal, setShowLogModal] = useState(false)
 
   useEffect(() => {
+    let isMounted = true
     setLoading(true)
-    Promise.all([
-      api.get('/watchlist/'),
-      api.get('/watchlist/logs/'),
-    ]).then(([wRes, lRes]) => {
-      setWatchlist(Array.isArray(wRes.data) ? wRes.data : wRes.data.results ?? [])
-      setLogs(Array.isArray(lRes.data) ? lRes.data : lRes.data.results ?? [])
-    }).catch(() => toast.error('Failed to load dashboard'))
-      .finally(() => setLoading(false))
+    const fetchData = async () => {
+      try {
+        const [wRes, lRes] = await Promise.all([
+          api.get('/watchlist/'),
+          api.get('/watchlist/logs/'),
+        ])
+        if (isMounted) {
+          setWatchlist(Array.isArray(wRes.data) ? wRes.data : wRes.data.results ?? [])
+          setLogs(Array.isArray(lRes.data) ? lRes.data : lRes.data.results ?? [])
+        }
+      } catch {
+        if (isMounted) toast.error('Failed to load dashboard')
+      } finally {
+        if (isMounted) setLoading(false)
+      }
+    }
+
+    fetchData()
+    return () => { isMounted = false }
   }, [])
 
   const removeFromWatchlist = async (id) => {
@@ -234,186 +439,33 @@ export default function Dashboard() {
       {/* Watchlist as timeline */}
       <AnimatePresence mode="wait">
         {!loading && tab === 'watchlist' && (
-          watchlist.length === 0 ? (
-            <motion.div 
-              key="empty-w"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="empty-state"
-            >
-              <div className="icon">🎯</div>
-              <p style={{ marginBottom: 16, color: 'var(--text-secondary)' }}>No tracked missions yet.</p>
-              <button className="btn btn-primary" onClick={() => navigate('/')}>Browse Launches</button>
-            </motion.div>
-          ) : (
-            <motion.div 
-              key="watchlist-grid"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              style={{ position: 'relative', paddingLeft: 24 }}
-            >
-              <div style={{ position: 'absolute', top: 0, bottom: 0, left: 8, width: 2, background: 'var(--border)' }} />
-              {sortedWatchlist.map((entry, i) => {
-                const isUpcoming = entry.launch?.launch_date && new Date(entry.launch.launch_date) > new Date()
-                return (
-                  <motion.div 
-                    key={entry.id} 
-                    initial={{ opacity: 0, x: -10 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: i * 0.05 }}
-                    style={{ position: 'relative', marginBottom: 16 }}
-                  >
-                    <div style={{
-                      position: 'absolute', left: -20, top: 20,
-                      width: 10, height: 10, borderRadius: '50%',
-                      background: isUpcoming ? 'var(--accent)' : 'var(--text-muted)',
-                      border: '2px solid var(--bg-base)',
-                      boxShadow: isUpcoming ? '0 0 8px var(--accent)' : 'none',
-                    }} />
-                    <div className="glass" style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', cursor: 'pointer' }}
-                      onClick={() => navigate(`/launch/${entry.launch.api_id}`)}>
-                      {entry.launch.image_url ? (
-                        <img src={entry.launch.image_url} alt="" style={{ width: 64, height: 48, objectFit: 'cover', borderRadius: 8, flexShrink: 0 }} />
-                      ) : (
-                        <div style={{ width: 64, height: 48, borderRadius: 8, background: 'linear-gradient(135deg,#0a1428,#150d2e)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>🚀</div>
-                      )}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ margin: '0 0 2px', fontWeight: 700, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.launch.name}</p>
-                        <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                          {entry.launch.launch_date ? format(new Date(entry.launch.launch_date), 'MMM d, yyyy') : 'TBD'}
-                        </p>
-                      </div>
-                      {isUpcoming && entry.launch.launch_date && (
-                        <div style={{ flexShrink: 0 }}>
-                          <CountdownTimer targetDate={entry.launch.launch_date} />
-                        </div>
-                      )}
-                      <button className="btn btn-danger" style={{ padding: '6px 10px', flexShrink: 0 }}
-                        onClick={e => { e.stopPropagation(); removeFromWatchlist(entry.id) }}>
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
-                  </motion.div>
-                )
-              })}
-            </motion.div>
-          )
+          <WatchlistTab
+            watchlist={watchlist}
+            sortedWatchlist={sortedWatchlist}
+            navigate={navigate}
+            removeFromWatchlist={removeFromWatchlist}
+          />
         )}
 
         {/* Mission logs as journal entries */}
         {!loading && tab === 'logs' && (
-          logs.length === 0 ? (
-            <motion.div 
-              key="empty-l"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="empty-state"
-            >
-              <div className="icon">📓</div>
-              <p style={{ color: 'var(--text-secondary)' }}>No mission logs yet. Visit a launch and write your first log!</p>
-            </motion.div>
-          ) : (
-            <motion.div 
-              key="logs-list"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              style={{ display: 'flex', flexDirection: 'column', gap: 14 }}
-            >
-              {logs
-                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-                .map((log, i) => (
-                  <motion.div 
-                    key={log.id} 
-                    initial={{ opacity: 0, y: 10 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: i * 0.04 }}
-                    className="glass" 
-                    style={{ padding: '20px 24px' }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-                      <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => navigate(`/launch/${log.launch.api_id}`)}>
-                        <p style={{ margin: '0 0 4px', fontSize: 10, fontWeight: 700, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--accent)' }}>
-                          {log.launch.name}
-                        </p>
-                        <h3 style={{ margin: '0 0 8px', fontSize: 16, fontWeight: 700 }}>{log.title}</h3>
-                        <p style={{ margin: '0 0 10px', color: 'var(--text-secondary)', lineHeight: 1.65, fontSize: 13 }}>{log.body}</p>
-                        <p style={{ margin: 0, fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                          {format(new Date(log.created_at), 'MMM d, yyyy / HH:mm')}
-                        </p>
-                      </div>
-                      <div style={{ display: 'flex', gap: 6, flexShrink: 0, paddingTop: 4 }}>
-                        <button className="btn btn-ghost" style={{ padding: '6px 10px', fontSize: 11 }}
-                          onClick={() => { setEditLog(log); setShowLogModal(true) }}>
-                          <NotebookPen size={13} />
-                        </button>
-                        <button className="btn btn-danger" style={{ padding: '6px 10px' }}
-                          onClick={() => deleteLog(log.id)}>
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-            </motion.div>
-          )
+          <LogsTab
+            logs={logs}
+            navigate={navigate}
+            setEditLog={setEditLog}
+            setShowLogModal={setShowLogModal}
+            deleteLog={deleteLog}
+          />
         )}
 
         {/* Achievements */}
         {!loading && tab === 'achievements' && (
-          <motion.div 
-            key="achievements-grid"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <div style={{ marginBottom: 20 }}>
-              <p style={{ margin: '0 0 6px', fontSize: 14, color: 'var(--text-secondary)' }}>
-                You've unlocked <span style={{ color: '#fbbf24', fontWeight: 700 }}>{unlockedAchievements.length}</span> of {totalAchievements} achievements.
-              </p>
-              {/* Overall progress bar */}
-              <div style={{ height: 6, background: 'var(--border)', borderRadius: 3, overflow: 'hidden' }}>
-                <motion.div 
-                  initial={{ width: 0 }}
-                  whileInView={{ width: `${(unlockedAchievements.length / totalAchievements) * 100}%` }}
-                  transition={{ duration: 1, ease: "easeOut" }}
-                  style={{ height: '100%', background: 'linear-gradient(90deg, #fbbf24, #f59e0b)', borderRadius: 3 }} 
-                />
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
-              {ACHIEVEMENTS.map(a => (
-                <AchievementBadge
-                  key={a.id}
-                  achievement={a}
-                  unlocked={a.check(watchlist.length, logs.length)}
-                />
-              ))}
-            </div>
-
-            {unlockedAchievements.length < totalAchievements && (
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                className="glass" 
-                style={{ marginTop: 24, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12 }}
-              >
-                <span style={{ fontSize: 20 }}>💡</span>
-                <div>
-                  <p style={{ margin: '0 0 2px', fontSize: 13, fontWeight: 600 }}>Keep exploring</p>
-                  <p style={{ margin: 0, fontSize: 12, color: 'var(--text-secondary)' }}>
-                    {totalAchievements - unlockedAchievements.length} more achievements to unlock. Track more missions and write your logs!
-                  </p>
-                </div>
-              </motion.div>
-            )}
-          </motion.div>
+          <AchievementsTab
+            unlockedAchievements={unlockedAchievements}
+            totalAchievements={totalAchievements}
+            watchlist={watchlist}
+            logs={logs}
+          />
         )}
       </AnimatePresence>
 

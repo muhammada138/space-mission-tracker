@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Bookmark, BookmarkCheck, ExternalLink, MapPin, Globe, Radio, Rocket, Play, Share2, Bell, BellOff, Activity, ThumbsUp, ThumbsDown, Minus, CheckCircle } from 'lucide-react'
 import { format, formatDistanceToNow } from 'date-fns'
-import { motion, AnimatePresence } from 'framer-motion'
+// eslint-disable-next-line no-unused-vars
+import { motion } from 'framer-motion'
 import api from '../api/axios'
 import { useAuth } from '../context/AuthContext'
 import CountdownTimer from '../components/CountdownTimer'
@@ -123,6 +124,307 @@ function PredictionWidget({ apiId }) {
 
 // ── Main Page ────────────────────────────────────────────────────────────────
 
+
+// ── Extracted Sub-Components ──────────────────────────────────────────────────
+
+function LaunchHero({ launch }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="detail-hero"
+    >
+      {launch.image_url ? (
+        <img src={launch.image_url} alt={launch.name} />
+      ) : (
+        <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg, #0a1428, #150d2e, #0a1428)' }} />
+      )}
+      <div className="detail-hero-gradient" />
+    </motion.div>
+  )
+}
+
+function LaunchHeader({ launch, isActive, ytId, isUpcoming }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      style={{ marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' }}
+    >
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+          <span className={`badge ${getStatusClass(launch.status)}`}>{launch.status || 'Unknown'}</span>
+          {isActive && (
+            <span className="badge badge-accent" style={{ animation: 'pulse 2s infinite' }}>
+              <Radio size={10} /> Live Now
+            </span>
+          )}
+        </div>
+        <h1 style={{ fontSize: 'clamp(28px, 4vw, 36px)', margin: '0 0 8px', lineHeight: 1.1 }}>{launch.name}</h1>
+        <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 15 }}>
+          {launch.launch_provider} • {launch.rocket}
+        </p>
+      </div>
+
+      {launch.webcast_url && !isUpcoming && !ytId && (
+        <a href={launch.webcast_url} target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{ padding: '12px 24px' }}>
+          <Play size={16} fill="currentColor" /> WATCH REPLAY
+        </a>
+      )}
+    </motion.div>
+  )
+}
+
+function LaunchVideo({ ytId }) {
+  if (!ytId) return null;
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.98 }}
+      whileInView={{ opacity: 1, scale: 1 }}
+      viewport={{ once: true }}
+      style={{ marginBottom: 24 }}
+    >
+      <div style={{ position: 'relative', paddingBottom: '56.25%', borderRadius: 16, overflow: 'hidden', background: '#000', border: '1px solid var(--border)', boxShadow: 'var(--shadow-lg)' }}>
+        <iframe
+          src={`https://www.youtube.com/embed/${ytId}?autoplay=0&rel=0`}
+          title="Launch webcast"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
+        />
+      </div>
+    </motion.div>
+  )
+}
+
+function LaunchCountdown({ launch, navigate }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 15 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24, marginBottom: 32, width: '100%' }}
+    >
+      <div className="glass" style={{ padding: '18px 32px', textAlign: 'center' }}>
+        <p style={{ margin: '0 0 10px', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+          T-Minus to Launch
+        </p>
+        <CountdownTimer targetDate={launch.launch_date} large />
+      </div>
+
+      <button
+        className="btn btn-primary"
+        onClick={() => navigate(`/live/${launch.api_id}`)}
+        style={{
+          padding: '16px 40px', fontSize: 15, fontWeight: 800,
+          display: 'flex', alignItems: 'center', gap: 12,
+          background: 'var(--gradient-brand)', border: 'none',
+          animation: 'urgentPulse 2s ease-in-out infinite',
+          boxShadow: '0 8px 25px rgba(0, 212, 255, 0.25)',
+          borderRadius: 12
+        }}
+      >
+        <Radio size={18} /> WATCH LIVE TRACKER
+      </button>
+    </motion.div>
+  )
+}
+
+function LaunchInfoGrid({ launch, isUpcoming }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 15 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      className="glass"
+      style={{ padding: '20px 24px', marginBottom: 18 }}
+    >
+      <h3 style={{ margin: '0 0 14px', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        At a Glance
+      </h3>
+      <div className="info-grid">
+        <InfoRow icon={<Rocket size={13} />} label="Rocket" value={launch.rocket} />
+        <InfoRow icon={<Globe size={13} />} label="Provider" value={launch.launch_provider} />
+        <InfoRow icon={<MapPin size={13} />} label="Pad" value={launch.pad_name} />
+        <InfoRow icon={<MapPin size={13} />} label="Location" value={launch.pad_location} />
+        {launch.landing_pad && (
+          <InfoRow icon={<CheckCircle size={13} />} label="Landing Pad" value={launch.landing_pad} />
+        )}
+        <InfoRow icon={<Radio size={13} />} label="Orbit" value={launch.orbit} />
+        <InfoRow label="Date" value={launch.launch_date ? format(new Date(launch.launch_date), 'MMM d, yyyy - HH:mm z') : 'TBD'} />
+        {!isUpcoming && launch.launch_date && (
+          <InfoRow label="Time ago" value={formatDistanceToNow(new Date(launch.launch_date), { addSuffix: true })} />
+        )}
+      </div>
+    </motion.div>
+  )
+}
+
+function LiveUpdatesWidget({ updates }) {
+  if (!updates || updates.length === 0) return null;
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 15 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      className="glass"
+      style={{ padding: '20px 24px', marginBottom: 18, border: '1px solid var(--accent)' }}
+    >
+      <h3 style={{ margin: '0 0 14px', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <Activity size={14} /> Live Updates
+      </h3>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {updates.map(update => (
+          <div key={update.id} style={{ borderLeft: '2px solid var(--accent)', paddingLeft: 12 }}>
+            <p style={{ margin: '0 0 4px', fontSize: 13, lineHeight: 1.5, color: 'var(--text-main)' }}>
+              {update.comment}
+            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+              <span>{format(new Date(update.created_on), 'MMM d, HH:mm')}</span>
+              {update.info_url && (
+                <a href={update.info_url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', textDecoration: 'none' }}>Source</a>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </motion.div>
+  )
+}
+
+function MissionBriefWidget({ launch }) {
+  if (!launch.mission_description) return null;
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 15 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      className="glass"
+      style={{ padding: '20px 24px', marginBottom: 18 }}
+    >
+      <h3 style={{ margin: '0 0 10px', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        Payload & Mission Brief
+      </h3>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+        {launch.mission_type && <span className="badge badge-default">{launch.mission_type}</span>}
+        {launch.orbit && <span className="badge badge-go">{launch.orbit}</span>}
+      </div>
+      <p style={{ margin: 0, color: 'var(--text-secondary)', lineHeight: 1.7, fontSize: 13 }}>
+        {launch.mission_description}
+      </p>
+    </motion.div>
+  )
+}
+
+function ExternalLinksWidget({ launch }) {
+  if (!launch.wiki_url) return null;
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      whileInView={{ opacity: 1 }}
+      viewport={{ once: true }}
+      style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}
+    >
+      <a href={launch.wiki_url} target="_blank" rel="noopener noreferrer" className="btn btn-ghost">
+        <ExternalLink size={13} /> Mission Wikipedia
+      </a>
+    </motion.div>
+  )
+}
+
+function MissionLogsWidget({ user, logs }) {
+  if (!user || !logs || logs.length === 0) return null;
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 15 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      className="glass"
+      style={{ padding: '20px 24px', marginBottom: 18 }}
+    >
+      <h3 style={{ margin: '0 0 14px', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        Your Mission Log
+      </h3>
+      {logs.map(log => (
+        <div key={log.id} style={{ marginBottom: 14, paddingBottom: 14, borderBottom: '1px solid var(--border)' }}>
+          <h4 style={{ margin: '0 0 4px', fontSize: 14 }}>{log.title}</h4>
+          <p style={{ margin: '0 0 6px', color: 'var(--text-secondary)', fontSize: 13, lineHeight: 1.6 }}>{log.body}</p>
+          <p style={{ margin: 0, fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+            {format(new Date(log.created_at), 'MMM d, yyyy - HH:mm')}
+          </p>
+        </div>
+      ))}
+    </motion.div>
+  )
+}
+
+function LaunchSidebar({ launch, user, isUpcoming, watchlistId, toggleWatchlist, reminded, toggleReminder, setShowShareCard, setShowLogModal }) {
+  return (
+    <div style={{ flex: '0 0 320px' }}>
+      {launch.infographic_url && (
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: true }}
+          className="glass"
+          style={{ overflow: 'hidden', marginBottom: 16 }}
+        >
+          <img src={launch.infographic_url} alt="Mission infographic" style={{ width: '100%', objectFit: 'contain', display: 'block' }} />
+        </motion.div>
+      )}
+
+      {/* Action buttons */}
+      <motion.div
+        initial={{ opacity: 0, x: 20 }}
+        whileInView={{ opacity: 1, x: 0 }}
+        viewport={{ once: true }}
+        style={{ display: 'flex', flexDirection: 'column', gap: 8, position: 'sticky', top: 80 }}
+      >
+        <button
+          className={`btn ${watchlistId ? 'btn-primary' : 'btn-ghost'}`}
+          onClick={toggleWatchlist}
+          style={{ width: '100%', justifyContent: 'center', padding: '11px 20px' }}
+        >
+          {watchlistId ? <BookmarkCheck size={14} /> : <Bookmark size={14} />}
+          {watchlistId
+            ? (isUpcoming ? 'Saved to Watchlist' : 'Saved to Memoirs')
+            : (isUpcoming ? 'Save to Watchlist' : 'Save to Memoirs')}
+        </button>
+
+        {isUpcoming && (
+          <button className={`btn ${reminded ? 'btn-accent' : 'btn-ghost'}`} onClick={toggleReminder} style={{ width: '100%', justifyContent: 'center', padding: '11px 20px' }}>
+            {reminded ? <BellOff size={14} /> : <Bell size={14} />}
+            {reminded ? 'Reminder Set' : 'Remind Me'}
+          </button>
+        )}
+
+        <button className="btn btn-ghost" onClick={() => setShowShareCard(true)} style={{ width: '100%', justifyContent: 'center', padding: '11px 20px' }}>
+          <Share2 size={14} /> Share Card
+        </button>
+
+        {user && (
+          <button className="btn btn-ghost" onClick={() => setShowLogModal(true)} style={{ width: '100%', justifyContent: 'center', padding: '11px 20px' }}>
+            Write a Log
+          </button>
+        )}
+      </motion.div>
+    </div>
+  )
+}
+
+const getIsActive = (launch) => {
+  if (!launch) return false;
+  const status = (launch.status || '').toLowerCase();
+  const isSuccess = status.includes('success');
+  const isFail = status.includes('fail');
+  const now = Date.now();
+  return ((status.includes('in flight') || status.includes('inflight')) &&
+    (launch.launch_date && (now - new Date(launch.launch_date).getTime()) < 86400000)) ||
+    (launch.launch_date && new Date(launch.launch_date) < new Date() &&
+     (now - new Date(launch.launch_date).getTime()) < 10800000 &&
+     !isSuccess && !isFail);
+};
+
 export default function LaunchDetail() {
   const { api_id } = useParams()
   const navigate = useNavigate()
@@ -138,7 +440,9 @@ export default function LaunchDetail() {
   const [reminded, setReminded] = useState(false)
   const [updates, setUpdates] = useState([])
 
+
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
     api.get(`/launches/${api_id}/`)
       .then(({ data }) => {
@@ -220,29 +524,15 @@ export default function LaunchDetail() {
   const status = (launch.status || '').toLowerCase()
   const isSuccess = status.includes('success')
   const isFail = status.includes('fail')
-  const isActive = ((status.includes('in flight') || status.includes('inflight')) && 
-    (launch.launch_date && (Date.now() - new Date(launch.launch_date).getTime()) < 86400000)) ||
-    (launch.launch_date && new Date(launch.launch_date) < new Date() &&
-     (Date.now() - new Date(launch.launch_date).getTime()) < 10800000 && // 3 hours
-     !isSuccess && !isFail)
+
 
   const ytId = getYouTubeId(launch.webcast_url)
+  const isActive = getIsActive(launch);
+
 
   return (
     <div style={{ paddingBottom: 80 }}>
-      {/* Hero banner */}
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="detail-hero"
-      >
-        {launch.image_url ? (
-          <img src={launch.image_url} alt={launch.name} />
-        ) : (
-          <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg, #0a1428, #150d2e, #0a1428)' }} />
-        )}
-        <div className="detail-hero-gradient" />
-      </motion.div>
+      <LaunchHero launch={launch} />
 
       <div className="page-container" style={{ position: 'relative', zIndex: 1 }}>
         <button className="btn btn-ghost" onClick={() => navigate(-1)} style={{ marginBottom: 20 }}>
@@ -252,111 +542,14 @@ export default function LaunchDetail() {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 32 }}>
           {/* Left column: main content */}
           <div style={{ flex: '1 1 600px', minWidth: 0 }}>
-            <motion.div 
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              style={{ marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' }}
-            >
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                  <span className={`badge ${getStatusClass(launch.status)}`}>{launch.status || 'Unknown'}</span>
-                  {isActive && (
-                    <span className="badge badge-accent" style={{ animation: 'pulse 2s infinite' }}>
-                      <Radio size={10} /> Live Now
-                    </span>
-                  )}
-                </div>
-                <h1 style={{ fontSize: 'clamp(28px, 4vw, 36px)', margin: '0 0 8px', lineHeight: 1.1 }}>{launch.name}</h1>
-                <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 15 }}>
-                  {launch.launch_provider} • {launch.rocket}
-                </p>
-              </div>
+            <LaunchHeader launch={launch} isActive={isActive} ytId={ytId} isUpcoming={isUpcoming} />
+            <LaunchVideo ytId={ytId} />
 
-              {launch.webcast_url && !isUpcoming && !ytId && (
-                <a href={launch.webcast_url} target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{ padding: '12px 24px' }}>
-                  <Play size={16} fill="currentColor" /> WATCH REPLAY
-                </a>
-              )}
-            </motion.div>
-
-            {/* Video Player - Hero Position */}
-            {ytId && (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.98 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                style={{ marginBottom: 24 }}
-              >
-                <div style={{ position: 'relative', paddingBottom: '56.25%', borderRadius: 16, overflow: 'hidden', background: '#000', border: '1px solid var(--border)', boxShadow: 'var(--shadow-lg)' }}>
-                  <iframe
-                    src={`https://www.youtube.com/embed/${ytId}?autoplay=0&rel=0`}
-                    title="Launch webcast"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                    style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
-                  />
-                </div>
-              </motion.div>
-            )}
-
-            {/* Countdown for upcoming */}
             {isUpcoming && !isSuccess && !isFail && (
-              <motion.div 
-                initial={{ opacity: 0, y: 15 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24, marginBottom: 32, width: '100%' }}
-              >
-                <div className="glass" style={{ padding: '18px 32px', textAlign: 'center' }}>
-                  <p style={{ margin: '0 0 10px', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                    T-Minus to Launch
-                  </p>
-                  <CountdownTimer targetDate={launch.launch_date} large />
-                </div>
-                
-                <button 
-                  className="btn btn-primary" 
-                  onClick={() => navigate(`/live/${launch.api_id}`)}
-                  style={{ 
-                    padding: '16px 40px', fontSize: 15, fontWeight: 800,
-                    display: 'flex', alignItems: 'center', gap: 12,
-                    background: 'var(--gradient-brand)', border: 'none',
-                    animation: 'urgentPulse 2s ease-in-out infinite',
-                    boxShadow: '0 8px 25px rgba(0, 212, 255, 0.25)',
-                    borderRadius: 12
-                  }}
-                >
-                  <Radio size={18} /> WATCH LIVE TRACKER
-                </button>
-              </motion.div>
+              <LaunchCountdown launch={launch} navigate={navigate} />
             )}
 
-            {/* At a Glance */}
-            <motion.div 
-              initial={{ opacity: 0, y: 15 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="glass" 
-              style={{ padding: '20px 24px', marginBottom: 18 }}
-            >
-              <h3 style={{ margin: '0 0 14px', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                At a Glance
-              </h3>
-              <div className="info-grid">
-                <InfoRow icon={<Rocket size={13} />} label="Rocket" value={launch.rocket} />
-                <InfoRow icon={<Globe size={13} />} label="Provider" value={launch.launch_provider} />
-                <InfoRow icon={<MapPin size={13} />} label="Pad" value={launch.pad_name} />
-                <InfoRow icon={<MapPin size={13} />} label="Location" value={launch.pad_location} />
-                {launch.landing_pad && (
-                  <InfoRow icon={<CheckCircle size={13} />} label="Landing Pad" value={launch.landing_pad} />
-                )}
-                <InfoRow icon={<Radio size={13} />} label="Orbit" value={launch.orbit} />
-                <InfoRow label="Date" value={launch.launch_date ? format(new Date(launch.launch_date), 'MMM d, yyyy - HH:mm z') : 'TBD'} />
-                {!isUpcoming && launch.launch_date && (
-                  <InfoRow label="Time ago" value={formatDistanceToNow(new Date(launch.launch_date), { addSuffix: true })} />
-                )}
-              </div>
-            </motion.div>
+            <LaunchInfoGrid launch={launch} isUpcoming={isUpcoming} />
 
             {/* Launch pad weather (upcoming only) */}
             {isUpcoming && (
@@ -372,147 +565,23 @@ export default function LaunchDetail() {
             {/* Community prediction (upcoming only) */}
             {isUpcoming && <PredictionWidget apiId={api_id} isUpcoming={isUpcoming} />}
 
-            {/* Live Updates */}
-            {updates.length > 0 && (
-              <motion.div 
-                initial={{ opacity: 0, y: 15 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                className="glass" 
-                style={{ padding: '20px 24px', marginBottom: 18, border: '1px solid var(--accent)' }}
-              >
-                <h3 style={{ margin: '0 0 14px', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Activity size={14} /> Live Updates
-                </h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  {updates.map(update => (
-                    <div key={update.id} style={{ borderLeft: '2px solid var(--accent)', paddingLeft: 12 }}>
-                      <p style={{ margin: '0 0 4px', fontSize: 13, lineHeight: 1.5, color: 'var(--text-main)' }}>
-                        {update.comment}
-                      </p>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                        <span>{format(new Date(update.created_on), 'MMM d, HH:mm')}</span>
-                        {update.info_url && (
-                          <a href={update.info_url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', textDecoration: 'none' }}>Source</a>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-
-            {/* Payload & Mission */}
-            {launch.mission_description && (
-              <motion.div 
-                initial={{ opacity: 0, y: 15 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                className="glass" 
-                style={{ padding: '20px 24px', marginBottom: 18 }}
-              >
-                <h3 style={{ margin: '0 0 10px', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                  Payload & Mission Brief
-                </h3>
-                <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-                  {launch.mission_type && <span className="badge badge-default">{launch.mission_type}</span>}
-                  {launch.orbit && <span className="badge badge-go">{launch.orbit}</span>}
-                </div>
-                <p style={{ margin: 0, color: 'var(--text-secondary)', lineHeight: 1.7, fontSize: 13 }}>
-                  {launch.mission_description}
-                </p>
-              </motion.div>
-            )}
-
-            {/* External links */}
-            {launch.wiki_url && (
-              <motion.div 
-                initial={{ opacity: 0 }}
-                whileInView={{ opacity: 1 }}
-                viewport={{ once: true }}
-                style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}
-              >
-                <a href={launch.wiki_url} target="_blank" rel="noopener noreferrer" className="btn btn-ghost">
-                  <ExternalLink size={13} /> Mission Wikipedia
-                </a>
-              </motion.div>
-            )}
-
-            {/* Mission logs */}
-            {user && logs.length > 0 && (
-              <motion.div 
-                initial={{ opacity: 0, y: 15 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                className="glass" 
-                style={{ padding: '20px 24px', marginBottom: 18 }}
-              >
-                <h3 style={{ margin: '0 0 14px', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                  Your Mission Log
-                </h3>
-                {logs.map(log => (
-                  <div key={log.id} style={{ marginBottom: 14, paddingBottom: 14, borderBottom: '1px solid var(--border)' }}>
-                    <h4 style={{ margin: '0 0 4px', fontSize: 14 }}>{log.title}</h4>
-                    <p style={{ margin: '0 0 6px', color: 'var(--text-secondary)', fontSize: 13, lineHeight: 1.6 }}>{log.body}</p>
-                    <p style={{ margin: 0, fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                      {format(new Date(log.created_at), 'MMM d, yyyy - HH:mm')}
-                    </p>
-                  </div>
-                ))}
-              </motion.div>
-            )}
+            <LiveUpdatesWidget updates={updates} />
+            <MissionBriefWidget launch={launch} />
+            <ExternalLinksWidget launch={launch} />
+            <MissionLogsWidget user={user} logs={logs} />
           </div>
 
-          {/* Right column: media and actions */}
-          <div style={{ flex: '0 0 320px' }}>
-            {launch.infographic_url && (
-              <motion.div 
-                initial={{ opacity: 0, x: 20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                className="glass" 
-                style={{ overflow: 'hidden', marginBottom: 16 }}
-              >
-                <img src={launch.infographic_url} alt="Mission infographic" style={{ width: '100%', objectFit: 'contain', display: 'block' }} />
-              </motion.div>
-            )}
-
-            {/* Action buttons */}
-            <motion.div 
-              initial={{ opacity: 0, x: 20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              style={{ display: 'flex', flexDirection: 'column', gap: 8, position: 'sticky', top: 80 }}
-            >
-              <button
-                className={`btn ${watchlistId ? 'btn-primary' : 'btn-ghost'}`}
-                onClick={toggleWatchlist}
-                style={{ width: '100%', justifyContent: 'center', padding: '11px 20px' }}
-              >
-                {watchlistId ? <BookmarkCheck size={14} /> : <Bookmark size={14} />}
-                {watchlistId 
-                  ? (isUpcoming ? 'Saved to Watchlist' : 'Saved to Memoirs') 
-                  : (isUpcoming ? 'Save to Watchlist' : 'Save to Memoirs')}
-              </button>
-
-              {isUpcoming && (
-                <button className={`btn ${reminded ? 'btn-accent' : 'btn-ghost'}`} onClick={toggleReminder} style={{ width: '100%', justifyContent: 'center', padding: '11px 20px' }}>
-                  {reminded ? <BellOff size={14} /> : <Bell size={14} />}
-                  {reminded ? 'Reminder Set' : 'Remind Me'}
-                </button>
-              )}
-
-              <button className="btn btn-ghost" onClick={() => setShowShareCard(true)} style={{ width: '100%', justifyContent: 'center', padding: '11px 20px' }}>
-                <Share2 size={14} /> Share Card
-              </button>
-
-              {user && (
-                <button className="btn btn-ghost" onClick={() => setShowLogModal(true)} style={{ width: '100%', justifyContent: 'center', padding: '11px 20px' }}>
-                  Write a Log
-                </button>
-              )}
-            </motion.div>
-          </div>
+          <LaunchSidebar
+            launch={launch}
+            user={user}
+            isUpcoming={isUpcoming}
+            watchlistId={watchlistId}
+            toggleWatchlist={toggleWatchlist}
+            reminded={reminded}
+            toggleReminder={toggleReminder}
+            setShowShareCard={setShowShareCard}
+            setShowLogModal={setShowLogModal}
+          />
         </div>
       </div>
 
@@ -529,8 +598,8 @@ export default function LaunchDetail() {
       )}
     </div>
   )
-}
 
+}
 function InfoRow({ icon, label, value }) {
   if (!value) return null
   return (
