@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Users, Globe as GlobeIcon, Rocket, Calendar, Info, RotateCcw } from 'lucide-react'
+import { Users, Globe as GlobeIcon, Info, RotateCcw } from 'lucide-react'
 import { getFlag } from '../utils/getFlag'
 import CrewModal from '../components/CrewModal'
 import toast from 'react-hot-toast'
