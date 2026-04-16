@@ -59,6 +59,8 @@ def _parse_spacex_launch(data: dict, rockets_map: dict = None, launchpads_map: d
     # Launchpad info
     pad_name = ''
     pad_location = ''
+    pad_latitude = None
+    pad_longitude = None
     launchpad_id = data.get('launchpad', '')
     if launchpads_map and launchpad_id in launchpads_map:
         pad_info = launchpads_map[launchpad_id]
@@ -67,6 +69,8 @@ def _parse_spacex_launch(data: dict, rockets_map: dict = None, launchpads_map: d
         region = pad_info.get('region', '')
         if region and pad_location:
             pad_location = f"{pad_location}, {region}"
+        pad_latitude = pad_info.get('latitude')
+        pad_longitude = pad_info.get('longitude')
 
     # Landing pad info
     landing_pad = ''
@@ -91,6 +95,8 @@ def _parse_spacex_launch(data: dict, rockets_map: dict = None, launchpads_map: d
         'image_url': image_url,
         'pad_name': pad_name,
         'pad_location': pad_location,
+        'pad_latitude': pad_latitude,
+        'pad_longitude': pad_longitude,
         'orbit': '',
         'mission_type': '',
         'webcast_url': webcast_url,

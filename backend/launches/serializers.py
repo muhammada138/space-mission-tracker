@@ -15,6 +15,7 @@ class BriefLaunchSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'api_id', 'name', 'rocket', 'launch_provider',
             'launch_date', 'status', 'image_url',
-            'pad_name', 'pad_location', 'orbit', 'mission_type',
+            'pad_name', 'pad_location', 'pad_latitude', 'pad_longitude',
+            'orbit', 'mission_type',
             'webcast_url', 'landing_pad',
         ]
