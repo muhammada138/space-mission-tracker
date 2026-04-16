@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Thermometer, Radio, Rocket, MapPin, Globe, Gauge, Clock, ChevronRight, Activity } from 'lucide-react'
+import { ArrowLeft, Thermometer, Radio, Rocket, MapPin, Globe, Gauge, Clock, Activity } from 'lucide-react'
 import api from '../api/axios'
 import CountdownTimer from '../components/CountdownTimer'
 
