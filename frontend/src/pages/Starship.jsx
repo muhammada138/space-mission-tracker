@@ -34,7 +34,6 @@ export default function Starship() {
     // 2. Fetch Recent Tests and Dynamic Checklist
     api.get('/launches/starship-tests/')
       .then(({ data }) => {
-        console.log('Starship tests data:', data)
         if (data.videos && data.videos.length > 0) {
           setRecentTests(data.videos)
           setIsLive(true)
