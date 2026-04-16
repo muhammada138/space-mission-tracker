@@ -136,6 +136,10 @@ export default function LaunchMap() {
           <MapContainer 
             center={mapConfig.center} 
             zoom={mapConfig.zoom} 
+            minZoom={2}
+            maxZoom={12}
+            maxBounds={[[-90, -180], [90, 180]]}
+            maxBoundsViscosity={1.0}
             style={{ height: '100%', width: '100%', background: '#050a18' }}
             zoomControl={false}
           >

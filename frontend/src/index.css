@@ -1197,7 +1197,7 @@ main {
   background: #050a18 !important;
   border-radius: 12px;
 }
-.leaflet-tile-pane { filter: brightness(0.6) saturate(0.3) hue-rotate(180deg); }
+.leaflet-tile-pane { filter: brightness(0.9); }
 
 /* ====================================================================
    STATS PAGE

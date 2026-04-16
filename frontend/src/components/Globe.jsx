@@ -262,10 +262,10 @@ export default function Globe({ pads = [], onPadClick, stations = [], spin = tru
       style={{ height: '100%', width: '100%', background: 'transparent' }}
       gl={{ antialias: true }}
     >
-      <ambientLight intensity={1.5} />
-      <pointLight position={[10, 10, 10]} intensity={2.0} />
-      <pointLight position={[-10, -10, -10]} intensity={1.0} color="#7c3aed" />
-      <directionalLight position={[0, 5, 5]} intensity={1.5} />
+      <ambientLight intensity={2.0} />
+      <pointLight position={[10, 10, 10]} intensity={2.5} />
+      <pointLight position={[-10, -10, -10]} intensity={1.5} color="#7c3aed" />
+      <directionalLight position={[0, 5, 5]} intensity={2.0} />
 
       <LockController lockTarget={lockTarget} controlsRef={controlsRef} groupRef={groupRef} />
 
@@ -298,7 +298,7 @@ export default function Globe({ pads = [], onPadClick, stations = [], spin = tru
         enablePan={false}
         enableZoom={true}
         minDistance={2.5}
-        maxDistance={8}
+        maxDistance={6}
         autoRotate={false}
         dampingFactor={0.08}
         enableDamping
