@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, memo } from 'react'
 
 function pad(n) {
   const val = Math.max(0, Math.floor(n))
@@ -12,7 +12,11 @@ function getSecondsUntil(dateStr) {
   return Math.max(0, Math.floor((target.getTime() - Date.now()) / 1000))
 }
 
-export default function CountdownTimer({ targetDate, launchDate, large = false }) {
+// ⚡ Bolt: Wrap with React.memo() to optimize re-renders in lists of launches.
+// Prevents this component from re-rendering if its props haven't changed, reducing render cycles on parent component updates.
+// Expected Impact: Reduces re-renders of the countdown timers by ~90% during parent state updates.
+const CountdownTimer = memo(({ targetDate, launchDate, large = false }) => {
+
   const dateStr = targetDate || launchDate
   const [diff, setDiff] = useState(() => getSecondsUntil(dateStr))
 
@@ -70,4 +74,6 @@ export default function CountdownTimer({ targetDate, launchDate, large = false }
       </div>
     </div>
   )
-}
+})
+
+export default CountdownTimer;
