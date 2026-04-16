@@ -72,22 +72,20 @@ function RocketSilhouette({ rocket, spec, isSelected, onClick }) {
   );
 }
 
-function RocketCompare({ allRockets }) {
+function RocketCompare({ allRockets, shownNames, setShownNames, selectedName, setSelectedName }) {
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [pickerSearch, setPickerSearch] = useState('');
+
   const availableRockets = useMemo(() => {
     return allRockets.filter(r => findSpec(r.name) !== null);
   }, [allRockets]);
-
-  const [shownNames, setShownNames] = useState([]);
-  const [selectedName, setSelectedName] = useState(null);
-  const [isPickerOpen, setIsPickerOpen] = useState(false);
-  const [pickerSearch, setPickerSearch] = useState('');
 
   useEffect(() => {
     if (availableRockets.length >= 2 && shownNames.length === 0) {
       setShownNames([availableRockets[0].name, availableRockets[1].name]);
       setSelectedName(availableRockets[0].name);
     }
-  }, [availableRockets, shownNames.length]);
+  }, [availableRockets, shownNames.length, setShownNames, setSelectedName]);
 
   const shownRockets = useMemo(() => {
     return shownNames.map(name => availableRockets.find(r => r.name === name)).filter(Boolean);
@@ -321,6 +319,10 @@ export default function Rockets() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selected, setSelected] = useState(null)
   
+  // Comparison state (Lifted to persist across view tabs)
+  const [comparisonShownNames, setComparisonShownNames] = useState([])
+  const [comparisonSelectedName, setComparisonSelectedName] = useState(null)
+  
   // Filters
   const [showFilters, setShowFilters] = useState(false)
   const [missionFilter, setMissionFilter] = useState('all')
@@ -543,8 +545,16 @@ export default function Rockets() {
         </div>
       </div>
 
-      {/* 2D Size Comparison (Rockets Only) */}
-      {view === 'vehicles' && !searchQuery && <RocketCompare allRockets={filteredRockets} />}
+      {/* 2D Size Comparison (Persists across tabs) */}
+      {!searchQuery && (
+        <RocketCompare 
+          allRockets={rockets} 
+          shownNames={comparisonShownNames}
+          setShownNames={setComparisonShownNames}
+          selectedName={comparisonSelectedName}
+          setSelectedName={setComparisonSelectedName}
+        />
+      )}
 
       {/* Grid Layout */}
       <div style={{ display: 'grid', gridTemplateColumns: selected ? '1fr 380px' : '1fr', gap: 32 }}>
