@@ -869,9 +869,14 @@ class StarshipTestsView(APIView):
     
     # Search keywords for Starship related content
     KEYWORDS = [
-        'starship', 'starbase', 'booster', 'ship', 'flight', 'ift', 
-        'boca chica', 'massey', 'launch', 'test', 'static fire', 
-        'cryo', 'wdr', 'artemis', 'starship update', 'spacex', 'nasa'
+        'starship', 'starbase', 'booster', 'super heavy', 'boca chica', 
+        'massey', 'static fire', 'ift', 'ship 3', 'ship 2', 'booster 1', 'booster 2'
+    ]
+
+    # Content to explicitly exclude (Artemis, SLS, Falcon 9, etc.)
+    NEGATIVE_KEYWORDS = [
+        'artemis', 'sls', 'falcon 9', 'falcon heavy', 'dragon', 
+        'blue origin', 'new glenn', 'vulcan', 'atlas', 'soyuz', 'ariane'
     ]
 
     # Default/Fallback Checklist for Flight 12 (Current as of April 2026)
@@ -922,6 +927,10 @@ class StarshipTestsView(APIView):
                                 task_status[d['key']] = 'complete'
 
                     if any(k in title_lower for k in self.KEYWORDS):
+                        # Apply Negative Filtering
+                        if any(nk in title_lower for nk in self.NEGATIVE_KEYWORDS):
+                            continue
+
                         video_id_elem = entry.find('atom:id', ns)
                         video_id = video_id_elem.text.split(':')[-1] if video_id_elem is not None else ''
                         link_elem = entry.find('atom:link', ns)
@@ -971,6 +980,10 @@ class StarshipTestsView(APIView):
                                     task_status[d['key']] = 'complete'
 
                         if any(k in title_lower for k in self.KEYWORDS):
+                            # Apply Negative Filtering
+                            if any(nk in title_lower for nk in self.NEGATIVE_KEYWORDS):
+                                continue
+
                             # Use current time as fallback published date in ISO format
                             published_date = timezone.now().strftime('%Y-%m-%dT%H:%M:%S+00:00')
                             entries.append({
