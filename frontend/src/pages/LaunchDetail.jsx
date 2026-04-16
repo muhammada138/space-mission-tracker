@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Bookmark, BookmarkCheck, ExternalLink, MapPin, Globe, Radio, Rocket, Play, Share2, Bell, BellOff, Activity, ThumbsUp, ThumbsDown, Minus, CheckCircle } from 'lucide-react'
 import { format, formatDistanceToNow } from 'date-fns'
+import { motion, AnimatePresence } from 'framer-motion'
 import api from '../api/axios'
 import { useAuth } from '../context/AuthContext'
 import CountdownTimer from '../components/CountdownTimer'
@@ -62,7 +63,13 @@ function PredictionWidget({ apiId }) {
   ]
 
   return (
-    <div className="glass" style={{ padding: '18px 22px', marginBottom: 18 }}>
+    <motion.div 
+      initial={{ opacity: 0, y: 15 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      className="glass" 
+      style={{ padding: '18px 22px', marginBottom: 18 }}
+    >
       <h3 style={{ margin: '0 0 4px', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
         Community Prediction
       </h3>
@@ -97,7 +104,11 @@ function PredictionWidget({ apiId }) {
               }}
             >
               {/* progress fill */}
-              <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${percent}%`, background: `color-mix(in srgb, ${opt.color} 8%, transparent)`, transition: 'width 0.5s ease', pointerEvents: 'none' }} />
+              <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: `${percent}%` }}
+                style={{ position: 'absolute', left: 0, top: 0, bottom: 0, background: `color-mix(in srgb, ${opt.color} 8%, transparent)`, pointerEvents: 'none' }} 
+              />
               <span style={{ color: opt.color, flexShrink: 0 }}>{opt.icon}</span>
               <span style={{ flex: 1, fontSize: 13, fontWeight: isMyVote ? 700 : 400, color: 'var(--text-primary)' }}>{opt.label}</span>
               <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>{percent}%</span>
@@ -106,7 +117,7 @@ function PredictionWidget({ apiId }) {
           )
         })}
       </div>
-    </div>
+    </motion.div>
   )
 }
 
@@ -220,14 +231,18 @@ export default function LaunchDetail() {
   return (
     <div style={{ paddingBottom: 80 }}>
       {/* Hero banner */}
-      <div className="detail-hero">
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="detail-hero"
+      >
         {launch.image_url ? (
           <img src={launch.image_url} alt={launch.name} />
         ) : (
           <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg, #0a1428, #150d2e, #0a1428)' }} />
         )}
         <div className="detail-hero-gradient" />
-      </div>
+      </motion.div>
 
       <div className="page-container" style={{ position: 'relative', zIndex: 1 }}>
         <button className="btn btn-ghost" onClick={() => navigate(-1)} style={{ marginBottom: 20 }}>
@@ -237,7 +252,11 @@ export default function LaunchDetail() {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 32 }}>
           {/* Left column: main content */}
           <div style={{ flex: '1 1 600px', minWidth: 0 }}>
-            <div style={{ marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' }} className="fade-up">
+            <motion.div 
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              style={{ marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' }}
+            >
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
                   <span className={`badge ${getStatusClass(launch.status)}`}>{launch.status || 'Unknown'}</span>
@@ -258,11 +277,16 @@ export default function LaunchDetail() {
                   <Play size={16} fill="currentColor" /> WATCH REPLAY
                 </a>
               )}
-            </div>
+            </motion.div>
 
             {/* Video Player - Hero Position */}
             {ytId && (
-              <div className="fade-up" style={{ animationDelay: '50ms', marginBottom: 24 }}>
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.98 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                style={{ marginBottom: 24 }}
+              >
                 <div style={{ position: 'relative', paddingBottom: '56.25%', borderRadius: 16, overflow: 'hidden', background: '#000', border: '1px solid var(--border)', boxShadow: 'var(--shadow-lg)' }}>
                   <iframe
                     src={`https://www.youtube.com/embed/${ytId}?autoplay=0&rel=0`}
@@ -272,12 +296,17 @@ export default function LaunchDetail() {
                     style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
                   />
                 </div>
-              </div>
+              </motion.div>
             )}
 
             {/* Countdown for upcoming */}
             {isUpcoming && !isSuccess && !isFail && (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24, marginBottom: 32, width: '100%' }} className="fade-up">
+              <motion.div 
+                initial={{ opacity: 0, y: 15 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24, marginBottom: 32, width: '100%' }}
+              >
                 <div className="glass" style={{ padding: '18px 32px', textAlign: 'center' }}>
                   <p style={{ margin: '0 0 10px', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                     T-Minus to Launch
@@ -285,7 +314,6 @@ export default function LaunchDetail() {
                   <CountdownTimer targetDate={launch.launch_date} large />
                 </div>
                 
-                {/* Refined Watch Now Button */}
                 <button 
                   className="btn btn-primary" 
                   onClick={() => navigate(`/live/${launch.api_id}`)}
@@ -300,11 +328,17 @@ export default function LaunchDetail() {
                 >
                   <Radio size={18} /> WATCH LIVE TRACKER
                 </button>
-              </div>
+              </motion.div>
             )}
 
             {/* At a Glance */}
-            <div className="glass" style={{ padding: '20px 24px', marginBottom: 18 }}>
+            <motion.div 
+              initial={{ opacity: 0, y: 15 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="glass" 
+              style={{ padding: '20px 24px', marginBottom: 18 }}
+            >
               <h3 style={{ margin: '0 0 14px', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 At a Glance
               </h3>
@@ -322,11 +356,17 @@ export default function LaunchDetail() {
                   <InfoRow label="Time ago" value={formatDistanceToNow(new Date(launch.launch_date), { addSuffix: true })} />
                 )}
               </div>
-            </div>
+            </motion.div>
 
             {/* Launch pad weather (upcoming only) */}
             {isUpcoming && (
-              <WeatherWidget apiId={api_id} padName={launch.pad_name} />
+              <motion.div
+                initial={{ opacity: 0, y: 15 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+              >
+                <WeatherWidget apiId={api_id} padName={launch.pad_name} />
+              </motion.div>
             )}
 
             {/* Community prediction (upcoming only) */}
@@ -334,7 +374,13 @@ export default function LaunchDetail() {
 
             {/* Live Updates */}
             {updates.length > 0 && (
-              <div className="glass" style={{ padding: '20px 24px', marginBottom: 18, border: '1px solid var(--accent)' }}>
+              <motion.div 
+                initial={{ opacity: 0, y: 15 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                className="glass" 
+                style={{ padding: '20px 24px', marginBottom: 18, border: '1px solid var(--accent)' }}
+              >
                 <h3 style={{ margin: '0 0 14px', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Activity size={14} /> Live Updates
                 </h3>
@@ -353,12 +399,18 @@ export default function LaunchDetail() {
                     </div>
                   ))}
                 </div>
-              </div>
+              </motion.div>
             )}
 
             {/* Payload & Mission */}
             {launch.mission_description && (
-              <div className="glass" style={{ padding: '20px 24px', marginBottom: 18 }}>
+              <motion.div 
+                initial={{ opacity: 0, y: 15 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                className="glass" 
+                style={{ padding: '20px 24px', marginBottom: 18 }}
+              >
                 <h3 style={{ margin: '0 0 10px', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                   Payload & Mission Brief
                 </h3>
@@ -369,21 +421,32 @@ export default function LaunchDetail() {
                 <p style={{ margin: 0, color: 'var(--text-secondary)', lineHeight: 1.7, fontSize: 13 }}>
                   {launch.mission_description}
                 </p>
-              </div>
+              </motion.div>
             )}
 
             {/* External links */}
             {launch.wiki_url && (
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}>
+              <motion.div 
+                initial={{ opacity: 0 }}
+                whileInView={{ opacity: 1 }}
+                viewport={{ once: true }}
+                style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}
+              >
                 <a href={launch.wiki_url} target="_blank" rel="noopener noreferrer" className="btn btn-ghost">
                   <ExternalLink size={13} /> Mission Wikipedia
                 </a>
-              </div>
+              </motion.div>
             )}
 
             {/* Mission logs */}
             {user && logs.length > 0 && (
-              <div className="glass" style={{ padding: '20px 24px', marginBottom: 18 }}>
+              <motion.div 
+                initial={{ opacity: 0, y: 15 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                className="glass" 
+                style={{ padding: '20px 24px', marginBottom: 18 }}
+              >
                 <h3 style={{ margin: '0 0 14px', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                   Your Mission Log
                 </h3>
@@ -396,21 +459,31 @@ export default function LaunchDetail() {
                     </p>
                   </div>
                 ))}
-              </div>
+              </motion.div>
             )}
           </div>
 
           {/* Right column: media and actions */}
-          <div className="fade-up" style={{ animationDelay: '60ms' }}>
-
+          <div style={{ flex: '0 0 320px' }}>
             {launch.infographic_url && (
-              <div className="glass" style={{ overflow: 'hidden', marginBottom: 16 }}>
+              <motion.div 
+                initial={{ opacity: 0, x: 20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                className="glass" 
+                style={{ overflow: 'hidden', marginBottom: 16 }}
+              >
                 <img src={launch.infographic_url} alt="Mission infographic" style={{ width: '100%', objectFit: 'contain', display: 'block' }} />
-              </div>
+              </motion.div>
             )}
 
             {/* Action buttons */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, position: 'sticky', top: 80 }}>
+            <motion.div 
+              initial={{ opacity: 0, x: 20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              style={{ display: 'flex', flexDirection: 'column', gap: 8, position: 'sticky', top: 80 }}
+            >
               <button
                 className={`btn ${watchlistId ? 'btn-primary' : 'btn-ghost'}`}
                 onClick={toggleWatchlist}
@@ -438,7 +511,7 @@ export default function LaunchDetail() {
                   Write a Log
                 </button>
               )}
-            </div>
+            </motion.div>
           </div>
         </div>
       </div>
@@ -457,8 +530,6 @@ export default function LaunchDetail() {
     </div>
   )
 }
-
-
 
 function InfoRow({ icon, label, value }) {
   if (!value) return null

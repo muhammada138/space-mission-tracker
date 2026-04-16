@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
-import { MapPin, CheckCircle, XCircle, Radio } from 'lucide-react'
+import { MapPin, CheckCircle, Radio } from 'lucide-react'
+import { motion } from 'framer-motion'
 import CountdownTimer from './CountdownTimer'
 import { getStatusClass as getBadgeClass } from '../utils/status'
 
@@ -40,7 +41,11 @@ export default function LaunchCard({ launch, showCountdown = true, isPayload = f
     : launch.image_url
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '-20px' }}
+      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
       className={`glass launch-card ${getCardClass(launch.status)} ${isActive ? 'card-active' : ''}`}
       onClick={() => navigate(isActive ? `/live/${launch.api_id}` : `/launch/${launch.api_id}`)}
       style={{ display: 'flex', flexDirection: 'column', height: '100%' }}
@@ -133,7 +138,7 @@ export default function LaunchCard({ launch, showCountdown = true, isPayload = f
           )}
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 }
 
