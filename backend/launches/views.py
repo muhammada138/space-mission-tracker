@@ -869,9 +869,14 @@ class StarshipTestsView(APIView):
     
     # Search keywords for Starship related content
     KEYWORDS = [
-        'starship', 'starbase', 'booster', 'ship', 'flight', 'ift', 
-        'boca chica', 'massey', 'launch', 'test', 'static fire', 
-        'cryo', 'wdr', 'artemis', 'starship update', 'spacex', 'nasa'
+        'starship', 'starbase', 'booster', 'super heavy', 'boca chica', 
+        'massey', 'static fire', 'ift', 'ship 3', 'ship 2', 'booster 1', 'booster 2'
+    ]
+
+    # Content to explicitly exclude (Artemis, SLS, Falcon 9, etc.)
+    NEGATIVE_KEYWORDS = [
+        'artemis', 'sls', 'falcon 9', 'falcon heavy', 'dragon', 
+        'blue origin', 'new glenn', 'vulcan', 'atlas', 'soyuz', 'ariane'
     ]
 
     # Default/Fallback Checklist for Flight 12 (Current as of April 2026)
@@ -897,11 +902,45 @@ class StarshipTestsView(APIView):
         task_status['s39_static'] = 'complete' # Seed from recent known test
 
         entries = []
+        seen_ids = set()
+
+        def add_entry(vid, title, link, published, thumbnail):
+            if vid not in seen_ids:
+                entries.append({
+                    'id': vid,
+                    'title': title,
+                    'link': link,
+                    'published': published,
+                    'thumbnail': thumbnail
+                })
+                seen_ids.add(vid)
+
         try:
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
                 'Accept': 'application/xml,text/xml,*/*'
             }
+            
+            # --- Twitter/X Best Guess (SpaceX) ---
+            # Try to find recent milestones from SpaceX's public timeline if possible
+            try:
+                # Note: This is a fragile 'best effort' scraper for public X profiles
+                tx_resp = httpx.get('https://syndication.twitter.com/srv/timeline-profile/screen-name/SpaceX', timeout=8)
+                if tx_resp.status_code == 200:
+                    import re
+                    # Look for text in the timeline JSON
+                    tweets = re.findall(r'\"text\":\"([^\"]+)\"', tx_resp.text)
+                    for tweet in tweets:
+                        t_lower = tweet.lower().encode('utf-8').decode('unicode-escape', 'ignore')
+                        for d in checklist_defs:
+                            if any(k in t_lower for k in d['keywords']):
+                                if 'static fire' in t_lower and 'complete' in t_lower:
+                                    task_status[d['key']] = 'complete'
+                                if 'stacked' in t_lower or 'stacking' in t_lower:
+                                    task_status[d['key']] = 'complete'
+            except Exception:
+                pass
+
             resp = httpx.get(rss_url, timeout=12, headers=headers, follow_redirects=True)
             
             # --- RSS Parsing ---
@@ -916,12 +955,16 @@ class StarshipTestsView(APIView):
                     title = title_elem.text
                     title_lower = title.lower()
                     
+                    # Update checklist from titles
                     for d in checklist_defs:
                         if any(k in title_lower for k in d['keywords']):
                             if all(no not in title_lower for no in ['upcoming', 'live', 'scheduled']):
                                 task_status[d['key']] = 'complete'
 
                     if any(k in title_lower for k in self.KEYWORDS):
+                        if any(nk in title_lower for nk in self.NEGATIVE_KEYWORDS):
+                            continue
+
                         video_id_elem = entry.find('atom:id', ns)
                         video_id = video_id_elem.text.split(':')[-1] if video_id_elem is not None else ''
                         link_elem = entry.find('atom:link', ns)
@@ -935,13 +978,7 @@ class StarshipTestsView(APIView):
                             thumb_elem = media_group.find('media:thumbnail', ns)
                             if thumb_elem is not None: thumbnail = thumb_elem.attrib.get('url', '')
                         
-                        entries.append({
-                            'id': video_id,
-                            'title': title,
-                            'link': link,
-                            'published': published,
-                            'thumbnail': thumbnail
-                        })
+                        add_entry(video_id, title, link, published, thumbnail)
             
             # --- Scraper Fallback (if RSS is empty or failed) ---
             if not entries:
@@ -949,37 +986,34 @@ class StarshipTestsView(APIView):
                 scrape_url = f"https://www.youtube.com/channel/{self.CHANNEL_ID}/videos"
                 sresp = httpx.get(scrape_url, headers=headers, timeout=10, follow_redirects=True)
                 if sresp.status_code == 200:
-                    # Robust regex found via testing
-                    import re
+                    import re, html
                     pattern = r'"videoId":"(?P<id>[a-zA-Z0-9_-]{11})".*?"title":\{"runs":\[\{"text":"(?P<title>[^"]+)"\}\]'
                     video_matches = list(re.finditer(pattern, sresp.text))
                     
-                    for match in video_matches[:20]:
+                    for match in video_matches[:25]:
                         vid = match.group('id')
-                        title = match.group('title')
-                        title_lower = title.lower()
-                        # Clean unicode escapes in title
-                        try:
-                            title = title.encode('utf-8').decode('unicode-escape').decode('utf-8') if '\\u' in title else title
-                        except Exception:
-                            pass
+                        raw_title = match.group('title')
                         
-                        # Update checklist from scraped titles too
+                        # Clean title properly using html unescape and handling unicode
+                        try:
+                            title = html.unescape(raw_title).encode('utf-8').decode('unicode-escape')
+                        except Exception:
+                            title = raw_title
+                            
+                        title_lower = title.lower()
+                        
+                        # Update checklist from scraped titles
                         for d in checklist_defs:
                             if any(k in title_lower for k in d['keywords']):
                                 if all(no not in title_lower for no in ['upcoming', 'live', 'scheduled']):
                                     task_status[d['key']] = 'complete'
 
                         if any(k in title_lower for k in self.KEYWORDS):
-                            # Use current time as fallback published date in ISO format
+                            if any(nk in title_lower for nk in self.NEGATIVE_KEYWORDS):
+                                continue
+
                             published_date = timezone.now().strftime('%Y-%m-%dT%H:%M:%S+00:00')
-                            entries.append({
-                                'id': vid,
-                                'title': title,
-                                'link': f"https://www.youtube.com/watch?v={vid}",
-                                'published': published_date,
-                                'thumbnail': f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg"
-                            })
+                            add_entry(vid, title, f"https://www.youtube.com/watch?v={vid}", published_date, f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg")
 
 
             

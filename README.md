@@ -1,16 +1,6 @@
 # Space Mission Tracker
 
-![React](https://img.shields.io/badge/React-20232A?style=flat&logo=react&logoColor=61DAFB)
-![Django](https://img.shields.io/badge/Django-092E20?style=flat&logo=django&logoColor=white)
-![DRF](https://img.shields.io/badge/Django_REST-ff1709?style=flat&logo=django&logoColor=white)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=flat&logo=tailwind-css&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat&logo=postgresql&logoColor=white)
-![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat&logo=vite&logoColor=white)
-![JWT](https://img.shields.io/badge/JWT-black?style=flat&logo=JSON%20web%20tokens)
-
-Live at [space-mission-tracker-nine.vercel.app](https://space-mission-tracker-nine.vercel.app/)
-
-Full-stack web app for tracking rocket launches from multiple sources. Browse upcoming and past missions, save launches to a personal watchlist, and write mission logs. Pulls live data from the Launch Library 2 API and the SpaceX API.
+A comprehensive mission control dashboard for space exploration enthusiasts. This full-stack application allows users to track global rocket launches in real time, explore detailed mission histories, and manage personal watchlists, all powered by live data from multiple industry-leading sources.
 
 ---
 
