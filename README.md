@@ -1,6 +1,6 @@
 # Space Mission Tracker
 
-A comprehensive mission control dashboard for space exploration enthusiasts. This full-stack application allows users to track global rocket launches in real time, explore detailed mission histories, and manage personal watchlists, all powered by live data from multiple industry-leading sources.
+A professional mission control dashboard that brings the scale of space exploration to your screen. This full-stack application provides real-time tracking for global rocket launches and the International Space Station, featuring an interactive 3D WebGL globe and a dedicated telemetry monitor for Starship flight testing.
 
 ---
 
