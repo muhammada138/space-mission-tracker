@@ -72,6 +72,185 @@ function RocketSilhouette({ rocket, spec, isSelected, onClick }) {
   );
 }
 
+function RocketPicker({ isPickerOpen, setIsPickerOpen, pickerSearch, setPickerSearch, filteredUnshown, toggleRocket, shownNamesLength, findSpec }) {
+  return (
+    <div style={{ position: 'relative' }}>
+      <button
+        className="btn btn-ghost"
+        style={{ padding: '6px 12px', fontSize: 11, background: 'rgba(255,255,255,0.05)', borderRadius: 8 }}
+        onClick={() => {
+          setIsPickerOpen(!isPickerOpen);
+          if (!isPickerOpen) setPickerSearch('');
+        }}
+        disabled={shownNamesLength >= 6}
+      >
+        <Plus size={13} style={{ marginRight: 6 }} />
+        Add Rocket
+      </button>
+
+      <AnimatePresence>
+        {isPickerOpen && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: -4 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: -4 }}
+            className="glass"
+            style={{
+              position: 'absolute',
+              top: '100%',
+              right: 0,
+              marginTop: 8,
+              width: 240,
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--glass-border)',
+              borderRadius: 12,
+              zIndex: 100,
+              maxHeight: 400,
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.6)'
+            }}
+          >
+            {/* Picker Search Bar */}
+            <div style={{ padding: 10, borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.02)' }}>
+              <div style={{ position: 'relative' }}>
+                <Search size={12} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }} />
+                <input
+                  autoFocus
+                  type="text"
+                  placeholder="Search vehicles..."
+                  value={pickerSearch}
+                  onChange={(e) => setPickerSearch(e.target.value)}
+                  style={{
+                    width: '100%',
+                    background: 'rgba(0,0,0,0.4)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: 6,
+                    padding: '6px 10px 6px 28px',
+                    fontSize: 11,
+                    color: '#fff',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="custom-scrollbar" style={{ overflowY: 'auto' }}>
+              {filteredUnshown.length === 0 ? (
+                <div style={{ padding: 16, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center' }}>
+                  {pickerSearch ? 'No matches found' : 'No more rockets available'}
+                </div>
+              ) : (
+                filteredUnshown.map(r => (
+                  <button
+                    key={r.name}
+                    onClick={() => toggleRocket(r.name)}
+                    style={{ display: 'block', width: '100%', padding: '10px 14px', textAlign: 'left', background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.03)', cursor: 'pointer', transition: 'background 0.2s' }}
+                    className="hover-bg-soft"
+                  >
+                    <div style={{ fontWeight: 600, fontSize: 12, color: '#fff' }}>{r.name}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{findSpec(r.name)?.manufacturer}</div>
+                  </button>
+                ))
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function RocketCanvas({ shownRockets, selectedName, setSelectedName, toggleRocket, findSpec }) {
+  return (
+    <div style={{ height: 400, position: 'relative', overflowX: 'auto', overflowY: 'hidden', background: 'rgba(0,0,0,0.2)' }}>
+      <svg width={Math.max(shownRockets.length * 120, 600)} height="400" style={{ display: 'block', minWidth: '100%' }}>
+        <defs>
+          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#grid)" />
+
+        {/* Ground line */}
+        <line x1="0" y1="340" x2="100%" y2="340" stroke="rgba(255,255,255,0.1)" strokeWidth="2" />
+
+        {/* Height markers */}
+        <g fill="var(--text-muted)" fontSize="10" fontFamily="var(--font-mono)">
+          <text x="10" y={340 - (50 * 2.5) + 4}>50m</text>
+          <line x1="35" y1={340 - (50 * 2.5)} x2="100%" y2={340 - (50 * 2.5)} stroke="rgba(255,255,255,0.05)" strokeDasharray="4 4" />
+
+          <text x="10" y={340 - (100 * 2.5) + 4}>100m</text>
+          <line x1="40" y1={340 - (100 * 2.5)} x2="100%" y2={340 - (100 * 2.5)} stroke="rgba(255,255,255,0.05)" strokeDasharray="4 4" />
+        </g>
+
+        {shownRockets.map((r, i) => {
+          const spec = findSpec(r.name);
+          const isSelected = selectedName === r.name;
+          const xPos = 80 + (i * 120);
+
+          return (
+            <g key={r.name} transform={`translate(${xPos}, 340)`}>
+              <RocketSilhouette
+                rocket={r}
+                spec={spec}
+                isSelected={isSelected}
+                onClick={() => setSelectedName(isSelected ? null : r.name)}
+              />
+              {/* Remove button (X) below the name */}
+              {isSelected && (
+                <g onClick={(e) => { e.stopPropagation(); toggleRocket(r.name); }} style={{ cursor: 'pointer' }} transform="translate(0, 40)">
+                  <circle r="10" fill="rgba(239, 68, 68, 0.2)" />
+                  <path d="M-3,-3 L3,3 M-3,3 L3,-3" stroke="#ef4444" strokeWidth="1.5" />
+                </g>
+              )}
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+function RocketSpecPanel({ selectedRocket, selectedSpec }) {
+  if (!selectedRocket || !selectedSpec) return null;
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      style={{ padding: '20px', borderLeft: '1px solid var(--glass-border)', display: 'flex', flexDirection: 'column', gap: 12, background: 'rgba(255,255,255,0.02)' }}
+    >
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+          <div style={{ width: 12, height: 12, borderRadius: '50%', background: selectedSpec.color }} />
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>{selectedRocket.name}</h3>
+        </div>
+        <p style={{ margin: 0, fontSize: 11, color: 'var(--text-secondary)' }}>{selectedSpec.manufacturer}</p>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
+        <SpecRow label="Height" value={`${selectedSpec.height} m`} />
+        <SpecRow label="Diameter" value={`${selectedSpec.diameter} m`} />
+        <SpecRow label="Payload to LEO" value={selectedSpec.payload} />
+        <SpecRow label="Total Launches" value={selectedRocket.launches?.length || 0} />
+        {selectedSpec.boosters && <SpecRow label="Side Boosters" value={selectedSpec.boosters} />}
+      </div>
+
+      {/* Height comparison bar vs Starship */}
+      <div style={{ marginTop: 'auto' }}>
+        <p style={{ margin: '0 0 6px', fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>vs Tallest (Starship 121m)</p>
+        <div style={{ height: 4, background: 'rgba(255,255,255,0.1)', borderRadius: 2, overflow: 'hidden' }}>
+          <div style={{ height: '100%', width: `${(selectedSpec.height / 121) * 100}%`, background: 'var(--accent)', borderRadius: 2 }} />
+        </div>
+        <p style={{ margin: '4px 0 0', fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>
+          {Math.round((selectedSpec.height / 121) * 100)}% of Starship
+        </p>
+      </div>
+    </motion.div>
+  );
+}
+
 function RocketCompare({ allRockets, shownNames, setShownNames, selectedName, setSelectedName }) {
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [pickerSearch, setPickerSearch] = useState('');
@@ -133,177 +312,30 @@ function RocketCompare({ allRockets, shownNames, setShownNames, selectedName, se
             Actual proportions based on rocket specifications
           </p>
         </div>
-        <div style={{ position: 'relative' }}>
-          <button
-            className="btn btn-ghost"
-            style={{ padding: '6px 12px', fontSize: 11, background: 'rgba(255,255,255,0.05)', borderRadius: 8 }}
-            onClick={() => {
-              setIsPickerOpen(!isPickerOpen);
-              if (!isPickerOpen) setPickerSearch('');
-            }}
-            disabled={shownNames.length >= 6}
-          >
-            <Plus size={13} style={{ marginRight: 6 }} />
-            Add Rocket
-          </button>
-
-          <AnimatePresence>
-            {isPickerOpen && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: -4 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: -4 }}
-                className="glass" 
-                style={{ 
-                  position: 'absolute', 
-                  top: '100%', 
-                  right: 0, 
-                  marginTop: 8, 
-                  width: 240, 
-                  background: 'var(--bg-surface)', 
-                  border: '1px solid var(--glass-border)', 
-                  borderRadius: 12, 
-                  zIndex: 100, 
-                  maxHeight: 400, 
-                  display: 'flex',
-                  flexDirection: 'column',
-                  overflow: 'hidden', 
-                  boxShadow: '0 20px 40px rgba(0,0,0,0.6)' 
-                }}
-              >
-                {/* Picker Search Bar */}
-                <div style={{ padding: 10, borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.02)' }}>
-                  <div style={{ position: 'relative' }}>
-                    <Search size={12} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }} />
-                    <input
-                      autoFocus
-                      type="text"
-                      placeholder="Search vehicles..."
-                      value={pickerSearch}
-                      onChange={(e) => setPickerSearch(e.target.value)}
-                      style={{ 
-                        width: '100%', 
-                        background: 'rgba(0,0,0,0.4)', 
-                        border: '1px solid rgba(255,255,255,0.1)', 
-                        borderRadius: 6, 
-                        padding: '6px 10px 6px 28px', 
-                        fontSize: 11, 
-                        color: '#fff',
-                        outline: 'none'
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div className="custom-scrollbar" style={{ overflowY: 'auto' }}>
-                  {filteredUnshown.length === 0 ? (
-                    <div style={{ padding: 16, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center' }}>
-                      {pickerSearch ? 'No matches found' : 'No more rockets available'}
-                    </div>
-                  ) : (
-                    filteredUnshown.map(r => (
-                      <button
-                        key={r.name}
-                        onClick={() => toggleRocket(r.name)}
-                        style={{ display: 'block', width: '100%', padding: '10px 14px', textAlign: 'left', background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.03)', cursor: 'pointer', transition: 'background 0.2s' }}
-                        className="hover-bg-soft"
-                      >
-                        <div style={{ fontWeight: 600, fontSize: 12, color: '#fff' }}>{r.name}</div>
-                        <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{findSpec(r.name)?.manufacturer}</div>
-                      </button>
-                    ))
-                  )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+        <RocketPicker
+          isPickerOpen={isPickerOpen}
+          setIsPickerOpen={setIsPickerOpen}
+          pickerSearch={pickerSearch}
+          setPickerSearch={setPickerSearch}
+          filteredUnshown={filteredUnshown}
+          toggleRocket={toggleRocket}
+          shownNamesLength={shownNames.length}
+          findSpec={findSpec}
+        />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: selectedRocket ? '1fr 260px' : '1fr', transition: 'grid-template-columns 0.3s' }}>
-        {/* SVG Canvas */}
-        <div style={{ height: 400, position: 'relative', overflowX: 'auto', overflowY: 'hidden', background: 'rgba(0,0,0,0.2)' }}>
-          <svg width={Math.max(shownRockets.length * 120, 600)} height="400" style={{ display: 'block', minWidth: '100%' }}>
-            <defs>
-              <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#grid)" />
-
-            {/* Ground line */}
-            <line x1="0" y1="340" x2="100%" y2="340" stroke="rgba(255,255,255,0.1)" strokeWidth="2" />
-
-            {/* Height markers */}
-            <g fill="var(--text-muted)" fontSize="10" fontFamily="var(--font-mono)">
-              <text x="10" y={340 - (50 * 2.5) + 4}>50m</text>
-              <line x1="35" y1={340 - (50 * 2.5)} x2="100%" y2={340 - (50 * 2.5)} stroke="rgba(255,255,255,0.05)" strokeDasharray="4 4" />
-
-              <text x="10" y={340 - (100 * 2.5) + 4}>100m</text>
-              <line x1="40" y1={340 - (100 * 2.5)} x2="100%" y2={340 - (100 * 2.5)} stroke="rgba(255,255,255,0.05)" strokeDasharray="4 4" />
-            </g>
-
-            {shownRockets.map((r, i) => {
-              const spec = findSpec(r.name);
-              const isSelected = selectedName === r.name;
-              const xPos = 80 + (i * 120);
-
-              return (
-                <g key={r.name} transform={`translate(${xPos}, 340)`}>
-                  <RocketSilhouette
-                    rocket={r}
-                    spec={spec}
-                    isSelected={isSelected}
-                    onClick={() => setSelectedName(isSelected ? null : r.name)}
-                  />
-                  {/* Remove button (X) below the name */}
-                  {isSelected && (
-                    <g onClick={(e) => { e.stopPropagation(); toggleRocket(r.name); }} style={{ cursor: 'pointer' }} transform="translate(0, 40)">
-                      <circle r="10" fill="rgba(239, 68, 68, 0.2)" />
-                      <path d="M-3,-3 L3,3 M-3,3 L3,-3" stroke="#ef4444" strokeWidth="1.5" />
-                    </g>
-                  )}
-                </g>
-              );
-            })}
-          </svg>
-        </div>
-
-        {/* Spec panel for selected rocket */}
-        {selectedRocket && selectedSpec && (
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            style={{ padding: '20px', borderLeft: '1px solid var(--glass-border)', display: 'flex', flexDirection: 'column', gap: 12, background: 'rgba(255,255,255,0.02)' }}
-          >
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                <div style={{ width: 12, height: 12, borderRadius: '50%', background: selectedSpec.color }} />
-                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>{selectedRocket.name}</h3>
-              </div>
-              <p style={{ margin: 0, fontSize: 11, color: 'var(--text-secondary)' }}>{selectedSpec.manufacturer}</p>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
-              <SpecRow label="Height" value={`${selectedSpec.height} m`} />
-              <SpecRow label="Diameter" value={`${selectedSpec.diameter} m`} />
-              <SpecRow label="Payload to LEO" value={selectedSpec.payload} />
-              <SpecRow label="Total Launches" value={selectedRocket.launches?.length || 0} />
-              {selectedSpec.boosters && <SpecRow label="Side Boosters" value={selectedSpec.boosters} />}
-            </div>
-
-            {/* Height comparison bar vs Starship */}
-            <div style={{ marginTop: 'auto' }}>
-              <p style={{ margin: '0 0 6px', fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>vs Tallest (Starship 121m)</p>
-              <div style={{ height: 4, background: 'rgba(255,255,255,0.1)', borderRadius: 2, overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: `${(selectedSpec.height / 121) * 100}%`, background: 'var(--accent)', borderRadius: 2 }} />
-              </div>
-              <p style={{ margin: '4px 0 0', fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>
-                {Math.round((selectedSpec.height / 121) * 100)}% of Starship
-              </p>
-            </div>
-          </motion.div>
-        )}
+        <RocketCanvas
+          shownRockets={shownRockets}
+          selectedName={selectedName}
+          setSelectedName={setSelectedName}
+          toggleRocket={toggleRocket}
+          findSpec={findSpec}
+        />
+        <RocketSpecPanel
+          selectedRocket={selectedRocket}
+          selectedSpec={selectedSpec}
+        />
       </div>
     </motion.div>
   );
@@ -683,7 +715,7 @@ export default function Rockets() {
                     </p>
                   </div>
                   
-                  <div style={{ display: grid, gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                     <MiniStat label="Orbit Path" value={selected.orbit || 'LEO'} />
                     <MiniStat label="Mission Type" value={selected.mission_type?.split(' ')[0] || 'Unknown'} />
                     <MiniStat label="Deployed" value={selected.launch_date ? new Date(selected.launch_date).getFullYear() : 'Unknown'} />
