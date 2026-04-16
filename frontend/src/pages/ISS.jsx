@@ -4,6 +4,7 @@ import { Bell, BellOff, MapPin, Navigation, AlertCircle, Users, Globe as GlobeIc
 import toast from 'react-hot-toast'
 import { twoline2satrec, propagate, gstime, eciToGeodetic } from 'satellite.js'
 import CrewModal from '../components/CrewModal'
+import { getFlag } from '../utils/getFlag'
 
 // ── Haversine distance (km) between two lat/lon points ──────────────────────
 
