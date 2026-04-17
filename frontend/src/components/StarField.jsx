@@ -54,14 +54,14 @@ export default function StarField() {
       ctx.clearRect(0, 0, canvas.width, canvas.height)
 
       // Draw stars
+      ctx.fillStyle = '#c8d7ff'
       for (const star of stars) {
         const twinkle = Math.sin(time * star.twinkleSpeed + star.twinkleOffset)
         const opacity = star.opacity + twinkle * 0.2
-        ctx.beginPath()
-        ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2)
-        ctx.fillStyle = `rgba(200, 215, 255, ${Math.max(0.05, Math.min(0.8, opacity))})`
-        ctx.fill()
+        ctx.globalAlpha = Math.max(0.05, Math.min(0.8, opacity))
+        ctx.fillRect(star.x - star.radius, star.y - star.radius, star.radius * 2, star.radius * 2)
       }
+      ctx.globalAlpha = 1.0 // Reset for shooting stars
 
       // Shooting stars
       if (time - lastShootingTime > SHOOTING_INTERVAL) {
