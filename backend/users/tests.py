@@ -2,6 +2,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 from django.contrib.auth.models import User
+from django.core.cache import cache
 
 class RegisterViewTests(APITestCase):
     def setUp(self):
@@ -12,6 +13,8 @@ class RegisterViewTests(APITestCase):
             'password': 'StrongTestP4ssw0rd!',
             'password2': 'StrongTestP4ssw0rd!'
         }
+        # Clear cache to reset throttle counters
+        cache.clear()
 
     def test_user_registration_success(self):
         """
