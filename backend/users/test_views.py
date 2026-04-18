@@ -18,6 +18,27 @@ def auth_client():
     client.user = user
     return client
 
+from django.core.cache import cache
+
+@pytest.fixture(autouse=True)
+def clear_cache():
+    cache.clear()
+
+@pytest.mark.django_db
+class TestRateLimit:
+    def test_login_rate_limit(self):
+        user = User.objects.create_user(username='testuser', password='password123')
+        client = APIClient()
+
+        # 10 allowed requests (anon rate is 10/minute)
+        for i in range(10):
+            response = client.post('/api/auth/login/', {'username': 'testuser', 'password': 'password123'})
+            assert response.status_code == 200, f"Request {i+1} failed"
+
+        # 11th request should be throttled
+        response = client.post('/api/auth/login/', {'username': 'testuser', 'password': 'password123'})
+        assert response.status_code == 429
+
 @pytest.mark.django_db
 class TestMeView:
     url = '/api/auth/me/'
