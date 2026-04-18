@@ -1,3 +1,6 @@
 ## 2024-04-16 - React.memo in List Items with Timers
 **Learning:** In a dashboard tracking space launches with countdowns, having timers tick every second can trigger re-renders that cascade down to all siblings if state management or props aren't handled carefully. A single unmemoized list item (`LaunchCard`) causes the entire list to churn unnecessarily when parent components update.
 **Action:** Always wrap `LaunchCard` and `CountdownTimer` in `React.memo` when rendering lists of hundreds of launches. This ensures that only components whose specific props change (or that manage their own internal ticking state) will re-render, greatly improving performance for users scrolling through the mission control views.
+## 2026-04-18 - Database ORM optimization over Memory Filtering
+**Learning:** In the backend `ActiveLaunchesView.get` method, the code was bridging the 'Status 6' gap by querying all `Launch` records (`Launch.objects.all()`) and pulling them into memory to filter using a Python loop. This causes severe memory bloat and an O(N) performance bottleneck as the database grows.
+**Action:** Always prefer pushing data filtering logic down to the database using Django's ORM (e.g., `.filter(...).exclude(...)`) before loading data into memory, ensuring scalable and memory-efficient endpoints.
