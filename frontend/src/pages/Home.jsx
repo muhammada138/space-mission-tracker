@@ -29,7 +29,12 @@ export default function Home({ tab = 'upcoming' }) {
   const [agencyFilter, setAgencyFilter] = useState('all')
 
   const setTab = (t) => {
-    const routes = { upcoming: '/launches/upcoming', active: '/launches/active', past: '/launches/past', payloads: '/launches/payloads' }
+    const routes = { 
+      upcoming: '/launches/upcoming', 
+      active: '/launches/active', 
+      past: '/launches/past', 
+      missions: '/launches/missions' 
+    }
     navigate(routes[t] || '/')
   }
 
@@ -145,14 +150,14 @@ export default function Home({ tab = 'upcoming' }) {
           
           {/* Top row: Tab Navigation */}
           <div className="tabs" style={{ borderBottom: 'none', padding: '4px', background: 'rgba(0,0,0,0.2)', borderRadius: 12, display: 'inline-flex', alignSelf: 'flex-start' }}>
-            {['upcoming', 'active', 'past', 'payloads'].map(t => (
+            {['upcoming', 'active', 'past', 'missions'].map(t => (
               <button 
                 key={t}
                 className={`tab ${tab === t ? 'active' : ''}`} 
                 onClick={() => setTab(t)}
                 style={{ borderRadius: 8, padding: '8px 16px', border: 'none', margin: 0 }}
               >
-                {t.charAt(0).toUpperCase() + t.slice(1).replace('payloads', 'In Orbit')}
+                {t === 'missions' ? 'Mission Milestones' : t.charAt(0).toUpperCase() + t.slice(1)}
                 {!loading && tab === t && <span className="tab-count" style={{ marginLeft: 8 }}>{launches.length}</span>}
               </button>
             ))}
