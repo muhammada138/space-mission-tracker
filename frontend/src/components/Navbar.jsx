@@ -62,7 +62,6 @@ export default function Navbar() {
 
   const mainLinks = [
     { to: '/launches/upcoming', label: 'Launches', icon: <Rocket size={14} />, matchPrefix: '/launches' },
-    { to: '/live-ops', label: 'Live Ops', icon: <Timer size={14} /> },
     { to: '/timeline', label: 'Timeline', icon: <Timer size={14} /> },
     { to: '/iss', label: 'Space Stations', icon: <Map size={14} /> },
     { to: '/rockets', label: 'Rockets', icon: <Crosshair size={14} /> },
