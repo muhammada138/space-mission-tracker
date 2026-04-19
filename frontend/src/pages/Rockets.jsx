@@ -496,7 +496,7 @@ export default function Rockets() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
               {searchQuery && (
-                <button onClick={() => setSearchQuery('')} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', padding: 8, cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                <button onClick={() => setSearchQuery('')} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', padding: 8, cursor: 'pointer', display: 'flex', alignItems: 'center' }} aria-label="Clear search" title="Clear search">
                   <X size={16} />
                 </button>
               )}
@@ -658,6 +658,8 @@ export default function Rockets() {
               <button
                 onClick={() => setSelected(null)}
                 style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,0.05)', border: 'none', color: '#fff', cursor: 'pointer', width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                aria-label="Close"
+                title="Close"
               ><X size={14} /></button>
               
               <div style={{ marginBottom: 24 }}>
