@@ -9,10 +9,14 @@ from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Launch
-from .serializers import LaunchSerializer, BriefLaunchSerializer
+from .models import Launch, Astronaut, SpaceStation, Spacecraft, Article, DockingEvent, Expedition
+from .serializers import (
+    LaunchSerializer, BriefLaunchSerializer, AstronautSerializer, 
+    SpaceStationSerializer, SpacecraftSerializer, ArticleSerializer
+)
 from .services import get_upcoming_launches, get_past_launches, get_launch_by_api_id, refresh_launches_by_api_ids
 from .spacex_service import get_spacex_upcoming_launches, get_spacex_past_launches
+from .sync_service import sync_service
 import httpx
 import json
 import urllib.parse
@@ -1195,3 +1199,53 @@ class SpaceWeatherView(APIView):
                 'flares': 0,
                 'error': str(e)
             })
+
+
+class AstronautListView(APIView):
+    """GET /api/astronauts/ - list of cached astronauts"""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        sync_service.sync_astronauts(limit=20) # Opportunistic sync
+        astronauts = Astronaut.objects.all().order_by('name')
+        return Response(AstronautSerializer(astronauts, many=True).data)
+
+
+class SpaceStationListView(APIView):
+    """GET /api/stations/ - list of cached space stations"""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        sync_service.sync_stations() # Opportunistic sync
+        stations = SpaceStation.objects.all().order_by('name')
+        return Response(SpaceStationSerializer(stations, many=True).data)
+
+
+class ArticleListView(APIView):
+    """GET /api/news/ - latest space news from SNAPI"""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        sync_service.sync_recent_news() # Opportunistic sync
+        articles = Article.objects.all().order_by('-published_at')[:20]
+        return Response(ArticleSerializer(articles, many=True).data)
+
+
+class LiveOpsView(APIView):
+    """GET /api/live-ops/ - current status of space stations and dockings"""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        stations = SpaceStation.objects.filter(status__icontains='active')
+        data = []
+        for s in stations:
+            # Simple active crew count for now
+            crew_count = Astronaut.objects.filter(expeditions__space_station=s).distinct().count()
+            data.append({
+                'id': s.id,
+                'name': s.name,
+                'image': s.image_url,
+                'crew_count': crew_count,
+                'status': s.status,
+            })
+        return Response(data)

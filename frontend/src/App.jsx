@@ -20,6 +20,7 @@ const Stats = lazy(() => import('./pages/Stats'))
 const ISS = lazy(() => import('./pages/ISS'))
 const Astronauts = lazy(() => import('./pages/Astronauts'))
 const LiveMission = lazy(() => import('./pages/LiveMission'))
+const LiveOps = lazy(() => import('./pages/LiveOps'))
 const LaunchMap = lazy(() => import('./pages/LaunchMap'))
 
 // Loading fallback component
@@ -64,6 +65,7 @@ function AnimatedRoutes() {
           <Route path="/rockets"            element={<Rockets />} />
           <Route path="/stats"              element={<Stats />} />
           <Route path="/iss"                element={<ISS />} />
+          <Route path="/live-ops"           element={<LiveOps />} />
           <Route path="/astronauts"         element={<Astronauts />} />
           <Route path="/live/:id"           element={<LiveMission />} />
           <Route path="/dashboard"          element={
