@@ -438,9 +438,8 @@ class PayloadsInOrbitView(APIView):
 
     def get(self, request):
         now = timezone.now()
-        if self._cache['data'] and self._cache['expires'] and now < self._cache['expires']:
-            return Response(self._cache['data'])
-
+        is_missions = 'missions' in request.path
+        
         # Categories for satellite/payload detection
         valid_types = (
             'planetary science', 'astrophysics', 'heliophysics', 
@@ -452,16 +451,20 @@ class PayloadsInOrbitView(APIView):
         )
         two_years_ago = now - timedelta(days=730)
 
-        # 1. Start with local DB - these are launches we already know about
-        # Only include successful launches in the past
+        # 1. Start with local DB
         q_types = [t.title() for t in valid_types] + [t.lower() for t in valid_types]
         db_launches = Launch.objects.filter(
             launch_date__lt=now,
             launch_date__gte=two_years_ago,
             status__icontains='Success',
             mission_type__in=q_types
-        ).order_by('-launch_date')
+        )
         
+        if is_missions:
+            db_launches = db_launches.exclude(name__icontains='Starlink')
+            db_launches = db_launches.exclude(name__icontains='OneWeb')
+
+        db_launches = db_launches.order_by('-launch_date')
         payloads_map = {l.api_id: l for l in db_launches}
 
         # 2. Add history.json data (enriched and filtered for past successes)
@@ -635,180 +638,41 @@ class LaunchUpdatesView(APIView):
 
 
 class ISSCrewView(APIView):
-    """GET /api/iss-crew/ - proxy for detailed LL2 astronaut data with Wikipedia enrichment.
-    Uses synchronous httpx so it works under both WSGI and ASGI.
-    """
+    """GET /api/iss-crew/ - cached astronaut data for active crew."""
     permission_classes = [permissions.AllowAny]
 
-    _cache = {'data': None, 'expires': None}
-
-
-    @staticmethod
-    def _get_wiki_summary_sync(client, name):
-        """Helper to fetch Wikipedia summary synchronously with disambiguation checks"""
-        
-        def _fetch(title):
-            try:
-                slug = urllib.parse.quote(title.replace(' ', '_'))
-                resp = client.get(
-                    f'https://en.wikipedia.org/api/rest_v1/page/summary/{slug}',
-                    timeout=6,
-                    headers={'User-Agent': 'SpaceTracker/1.0'},
-                )
-                if resp.status_code == 200:
-                    data = resp.json()
-                    extract = data.get('extract', '')
-                    # If it's a disambiguation page, return None
-                    if 'may refer to:' in extract.lower() or 'can refer to:' in extract.lower() or data.get('type') == 'disambiguation':
-                        return None
-                    return {
-                        'wiki_thumbnail': data.get('originalimage', {}).get('source', '') or data.get('thumbnail', {}).get('source', ''),
-                        'wiki_url': data.get('content_urls', {}).get('desktop', {}).get('page', ''),
-                        'wiki_extract': extract
-                    }
-            except Exception:
-                pass
-            return None
-
-        # Tier 1: Exact name
-        wiki_data = _fetch(name)
-        
-        # Tier 2: Name (astronaut) or Name (cosmonaut) - specifically for crew enrichment
-        if not wiki_data or len(wiki_data.get('wiki_extract', '')) < 50:
-            wiki_data = _fetch(f"{name} (astronaut)") or _fetch(f"{name} (cosmonaut)") or wiki_data
-
-        return wiki_data or {}
-
     def get(self, request):
-
-        now = timezone.now()
         force_refresh = request.query_params.get('force_refresh') == 'true'
+        
+        # Opportunistic sync (or forced)
+        if force_refresh or not Astronaut.objects.filter(status__icontains='Active').exists():
+            sync_service.sync_active_crew()
 
-        # Return cached response if still fresh
-        if not force_refresh and self._cache['data'] and self._cache['expires'] and now < self._cache['expires']:
-            return Response(self._cache['data'])
+        # Fetch active astronauts from DB
+        # Note: We filter by those we just synced or known active status
+        astronauts = Astronaut.objects.filter(status__icontains='Active')
+        
+        crew = []
+        for a in astronauts:
+            # Basic mapping to match frontend expectations
+            crew.append({
+                'name': a.name,
+                'nationality': a.nationality,
+                'bio': a.bio,
+                'profile_image': a.profile_image,
+                'agency': {
+                    'name': a.agency,
+                },
+                'status': {'name': a.status},
+                'wiki_url': a.wiki_url,
+                'craft': 'ISS', # Default, could be refined
+            })
 
-        with httpx.Client(timeout=15) as client:
-            crew = []
-            source = 'unavailable'
-
-            # --- Attempt 1: LL2 detailed astronaut API ---
-            try:
-                resp = client.get(
-                    'https://ll.thespacedevs.com/2.2.0/astronaut/',
-                    params={'in_space': 'true', 'mode': 'detailed', 'limit': 30},
-                )
-                resp.raise_for_status()
-                results = resp.json().get('results', [])
-
-                for a in results:
-                    # Robust in_space double check
-                    if a.get('in_space') is False:
-                        continue
-
-                    entry = {
-                        'name': a.get('name', ''),
-                        'nationality': a.get('nationality', ''),
-                        'bio': a.get('bio', ''),
-                        'profile_image': a.get('profile_image') or a.get('profile_image_thumbnail') or '',
-                        'date_of_birth': a.get('date_of_birth', ''),
-                        'flights_count': a.get('flights_count', 0),
-                        'agency': {
-                            'name': (a.get('agency') or {}).get('name', ''),
-                            'abbrev': (a.get('agency') or {}).get('abbrev', ''),
-                            'type': (a.get('agency') or {}).get('type', ''),
-                        },
-                        'status': {'name': (a.get('status') or {}).get('name', 'Active')},
-                        'wiki_url': a.get('wiki', ''),
-                    }
-                    
-                    # Improved Craft Detection
-                    craft = 'ISS' # Default fallback
-                    ss = a.get('spacestation')
-                    if ss and isinstance(ss, dict):
-                        ss_name = ss.get('name', '')
-                        if 'International Space Station' in ss_name:
-                            craft = 'ISS'
-                        elif 'Tiangong' in ss_name or 'CSS' in ss_name:
-                            craft = 'Tiangong'
-                        else:
-                            craft = ss_name
-                    else:
-                        # Transit detection fallback
-                        try:
-                            last_flight = (a.get('last_flight') or '')
-                            if 'shenzhou' in last_flight.lower() or 'tiangong' in last_flight.lower():
-                                craft = 'Tiangong'
-                            else:
-                                for f in (a.get('flights', []) or []):
-                                    if 'shenzhou' in (f.get('name') or '').lower():
-                                        craft = 'Tiangong'
-                                        break
-                        except Exception:
-                            pass
-                            
-                    entry['craft'] = craft
-                    crew.append(entry)
-
-                source = 'll2'
-                logger.info(f'LL2 astronaut API returned {len(crew)} crew members')
-
-            except Exception as e:
-                logger.warning(f'LL2 astronaut fetch failed: {e}')
-
-                # --- Attempt 2: Open-Notify fallback ---
-                try:
-                    resp = client.get('http://api.open-notify.org/astros.json', timeout=10)
-                    resp.raise_for_status()
-                    people = resp.json().get('people', [])
-                    for p in people:
-                        crew.append({
-                            'name': p.get('name', ''),
-                            'craft': p.get('craft', 'ISS'),
-                            'nationality': '', 'bio': '', 'profile_image': '',
-                            'date_of_birth': '', 'flights_count': None,
-                            'agency': {'name': '', 'abbrev': '', 'type': ''},
-                            'status': {'name': 'Active'}, 'wiki_url': '',
-                        })
-                    source = 'open-notify'
-                    logger.info(f'Open-Notify fallback returned {len(crew)} people')
-                except Exception as e2:
-                    logger.warning(f'Open-Notify fallback also failed: {e2}')
-
-            # If all sources failed, return 503 so the frontend shows its error state
-            if not crew:
-                logger.warning('All crew data sources failed, returning 503')
-                return Response({'error': 'Crew data temporarily unavailable'}, status=503)
-
-            # --- Enrich with Wikipedia data using thread pool ---
-            try:
-                def _enrich(entry_and_client):
-                    entry, wiki_client = entry_and_client
-                    wiki = self._get_wiki_summary_sync(wiki_client, entry['name'])
-                    return (entry, wiki)
-
-                with httpx.Client(timeout=8) as wiki_client:
-                    with ThreadPoolExecutor(max_workers=6) as pool:
-                        futures = [pool.submit(_enrich, (e, wiki_client)) for e in crew]
-                        for future in as_completed(futures):
-                            try:
-                                entry, wiki = future.result()
-                                if wiki:
-                                    if wiki.get('wiki_thumbnail'):
-                                        entry['profile_image'] = wiki['wiki_thumbnail']
-                                    if wiki.get('wiki_extract') and len(wiki['wiki_extract']) > len(entry.get('bio', '')):
-                                        entry['bio'] = wiki['wiki_extract']
-                                    if wiki.get('wiki_url'):
-                                        entry['wiki_url'] = wiki['wiki_url']
-                            except Exception:
-                                pass
-            except Exception as e:
-                logger.warning(f'Wikipedia enrichment failed: {e}')
-
-            result = {'crew': crew, 'count': len(crew), 'source': source}
-            ttl = dt.timedelta(minutes=30)
-            ISSCrewView._cache = {'data': result, 'expires': now + ttl}
-            return Response(result)
+        return Response({
+            'crew': crew,
+            'count': len(crew),
+            'source': 'local-cache'
+        })
 
 
 class LaunchPadWeatherView(APIView):
