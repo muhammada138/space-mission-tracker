@@ -151,17 +151,16 @@ def _parse_launch(data: dict) -> dict:
         'wiki_url': wiki_url,
         'infographic_url': infographic_url,
         'landing_pad': landing_pad,
-        '_raw_crew': data.get('rocket', {}).get('launcher_stage', [{}])[0].get('launcher', {}).get('crew', []) if data.get('rocket', {}).get('launcher_stage') else []
     }
 
 
 def _upsert_launches(results: list) -> list:
     """Upsert LL2 launch dicts into the DB."""
-    from .models import Astronaut  # Avoid circular import
     parsed_results = []
     requested_api_ids = []
     seen_api_ids = set()
 
+    # Parse inputs, preserving the original requested order (including duplicates if any)
     for raw in results:
         try:
             parsed = _parse_launch(raw)
@@ -176,38 +175,72 @@ def _upsert_launches(results: list) -> list:
     if not parsed_results:
         return []
 
+    # Find existing records
+    unique_api_ids = list(seen_api_ids)
+    existing_records = {
+        obj.api_id: obj for obj in Launch.objects.filter(api_id__in=unique_api_ids)
+    }
+
+    to_create = []
+    to_update = []
+    successful_api_ids = set()
+
+    # Safely derive update fields from all dicts
+    update_fields_set = set()
     for parsed in parsed_results:
-        raw_crew = parsed.pop('_raw_crew', [])
-        obj, created = Launch.objects.update_or_create(
-            api_id=parsed['api_id'],
-            defaults=parsed,
-        )
-        
-        # Sync crew if available
-        if raw_crew:
-            crew_members = []
-            for crew_data in raw_crew:
-                astro_data = crew_data.get('astronaut', {})
-                if astro_data:
-                    astro, _ = Astronaut.objects.update_or_create(
-                        api_id=str(astro_data['id']),
-                        defaults={
-                            'name': astro_data.get('name', ''),
-                            'status': astro_data.get('status', {}).get('name', ''),
-                            'agency': astro_data.get('agency', {}).get('name', ''),
-                            'profile_image': astro_data.get('profile_image', ''),
-                        }
-                    )
-                    crew_members.append(astro)
-            if crew_members:
-                obj.crew.set(crew_members)
+        update_fields_set.update(parsed.keys())
+    update_fields = [key for key in update_fields_set if key != 'api_id']
+
+    for parsed in parsed_results:
+        api_id = parsed.get('api_id')
+        try:
+            if api_id in existing_records:
+                obj = existing_records[api_id]
+                for field in update_fields:
+                    if field in parsed:
+                        setattr(obj, field, parsed[field])
+                to_update.append(obj)
+            else:
+                to_create.append(Launch(**parsed))
+            successful_api_ids.add(api_id)
+        except Exception:
+            # If a single item fails instantiation/setup, skip it
+            continue
+
+    # Perform bulk operations
+    try:
+        if to_create:
+            Launch.objects.bulk_create(to_create)
+        if to_update:
+            # Explicitly set last_fetched because bulk_update bypasses auto_now
+            _now = timezone.now()
+            for obj in to_update:
+                obj.last_fetched = _now
+            _update_fields = update_fields + ['last_fetched'] if 'last_fetched' not in update_fields else update_fields
+            Launch.objects.bulk_update(to_update, fields=_update_fields)
+    except Exception:
+        successful_api_ids.clear()
+        # Fallback to iterative update_or_create to preserve exact error handling behavior
+        for parsed in parsed_results:
+            try:
+                Launch.objects.update_or_create(
+                    api_id=parsed['api_id'],
+                    defaults=parsed,
+                )
+                successful_api_ids.add(parsed['api_id'])
+            except Exception:
+                continue
+
+    if not successful_api_ids:
+        return []
 
     # Fetch fresh objects to return them in their requested order
     fetched_launches = {
         launch.api_id: launch
-        for launch in Launch.objects.filter(api_id__in=list(seen_api_ids))
+        for launch in Launch.objects.filter(api_id__in=list(successful_api_ids))
     }
 
+    # Return in the exact order requested by `results`, excluding those that failed
     return [
         fetched_launches[api_id]
         for api_id in requested_api_ids
