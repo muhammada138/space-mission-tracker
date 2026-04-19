@@ -57,7 +57,7 @@ class SyncService:
                     'agency': item.get('agency', {}).get('name', ''),
                     'nationality': item.get('nationality', ''),
                     'bio': item.get('bio', ''),
-                    'profile_image': item.get('profile_image', '') or item.get('profile_image_thumbnail', ''),
+                    'profile_image': item.get('profile_image', ''),
                     'wiki_url': item.get('wiki', ''),
                 }
             )
@@ -82,30 +82,6 @@ class SyncService:
                 }
             )
 
-    def sync_active_crew(self):
-        """Sync astronauts currently in space."""
-        data = self._get(f"{LL2_BASE}/astronaut/", params={'in_space': 'true', 'mode': 'detailed', 'limit': 30})
-        if not data:
-            return
-        
-        for item in data.get('results', []):
-            astro, _ = Astronaut.objects.update_or_create(
-                api_id=str(item['id']),
-                defaults={
-                    'name': item.get('name', ''),
-                    'status': item.get('status', {}).get('name', ''),
-                    'type': item.get('type', {}).get('name', ''),
-                    'agency': item.get('agency', {}).get('name', ''),
-                    'nationality': item.get('nationality', ''),
-                    'bio': item.get('bio', ''),
-                    'profile_image': item.get('profile_image', '') or item.get('profile_image_thumbnail', ''),
-                    'wiki_url': item.get('wiki', ''),
-                }
-            )
-            
-            # Note: Mapping to station and craft can be done via detailed fields if needed
-            # For now we'll rely on the opportunistic sync in ISSCrewView
-
     def sync_recent_news(self):
         """Sync news articles from SNAPI."""
         try:
@@ -127,7 +103,7 @@ class SyncService:
                 )
                 
                 # Link to launches if mentioned
-                launch_ids = [str(l['launch_id']) for l in item.get('launches', []) if 'launch_id' in l]
+                launch_ids = [str(l['launch_id']) for l in item.get('launches', [])]
                 if launch_ids:
                     launches = Launch.objects.filter(api_id__in=launch_ids)
                     article.launches.add(*launches)
