@@ -10,7 +10,6 @@ urlpatterns = [
     path('past/', PastLaunchesView.as_view(), name='launches-past'),
     path('active/', ActiveLaunchesView.as_view(), name='launches-active'),
     path('payloads/', PayloadsInOrbitView.as_view(), name='launches-payloads'),
-    path('missions/', PayloadsInOrbitView.as_view(), name='launches-missions'),
     path('starship-tests/', StarshipTestsView.as_view(), name='starship-tests'),
     path('<str:api_id>/updates/', LaunchUpdatesView.as_view(), name='launch-updates'),
     path('<str:api_id>/pad-weather/', LaunchPadWeatherView.as_view(), name='launch-pad-weather'),
