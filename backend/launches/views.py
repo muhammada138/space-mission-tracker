@@ -5,6 +5,7 @@ import os
 logger = logging.getLogger(__name__)
 
 from django.utils.dateparse import parse_datetime
+from django.utils.html import strip_tags
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -1027,7 +1028,7 @@ class StarshipTestsView(APIView):
                 for entry in root.findall('atom:entry', ns):
                     title_elem = entry.find('atom:title', ns)
                     if title_elem is None: continue
-                    title = title_elem.text
+                    title = strip_tags(title_elem.text)
                     title_lower = title.lower()
                     
                     # Update checklist from titles
@@ -1071,9 +1072,9 @@ class StarshipTestsView(APIView):
                         
                         # Clean title properly using html unescape and handling unicode
                         try:
-                            title = html.unescape(raw_title).encode('utf-8').decode('unicode-escape')
+                            title = strip_tags(html.unescape(raw_title).encode('utf-8').decode('unicode-escape'))
                         except Exception:
-                            title = raw_title
+                            title = strip_tags(raw_title)
                             
                         title_lower = title.lower()
                         
