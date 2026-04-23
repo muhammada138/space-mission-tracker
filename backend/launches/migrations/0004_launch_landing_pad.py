@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('launches', '0003_launch_pad_latitude_launch_pad_longitude'),
+        ("launches", "0003_launch_pad_latitude_launch_pad_longitude"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='launch',
-            name='landing_pad',
-            field=models.CharField(blank=True, default='', max_length=256),
+            model_name="launch",
+            name="landing_pad",
+            field=models.CharField(blank=True, default="", max_length=256),
         ),
     ]
