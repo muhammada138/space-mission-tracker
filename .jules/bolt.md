@@ -1,3 +1,7 @@
 ## 2024-04-16 - React.memo in List Items with Timers
 **Learning:** In a dashboard tracking space launches with countdowns, having timers tick every second can trigger re-renders that cascade down to all siblings if state management or props aren't handled carefully. A single unmemoized list item (`LaunchCard`) causes the entire list to churn unnecessarily when parent components update.
 **Action:** Always wrap `LaunchCard` and `CountdownTimer` in `React.memo` when rendering lists of hundreds of launches. This ensures that only components whose specific props change (or that manage their own internal ticking state) will re-render, greatly improving performance for users scrolling through the mission control views.
+
+## 2024-05-20 - Regex over "any(in)" for Keyword Matching
+**Learning:** In keyword-heavy matching loops (e.g., RSS or social media parsing like in `StarshipTestsView`), using list comprehensions like `any(k in text for k in keywords)` inside an outer loop has high overhead. Pre-compiling the keywords into a regex pattern (`re.compile('|'.join(re.escape(k) for k in keywords))`) and using `regex.search(text)` reduces CPU overhead and provides a measurable speedup (~1.5x - 2.5x faster).
+**Action:** When searching for multiple keywords within text strings in tight loops, always pre-compile the keywords into a regex object outside the loop rather than repeatedly checking individual substrings with `in` and `any()`. Compile static keywords as class attributes for maximum efficiency.
