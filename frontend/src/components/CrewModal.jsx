@@ -46,6 +46,7 @@ export default function CrewModal({ person, onClose }) {
       >
         <button
           onClick={onClose}
+          aria-label="Close modal"
           style={{
             position: 'absolute', top: 20, right: 20,
             background: 'rgba(0,0,0,0.5)', border: 'none',

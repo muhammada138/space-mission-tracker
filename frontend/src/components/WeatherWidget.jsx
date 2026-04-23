@@ -98,6 +98,7 @@ export default function WeatherWidget({ apiId, padName }) {
       {/* Expandable rules table */}
       <button
         onClick={() => setExpanded(p => !p)}
+        aria-expanded={expanded}
         style={{ background: 'none', border: 'none', color: 'var(--accent)', fontSize: 11, cursor: 'pointer', padding: 0, fontFamily: 'var(--font-mono)', letterSpacing: '0.04em' }}
       >
         {expanded ? '▲ Hide Rules' : '▼ Show Flight Rules'}
