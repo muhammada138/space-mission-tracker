@@ -16,15 +16,22 @@ vi.mock('axios', async (importOriginal) => {
 
 describe('Axios interceptors', () => {
   let originalLocation;
+  let originalCookie;
 
   beforeEach(() => {
-    localStorage.clear();
     vi.clearAllMocks();
 
     // Mock window.location
     originalLocation = window.location;
     delete window.location;
     window.location = { href: '' };
+
+    // Mock document.cookie
+    originalCookie = document.cookie;
+    Object.defineProperty(document, 'cookie', {
+      writable: true,
+      value: '',
+    });
 
     // Set a dummy adapter to intercept requests on the api instance
     api.defaults.adapter = vi.fn();
@@ -35,32 +42,35 @@ describe('Axios interceptors', () => {
 
   afterEach(() => {
     window.location = originalLocation;
+    document.cookie = originalCookie;
     vi.restoreAllMocks();
   });
 
   it('should have correct base URL and headers', () => {
     expect(api.defaults.baseURL).toBe('/api');
     expect(api.defaults.headers['Content-Type']).toBe('application/json');
+    expect(api.defaults.withCredentials).toBe(true);
   });
 
   describe('Request Interceptor', () => {
-    it('should add Authorization header if access_token exists', async () => {
-      localStorage.setItem('access_token', 'test_token');
+    it('should add X-CSRFToken header if csrftoken cookie exists', async () => {
+      document.cookie = 'csrftoken=test_csrf_token; other=value';
       api.defaults.adapter.mockResolvedValue({ status: 200, data: 'ok' });
 
       await api.get('/test');
 
       const config = api.defaults.adapter.mock.calls[0][0];
-      expect(config.headers.Authorization).toBe('Bearer test_token');
+      expect(config.headers['X-CSRFToken']).toBe('test_csrf_token');
     });
 
-    it('should not add Authorization header if access_token does not exist', async () => {
+    it('should not add X-CSRFToken header if csrftoken cookie does not exist', async () => {
+      document.cookie = 'other=value';
       api.defaults.adapter.mockResolvedValue({ status: 200, data: 'ok' });
 
       await api.get('/test');
 
       const config = api.defaults.adapter.mock.calls[0][0];
-      expect(config.headers.Authorization).toBeUndefined();
+      expect(config.headers['X-CSRFToken']).toBeUndefined();
     });
   });
 
@@ -89,11 +99,9 @@ describe('Axios interceptors', () => {
     });
 
     it('should handle 401 error and refresh token successfully', async () => {
-      localStorage.setItem('refresh_token', 'refresh_token_value');
-
       const mock401Error = {
         response: { status: 401 },
-        config: { headers: {} }
+        config: { headers: {}, url: '/test' }
       };
 
       api.defaults.adapter
@@ -101,27 +109,18 @@ describe('Axios interceptors', () => {
         .mockResolvedValueOnce({ status: 200, data: 'retried_success' });
 
       // @ts-ignore
-      axios.post.mockResolvedValueOnce({
-        data: { access: 'new_access_token' }
-      });
+      axios.post.mockResolvedValueOnce({ status: 200 });
 
       const response = await api.get('/test');
 
       expect(response.data).toBe('retried_success');
-      expect(axios.post).toHaveBeenCalledWith('/api/auth/refresh/', { refresh: 'refresh_token_value' });
-      expect(localStorage.getItem('access_token')).toBe('new_access_token');
-
-      const retryConfig = api.defaults.adapter.mock.calls[1][0];
-      expect(retryConfig.headers.Authorization).toBe('Bearer new_access_token');
+      expect(axios.post).toHaveBeenCalledWith('/api/auth/refresh/', {}, { withCredentials: true });
     });
 
-    it('should logout if refresh token fails on 401', async () => {
-      localStorage.setItem('access_token', 'old_access');
-      localStorage.setItem('refresh_token', 'refresh_token_value');
-
+    it('should redirect to login if refresh token fails on 401', async () => {
       const mock401Error = {
         response: { status: 401 },
-        config: { headers: {} }
+        config: { headers: {}, url: '/test' }
       };
 
       api.defaults.adapter.mockRejectedValueOnce(mock401Error);
@@ -131,20 +130,18 @@ describe('Axios interceptors', () => {
 
       await expect(api.get('/test')).rejects.toEqual(mock401Error);
 
-      expect(localStorage.getItem('access_token')).toBeNull();
-      expect(localStorage.getItem('refresh_token')).toBeNull();
       expect(window.location.href).toBe('/login');
     });
 
-    it('should reject normally if 401 and no refresh token exists', async () => {
+    it('should not retry on 401 if original request was for login', async () => {
       const mock401Error = {
         response: { status: 401 },
-        config: { headers: {} }
+        config: { headers: {}, url: '/auth/login/' }
       };
 
       api.defaults.adapter.mockRejectedValueOnce(mock401Error);
 
-      await expect(api.get('/test')).rejects.toEqual(mock401Error);
+      await expect(api.get('/auth/login/')).rejects.toEqual(mock401Error);
 
       expect(axios.post).not.toHaveBeenCalled();
     });
