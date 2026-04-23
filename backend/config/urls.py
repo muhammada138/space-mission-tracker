@@ -1,19 +1,19 @@
 from django.contrib import admin
 from django.urls import path, include
 from launches.views import SpaceWeatherView, ISSCrewView
-from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
-    TokenRefreshView,
-    TokenBlacklistView,
+from users.auth_views import (
+    CookieTokenObtainPairView,
+    CookieTokenRefreshView,
+    CookieTokenLogoutView,
 )
 
 urlpatterns = [
     path('admin/', admin.site.urls),
 
     # JWT auth
-    path('api/auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('api/auth/logout/', TokenBlacklistView.as_view(), name='token_blacklist'),
+    path('api/auth/login/', CookieTokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/auth/refresh/', CookieTokenRefreshView.as_view(), name='token_refresh'),
+    path('api/auth/logout/', CookieTokenLogoutView.as_view(), name='token_blacklist'),
 
     # App routes
     path('api/auth/', include('users.urls')),

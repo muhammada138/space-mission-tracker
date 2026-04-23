@@ -3,12 +3,15 @@ import axios from 'axios'
 const api = axios.create({
   baseURL: '/api',
   headers: { 'Content-Type': 'application/json' },
+  withCredentials: true
 })
 
-// Attach JWT access token to every request
+// Attach CSRF token if available
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token')
-  if (token) config.headers.Authorization = `Bearer ${token}`
+  const match = document.cookie.match(new RegExp('(^| )csrftoken=([^;]+)'))
+  if (match) {
+    config.headers['X-CSRFToken'] = match[2]
+  }
   return config
 })
 
@@ -19,20 +22,13 @@ api.interceptors.response.use(
     const original = err.config
     
     // Handle 401 Unauthorized
-    if (err.response?.status === 401 && !original._retry) {
+    if (err.response?.status === 401 && !original._retry && original.url !== '/auth/login/' && original.url !== '/auth/refresh/') {
       original._retry = true
-      const refresh = localStorage.getItem('refresh_token')
-      if (refresh) {
-        try {
-          const { data } = await axios.post('/api/auth/refresh/', { refresh })
-          localStorage.setItem('access_token', data.access)
-          original.headers.Authorization = `Bearer ${data.access}`
-          return api(original)
-        } catch {
-          localStorage.removeItem('access_token')
-          localStorage.removeItem('refresh_token')
-          window.location.href = '/login'
-        }
+      try {
+        await axios.post('/api/auth/refresh/', {}, { withCredentials: true })
+        return api(original)
+      } catch {
+        window.location.href = '/login'
       }
     }
 
