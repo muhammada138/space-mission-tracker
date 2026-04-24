@@ -1,3 +1,7 @@
 ## 2024-04-16 - React.memo in List Items with Timers
 **Learning:** In a dashboard tracking space launches with countdowns, having timers tick every second can trigger re-renders that cascade down to all siblings if state management or props aren't handled carefully. A single unmemoized list item (`LaunchCard`) causes the entire list to churn unnecessarily when parent components update.
 **Action:** Always wrap `LaunchCard` and `CountdownTimer` in `React.memo` when rendering lists of hundreds of launches. This ensures that only components whose specific props change (or that manage their own internal ticking state) will re-render, greatly improving performance for users scrolling through the mission control views.
+
+## 2024-04-24 - Pre-compiled Regex for Keyword Matching in Feed Parsing
+**Learning:** In feed parsing views (like `StarshipTestsView`) that match dozens of keywords against large text bodies (RSS feeds, social media), replacing generator expressions like `any(k in text for k in keywords)` with pre-compiled regular expressions (`re.compile().search()`) defined at the class level significantly reduces CPU overhead and provides a measurable performance boost.
+**Action:** When implementing keyword filtering or categorization across lists of text items, pre-compile keyword patterns as `re.compile(r'key1|key2')` at initialization or class-level rather than iterating keyword lists dynamically.
