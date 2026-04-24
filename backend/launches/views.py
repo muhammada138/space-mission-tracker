@@ -1,6 +1,7 @@
 import datetime as dt
 import logging
 import os
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -932,6 +933,9 @@ class StarshipTestsView(APIView):
         'blue origin', 'new glenn', 'vulcan', 'atlas', 'soyuz', 'ariane'
     ]
 
+    KEYWORD_PATTERN = re.compile('|'.join(map(re.escape, KEYWORDS)))
+    NEGATIVE_KEYWORD_PATTERN = re.compile('|'.join(map(re.escape, NEGATIVE_KEYWORDS)))
+
     # Default/Fallback Checklist for Flight 12 (Current as of April 2026)
     FALLBACK_CHECKLIST = [
         {'task': 'Ship 39 Static Fire (Massey\'s)', 'status': 'complete'},
@@ -951,6 +955,11 @@ class StarshipTestsView(APIView):
             {'key': 'wdr', 'label': 'Flight 12 Wet Dress Rehearsal', 'keywords': ['wdr', 'wet dress']},
             {'key': 'faa', 'label': 'FAA Flight 12 Launch License', 'keywords': ['faa license', 'launch license']},
         ]
+
+        # Precompile regex patterns for checklist keywords
+        for d in checklist_defs:
+            d['pattern'] = re.compile('|'.join(map(re.escape, d['keywords'])))
+
         task_status = {d['key']: 'pending' for d in checklist_defs}
         task_status['s39_static'] = 'complete' # Seed from recent known test
 
@@ -980,13 +989,6 @@ class StarshipTestsView(APIView):
                 # Note: This is a fragile 'best effort' scraper for public X profiles
                 tx_resp = httpx.get('https://syndication.twitter.com/srv/timeline-profile/screen-name/SpaceX', timeout=8)
                 if tx_resp.status_code == 200:
-                    import re
-
-                    # Pre-extract all keywords for fast path checking
-                    all_keywords = []
-                    for d in checklist_defs:
-                        all_keywords.extend(d['keywords'])
-
                     # Look for text in the timeline JSON
                     tweets = re.findall(r'\"text\":\"([^\"]+)\"', tx_resp.text)
                     for tweet in tweets:
@@ -995,8 +997,8 @@ class StarshipTestsView(APIView):
                         # Fast path: check if ANY keyword is in the raw lowercase tweet.
                         # If not, skip the expensive decode.
                         match_found = False
-                        for k in all_keywords:
-                            if k in t_lower:
+                        for d in checklist_defs:
+                            if d['pattern'].search(t_lower):
                                 match_found = True
                                 break
 
@@ -1006,13 +1008,12 @@ class StarshipTestsView(APIView):
                         t_lower_decoded = t_lower.encode('utf-8').decode('unicode-escape', 'ignore')
 
                         for d in checklist_defs:
-                            for k in d['keywords']:
-                                if k in t_lower_decoded:
-                                    if 'static fire' in t_lower_decoded and 'complete' in t_lower_decoded:
-                                        task_status[d['key']] = 'complete'
-                                    if 'stacked' in t_lower_decoded or 'stacking' in t_lower_decoded:
-                                        task_status[d['key']] = 'complete'
-                                    break
+                            if d['pattern'].search(t_lower_decoded):
+                                if 'static fire' in t_lower_decoded and 'complete' in t_lower_decoded:
+                                    task_status[d['key']] = 'complete'
+                                if 'stacked' in t_lower_decoded or 'stacking' in t_lower_decoded:
+                                    task_status[d['key']] = 'complete'
+                                break
             except Exception:
                 pass
 
@@ -1032,12 +1033,12 @@ class StarshipTestsView(APIView):
                     
                     # Update checklist from titles
                     for d in checklist_defs:
-                        if any(k in title_lower for k in d['keywords']):
+                        if d['pattern'].search(title_lower):
                             if all(no not in title_lower for no in ['upcoming', 'live', 'scheduled']):
                                 task_status[d['key']] = 'complete'
 
-                    if any(k in title_lower for k in self.KEYWORDS):
-                        if any(nk in title_lower for nk in self.NEGATIVE_KEYWORDS):
+                    if self.KEYWORD_PATTERN.search(title_lower):
+                        if self.NEGATIVE_KEYWORD_PATTERN.search(title_lower):
                             continue
 
                         video_id_elem = entry.find('atom:id', ns)
@@ -1061,7 +1062,7 @@ class StarshipTestsView(APIView):
                 scrape_url = f"https://www.youtube.com/channel/{self.CHANNEL_ID}/videos"
                 sresp = httpx.get(scrape_url, headers=headers, timeout=10, follow_redirects=True)
                 if sresp.status_code == 200:
-                    import re, html
+                    import html
                     pattern = r'"videoId":"(?P<id>[a-zA-Z0-9_-]{11})".*?"title":\{"runs":\[\{"text":"(?P<title>[^"]+)"\}\]'
                     video_matches = list(re.finditer(pattern, sresp.text))
                     
@@ -1079,12 +1080,12 @@ class StarshipTestsView(APIView):
                         
                         # Update checklist from scraped titles
                         for d in checklist_defs:
-                            if any(k in title_lower for k in d['keywords']):
+                            if d['pattern'].search(title_lower):
                                 if all(no not in title_lower for no in ['upcoming', 'live', 'scheduled']):
                                     task_status[d['key']] = 'complete'
 
-                        if any(k in title_lower for k in self.KEYWORDS):
-                            if any(nk in title_lower for nk in self.NEGATIVE_KEYWORDS):
+                        if self.KEYWORD_PATTERN.search(title_lower):
+                            if self.NEGATIVE_KEYWORD_PATTERN.search(title_lower):
                                 continue
 
                             published_date = timezone.now().strftime('%Y-%m-%dT%H:%M:%S+00:00')
