@@ -1,13 +1,12 @@
-import { useRef, useState } from 'react'
+import { useRef, useEffect, useCallback } from 'react'
 import { Download, Copy, X } from 'lucide-react'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
 
 export default function ShareCard({ launch, onClose }) {
   const canvasRef = useRef(null)
-  const [generating, setGenerating] = useState(false)
 
-  const generateCard = () => {
+  const generateCard = useCallback(() => {
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')
@@ -91,7 +90,7 @@ export default function ShareCard({ launch, onClose }) {
     ctx.fillText('spacetracker.app', W - 120, H - 20)
 
     return canvas
-  }
+  }, [launch])
 
   const handleDownload = () => {
     const canvas = generateCard()
@@ -117,16 +116,17 @@ export default function ShareCard({ launch, onClose }) {
   }
 
   // Generate preview on mount
-  useState(() => {
-    setTimeout(() => generateCard(), 50)
-  })
+  useEffect(() => {
+    const timerId = setTimeout(() => generateCard(), 50)
+    return () => clearTimeout(timerId)
+  }, [generateCard])
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 660 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Share Card</h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+          <button onClick={onClose} aria-label="Close" style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
             <X size={20} />
           </button>
         </div>
@@ -148,7 +148,7 @@ export default function ShareCard({ launch, onClose }) {
   )
 }
 
-function wrapText(ctx, text, maxWidth, fontSize) {
+function wrapText(ctx, text, maxWidth) {
   const words = text.split(' ')
   const lines = []
   let line = ''

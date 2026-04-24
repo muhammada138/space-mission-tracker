@@ -162,7 +162,7 @@ export default function Navbar() {
           </div>
 
           {/* Mobile toggle */}
-          <button className="nav-mobile-toggle" onClick={() => setDrawerOpen(p => !p)} aria-label="Menu">
+          <button className="nav-mobile-toggle" onClick={() => setDrawerOpen(p => !p)} aria-label={drawerOpen ? "Close menu" : "Menu"} aria-expanded={drawerOpen}>
             {drawerOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
         </div>
@@ -174,11 +174,11 @@ export default function Navbar() {
           <div className="mobile-drawer-backdrop" onClick={close} />
           <div className="mobile-drawer">
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-              <button onClick={close} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+              <button onClick={close} aria-label="Close menu" style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}>
                 <X size={22} />
               </button>
             </div>
-            {links.map(l => (
+            {[...mainLinks, ...moreLinks].map(l => (
               <NavLink
                 key={l.to}
                 to={l.to}
