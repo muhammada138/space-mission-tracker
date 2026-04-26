@@ -52,14 +52,14 @@ export default function Login() {
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             <div>
-              <label style={{ display: 'block', marginBottom: 6, fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>Username</label>
-              <input className="input" value={username} onChange={e => setUsername(e.target.value)} placeholder="astronaut42" autoFocus />
+              <label htmlFor="login-username" style={{ display: 'block', marginBottom: 6, fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>Username</label>
+              <input id="login-username" className="input" value={username} onChange={e => setUsername(e.target.value)} placeholder="astronaut42" autoFocus />
             </div>
             <div>
-              <label style={{ display: 'block', marginBottom: 6, fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>Password</label>
+              <label htmlFor="login-password" style={{ display: 'block', marginBottom: 6, fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>Password</label>
               <div style={{ position: 'relative' }}>
-                <input className="input" type={showPw ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} placeholder="........" style={{ paddingRight: 40 }} />
-                <button type="button" onClick={() => setShowPw(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                <input id="login-password" className="input" type={showPw ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} placeholder="........" style={{ paddingRight: 40 }} />
+                <button type="button" onClick={() => setShowPw(p => !p)} aria-label="Toggle password visibility" style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
                   {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
