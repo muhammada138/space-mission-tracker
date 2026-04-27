@@ -1020,7 +1020,8 @@ class StarshipTestsView(APIView):
             
             # --- RSS Parsing ---
             if resp.status_code == 200:
-                import xml.etree.ElementTree as ET
+                # Use defusedxml to prevent XML External Entity (XXE) and XML bomb vulnerabilities
+                import defusedxml.ElementTree as ET
                 root = ET.fromstring(resp.content)
                 ns = {'atom': 'http://www.w3.org/2005/Atom', 'media': 'http://search.yahoo.com/mrss/'}
                 
