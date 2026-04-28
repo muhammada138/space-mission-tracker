@@ -1,0 +1,3 @@
+## 2026-04-28 - Explicit Form Labels and Icon Button ARIA labels
+**Learning:** Found that custom authentication forms in this application frequently omitted `htmlFor`/`id` bindings on `<label>` elements and lacked `aria-label`s on icon-only interactive elements (like the password visibility toggle). This creates a barrier for screen reader users and affects the click target area of form fields.
+**Action:** When creating or reviewing custom forms, always verify that every `<label>` is explicitly tied to its `<input>` using matching `htmlFor` and `id` attributes. Additionally, ensure all icon-only buttons have descriptive `aria-label`s.
