@@ -1,0 +1,3 @@
+## 2025-04-29 - Missing Semantic Form Bindings in Auth Views
+**Learning:** The authentication forms (`Login.jsx`, `Register.jsx`) establish visual hierarchy using `display: block` labels, but omit the semantic `htmlFor`/`id` linking. This pattern breaks screen reader context because visually adjacent labels are not programmatically associated. Furthermore, inline icon-only toggles (like password visibility) lack `aria-label`s.
+**Action:** When working on form inputs, always prioritize semantic pairing (`htmlFor` matching input `id`) over visual proximity. Ensure all icon-only buttons receive descriptive `aria-label`s.
