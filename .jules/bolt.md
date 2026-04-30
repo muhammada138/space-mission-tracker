@@ -8,3 +8,7 @@
 ## 2025-02-24 - Database Filtering vs Python Filtering
 **Learning:** In Django APIs fetching potentially thousands of records (like the 'In Flight' fallback query in `ActiveLaunchesView`), using `Launch.objects.all()` and iterating in an O(N) Python loop to filter dates/statuses massively spikes memory and CPU usage. The database is heavily penalized for instantiating unused ORM objects.
 **Action:** Always push filtering down to the database using `Launch.objects.filter()` and `.exclude()` before evaluating querysets. This drastically reduces the data transferred and objects instantiated, especially when dealing with fast-growing datasets like historical space launches.
+
+## 2024-04-18 - Missing imports in cached endpoints
+**Learning:** When adding time-based caching logic (e.g., TTLs) to Python files using objects like `timedelta`, it is easy to assume they are already imported. A missing import will result in a `NameError` and completely crash the endpoint when the cache is set.
+**Action:** Always explicitly verify that required modules like `timedelta` are imported (e.g., `from datetime import timedelta`) when adding caching logic to avoid runtime NameErrors.
