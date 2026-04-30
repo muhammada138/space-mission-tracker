@@ -6,18 +6,18 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('launches', '0002_launch_infographic_url_launch_mission_type_and_more'),
+        ("launches", "0002_launch_infographic_url_launch_mission_type_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='launch',
-            name='pad_latitude',
+            model_name="launch",
+            name="pad_latitude",
             field=models.FloatField(blank=True, null=True),
         ),
         migrations.AddField(
-            model_name='launch',
-            name='pad_longitude',
+            model_name="launch",
+            name="pad_longitude",
             field=models.FloatField(blank=True, null=True),
         ),
     ]

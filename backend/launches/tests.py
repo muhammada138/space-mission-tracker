@@ -6,10 +6,12 @@ from datetime import timedelta
 from launches.models import Launch
 from launches.services import get_past_launches, CACHE_TTL_MINUTES
 
+
 @pytest.fixture
 def mock_httpx_get():
-    with patch('launches.services.httpx.get') as mock_get:
+    with patch("launches.services.httpx.get") as mock_get:
         yield mock_get
+
 
 @pytest.mark.django_db
 def test_get_past_launches_cache_hit(mock_httpx_get):
@@ -23,7 +25,7 @@ def test_get_past_launches_cache_hit(mock_httpx_get):
     )
     # Update last_fetched directly to avoid auto_now
     Launch.objects.filter(id=launch.id).update(
-        last_fetched=now - timedelta(minutes=10) # Less than CACHE_TTL_MINUTES
+        last_fetched=now - timedelta(minutes=10)  # Less than CACHE_TTL_MINUTES
     )
 
     # Exclude SpaceX launches explicitly to check filtering
@@ -45,6 +47,7 @@ def test_get_past_launches_cache_hit(mock_httpx_get):
     assert len(launches) == 1
     assert launches[0].api_id == "ll2_123"
 
+
 @pytest.mark.django_db
 def test_get_past_launches_api_success(mock_httpx_get):
     """Test get_past_launches calls API and upserts on cache miss."""
@@ -52,12 +55,12 @@ def test_get_past_launches_api_success(mock_httpx_get):
     mock_response = MagicMock()
     mock_response.raise_for_status.return_value = None
     mock_response.json.return_value = {
-        'results': [
+        "results": [
             {
-                'id': 'll2_api_1',
-                'name': 'API Past Launch',
-                'net': (timezone.now() - timedelta(days=2)).isoformat(),
-                'status': {'name': 'Success'}
+                "id": "ll2_api_1",
+                "name": "API Past Launch",
+                "net": (timezone.now() - timedelta(days=2)).isoformat(),
+                "status": {"name": "Success"},
             }
         ]
     }
@@ -73,11 +76,12 @@ def test_get_past_launches_api_success(mock_httpx_get):
 
     # Should return the upserted launch
     assert len(launches) == 1
-    assert launches[0].api_id == 'll2_api_1'
-    assert launches[0].name == 'API Past Launch'
+    assert launches[0].api_id == "ll2_api_1"
+    assert launches[0].name == "API Past Launch"
 
     # Should have saved to DB
     assert Launch.objects.count() == 1
+
 
 @pytest.mark.django_db
 def test_get_past_launches_api_failure_fallback(mock_httpx_get):
@@ -106,7 +110,10 @@ def test_get_past_launches_api_failure_fallback(mock_httpx_get):
 
     # Make API fail
     import httpx
-    mock_httpx_get.side_effect = httpx.RequestError("Network Error", request=MagicMock())
+
+    mock_httpx_get.side_effect = httpx.RequestError(
+        "Network Error", request=MagicMock()
+    )
 
     launches = get_past_launches(limit=5)
 

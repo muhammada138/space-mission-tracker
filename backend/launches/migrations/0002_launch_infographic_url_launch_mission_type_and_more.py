@@ -6,43 +6,43 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('launches', '0001_initial'),
+        ("launches", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='launch',
-            name='infographic_url',
-            field=models.URLField(blank=True, default='', max_length=1024),
+            model_name="launch",
+            name="infographic_url",
+            field=models.URLField(blank=True, default="", max_length=1024),
         ),
         migrations.AddField(
-            model_name='launch',
-            name='mission_type',
-            field=models.CharField(blank=True, default='', max_length=128),
+            model_name="launch",
+            name="mission_type",
+            field=models.CharField(blank=True, default="", max_length=128),
         ),
         migrations.AddField(
-            model_name='launch',
-            name='orbit',
-            field=models.CharField(blank=True, default='', max_length=128),
+            model_name="launch",
+            name="orbit",
+            field=models.CharField(blank=True, default="", max_length=128),
         ),
         migrations.AddField(
-            model_name='launch',
-            name='pad_location',
-            field=models.CharField(blank=True, default='', max_length=256),
+            model_name="launch",
+            name="pad_location",
+            field=models.CharField(blank=True, default="", max_length=256),
         ),
         migrations.AddField(
-            model_name='launch',
-            name='pad_name',
-            field=models.CharField(blank=True, default='', max_length=256),
+            model_name="launch",
+            name="pad_name",
+            field=models.CharField(blank=True, default="", max_length=256),
         ),
         migrations.AddField(
-            model_name='launch',
-            name='webcast_url',
-            field=models.URLField(blank=True, default='', max_length=1024),
+            model_name="launch",
+            name="webcast_url",
+            field=models.URLField(blank=True, default="", max_length=1024),
         ),
         migrations.AddField(
-            model_name='launch',
-            name='wiki_url',
-            field=models.URLField(blank=True, default='', max_length=1024),
+            model_name="launch",
+            name="wiki_url",
+            field=models.URLField(blank=True, default="", max_length=1024),
         ),
     ]
