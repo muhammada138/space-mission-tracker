@@ -44,6 +44,7 @@ export default function SpaceWeather() {
         onMouseEnter={e => e.currentTarget.style.opacity = '1'}
         onMouseLeave={e => e.currentTarget.style.opacity = '0.6'}
         aria-label="Dismiss"
+        title="Dismiss"
       >
         <X size={13} />
       </button>

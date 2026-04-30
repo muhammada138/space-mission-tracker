@@ -55,6 +55,8 @@ export default function CrewModal({ person, onClose }) {
             zIndex: 100, backdropFilter: 'blur(8px)', transition: 'all 0.2s'
           }}
           className="hover-scale"
+          aria-label="Close"
+          title="Close"
         >
           <X size={20} style={{ strokeWidth: 3 }} />
         </button>
