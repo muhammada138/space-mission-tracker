@@ -37,7 +37,7 @@ export default function LogModal({ launch, existingLog = null, onClose, onSaved 
           <h2 style={{ margin: 0, fontSize: 20 }}>
             {existingLog ? 'Edit Log' : 'New Mission Log'}
           </h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }} aria-label="Close" title="Close">
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }} aria-label="Close modal" title="Close">
             <X size={20} />
           </button>
         </div>
