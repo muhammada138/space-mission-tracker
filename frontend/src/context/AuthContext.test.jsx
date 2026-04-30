@@ -30,27 +30,31 @@ function TestComponent() {
 describe('AuthContext', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    localStorage.clear()
   })
 
   afterEach(() => {
     cleanup()
   })
 
-  it('initially sets loading to false if no token is in localStorage', async () => {
+  it('initially attempts to fetch me', async () => {
+    api.get.mockRejectedValueOnce(new Error('Unauthorized'))
+
     render(
       <AuthProvider>
         <TestComponent />
       </AuthProvider>
     )
 
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+
     expect(screen.getByTestId('loading')).toHaveTextContent('false')
     expect(screen.getByTestId('user')).toHaveTextContent('null')
-    expect(api.get).not.toHaveBeenCalled()
+    expect(api.get).toHaveBeenCalledWith('/auth/me/')
   })
 
-  it('rehydrates user if token exists in localStorage', async () => {
-    localStorage.setItem('access_token', 'test-token')
+  it('sets user if cookie is valid', async () => {
     api.get.mockResolvedValueOnce({ data: { username: 'rehydrated_user' } })
 
     render(
@@ -70,9 +74,7 @@ describe('AuthContext', () => {
     expect(screen.getByTestId('user')).toHaveTextContent('rehydrated_user')
   })
 
-  it('clears localStorage and sets loading to false if rehydration fails', async () => {
-    localStorage.setItem('access_token', 'test-token')
-    localStorage.setItem('refresh_token', 'refresh-token')
+  it('sets user to null if fetch fails', async () => {
     api.get.mockRejectedValueOnce(new Error('Unauthorized'))
 
     render(
@@ -88,18 +90,22 @@ describe('AuthContext', () => {
     expect(api.get).toHaveBeenCalledWith('/auth/me/')
     expect(screen.getByTestId('loading')).toHaveTextContent('false')
     expect(screen.getByTestId('user')).toHaveTextContent('null')
-    expect(localStorage.getItem('access_token')).toBeNull()
-    expect(localStorage.getItem('refresh_token')).toBeNull()
   })
 
   it('handles login properly', async () => {
+    api.get.mockRejectedValueOnce(new Error('Unauthorized'))
+
     render(
       <AuthProvider>
         <TestComponent />
       </AuthProvider>
     )
 
-    api.post.mockResolvedValueOnce({ data: { access: 'new-access', refresh: 'new-refresh' } })
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+
+    api.post.mockResolvedValueOnce({ data: {} })
     api.get.mockResolvedValueOnce({ data: { username: 'testuser' } })
 
     await act(async () => {
@@ -107,21 +113,25 @@ describe('AuthContext', () => {
     })
 
     expect(api.post).toHaveBeenCalledWith('/auth/login/', { username: 'testuser', password: 'password' })
-    expect(localStorage.getItem('access_token')).toBe('new-access')
-    expect(localStorage.getItem('refresh_token')).toBe('new-refresh')
     expect(api.get).toHaveBeenCalledWith('/auth/me/')
     expect(screen.getByTestId('user')).toHaveTextContent('testuser')
   })
 
   it('handles register properly', async () => {
+    api.get.mockRejectedValueOnce(new Error('Unauthorized'))
+
     render(
       <AuthProvider>
         <TestComponent />
       </AuthProvider>
     )
 
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+
     api.post.mockResolvedValueOnce({ data: {} }) // register response
-    api.post.mockResolvedValueOnce({ data: { access: 'reg-access', refresh: 'reg-refresh' } }) // login response
+    api.post.mockResolvedValueOnce({ data: {} }) // login response
     api.get.mockResolvedValueOnce({ data: { username: 'testuser' } }) // me response
 
     await act(async () => {
@@ -136,13 +146,10 @@ describe('AuthContext', () => {
     })
     // It should also call login implicitly
     expect(api.post).toHaveBeenCalledWith('/auth/login/', { username: 'testuser', password: 'password' })
-    expect(localStorage.getItem('access_token')).toBe('reg-access')
     expect(screen.getByTestId('user')).toHaveTextContent('testuser')
   })
 
-  it('handles logout properly with refresh token', async () => {
-    localStorage.setItem('access_token', 'test-access')
-    localStorage.setItem('refresh_token', 'test-refresh')
+  it('handles logout properly', async () => {
     api.get.mockResolvedValueOnce({ data: { username: 'testuser' } })
 
     render(
@@ -162,15 +169,11 @@ describe('AuthContext', () => {
       screen.getByText('Logout').click()
     })
 
-    expect(api.post).toHaveBeenCalledWith('/auth/logout/', { refresh: 'test-refresh' })
-    expect(localStorage.getItem('access_token')).toBeNull()
-    expect(localStorage.getItem('refresh_token')).toBeNull()
+    expect(api.post).toHaveBeenCalledWith('/auth/logout/')
     expect(screen.getByTestId('user')).toHaveTextContent('null')
   })
 
-  it('handles logout gracefully if token is already expired', async () => {
-    localStorage.setItem('access_token', 'test-access')
-    localStorage.setItem('refresh_token', 'test-refresh')
+  it('handles logout gracefully if post fails', async () => {
     api.get.mockResolvedValueOnce({ data: { username: 'testuser' } })
 
     render(
@@ -189,10 +192,8 @@ describe('AuthContext', () => {
       screen.getByText('Logout').click()
     })
 
-    expect(api.post).toHaveBeenCalledWith('/auth/logout/', { refresh: 'test-refresh' })
+    expect(api.post).toHaveBeenCalledWith('/auth/logout/')
     // It should still clear tokens and user
-    expect(localStorage.getItem('access_token')).toBeNull()
-    expect(localStorage.getItem('refresh_token')).toBeNull()
     expect(screen.getByTestId('user')).toHaveTextContent('null')
   })
 })
