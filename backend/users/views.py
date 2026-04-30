@@ -3,8 +3,15 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.throttling import AnonRateThrottle
 from django.contrib.auth.models import User
+from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import RegisterSerializer, UserSerializer, UserProfileSerializer
 from .models import UserProfile
+from .throttles import AuthRateThrottle
+
+
+class ThrottledTokenObtainPairView(TokenObtainPairView):
+    """POST /api/auth/login/ - throttled token obtain view"""
+    throttle_classes = [AuthRateThrottle]
 
 
 # Sentinel Security Fix: Prevent mass account creation and spam
@@ -17,7 +24,7 @@ class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = RegisterSerializer
     permission_classes = [permissions.AllowAny]
-    throttle_classes = [RegisterRateThrottle]
+    throttle_classes = [AuthRateThrottle]
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)

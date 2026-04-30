@@ -3,8 +3,12 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 from django.contrib.auth.models import User
 
+from django.core.cache import cache
+
+
 class RegisterViewTests(APITestCase):
     def setUp(self):
+        cache.clear()
         self.register_url = reverse('register')
         self.valid_payload = {
             'username': 'testuser',
@@ -76,3 +80,37 @@ class RegisterViewTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(User.objects.count(), 1)  # Only the original user should exist
         self.assertIn('username', response.data)
+
+    def test_user_registration_throttling(self):
+        """
+        Ensure registration rate limits after 5 requests.
+        """
+        for i in range(5):
+            payload = self.valid_payload.copy()
+            payload['username'] = f"testuser{i}"
+            response = self.client.post(self.register_url, payload, format='json')
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # 6th request should fail
+        payload = self.valid_payload.copy()
+        payload['username'] = "testuser_throttled"
+        response = self.client.post(self.register_url, payload, format='json')
+        self.assertEqual(response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+
+
+class LoginViewTests(APITestCase):
+    def setUp(self):
+        cache.clear()
+        self.login_url = reverse('token_obtain_pair')
+
+    def test_login_throttling(self):
+        """
+        Ensure login rate limits after 5 requests.
+        """
+        for i in range(5):
+            response = self.client.post(self.login_url, {'username': f'wrong{i}', 'password': '123'}, format='json')
+            self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        # 6th request should fail
+        response = self.client.post(self.login_url, {'username': 'wrong6', 'password': '123'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)

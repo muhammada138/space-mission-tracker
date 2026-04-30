@@ -1,25 +1,19 @@
 from django.contrib import admin
 from django.urls import path, include
 from launches.views import SpaceWeatherView, ISSCrewView
-from rest_framework.throttling import AnonRateThrottle
+from users.views import ThrottledTokenObtainPairView
 from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
     TokenRefreshView,
     TokenBlacklistView,
 )
 
-# Sentinel Security Fix: Add rate limiting to prevent brute force attacks on login
-class LoginRateThrottle(AnonRateThrottle):
-    rate = '5/minute'
 
-class ThrottledLoginView(TokenObtainPairView):
-    throttle_classes = [LoginRateThrottle]
 
 urlpatterns = [
     path('admin/', admin.site.urls),
 
     # JWT auth
-    path('api/auth/login/', ThrottledLoginView.as_view(), name='token_obtain_pair'),
+    path('api/auth/login/', ThrottledTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/auth/logout/', TokenBlacklistView.as_view(), name='token_blacklist'),
 
