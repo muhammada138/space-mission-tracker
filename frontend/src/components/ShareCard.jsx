@@ -126,7 +126,7 @@ export default function ShareCard({ launch, onClose }) {
       <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 660 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Share Card</h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }} aria-label="Close" title="Close">
             <X size={20} />
           </button>
         </div>
