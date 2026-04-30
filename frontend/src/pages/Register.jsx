@@ -70,17 +70,17 @@ export default function Register() {
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             <div>
-              <label style={{ display: 'block', marginBottom: 6, fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>Username</label>
-              <input className="input" value={username} onChange={e => setUsername(e.target.value)} placeholder="astronaut42" autoFocus />
+              <label htmlFor="reg-username" style={{ display: 'block', marginBottom: 6, fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>Username</label>
+              <input id="reg-username" className="input" value={username} onChange={e => setUsername(e.target.value)} placeholder="astronaut42" autoFocus />
             </div>
             <div>
-              <label style={{ display: 'block', marginBottom: 6, fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>Email (optional)</label>
-              <input className="input" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@mission-control.com" />
+              <label htmlFor="reg-email" style={{ display: 'block', marginBottom: 6, fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>Email (optional)</label>
+              <input id="reg-email" className="input" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@mission-control.com" />
             </div>
             <div>
-              <label style={{ display: 'block', marginBottom: 6, fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>Password</label>
+              <label htmlFor="reg-password" style={{ display: 'block', marginBottom: 6, fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>Password</label>
               <div style={{ position: 'relative' }}>
-                <input className="input" type={showPw ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} placeholder="Min. 8 characters" style={{ paddingRight: 40 }} />
+                <input id="reg-password" className="input" type={showPw ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} placeholder="Min. 8 characters" style={{ paddingRight: 40 }} />
                 <button type="button" onClick={() => setShowPw(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }} aria-label={showPw ? "Hide password" : "Show password"} title={showPw ? "Hide password" : "Show password"}>
                   {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
