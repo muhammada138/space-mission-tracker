@@ -348,13 +348,12 @@ class ActiveLaunchesView(APIView):
             # Fetch missions from the last 3 hours and force them to 'Active' 
             # while they climb to orbit, even if LL2 hasn't flagged them status 6 yet.
             recent_cutoff = now - timedelta(hours=3)
-            recent_successes_raw = Launch.objects.all()
-            recent_successes = []
-            for l in recent_successes_raw:
-                if 'fail' in (l.status or '').lower(): continue
-                ldate = _to_dt(l.launch_date, _FAR_PAST)
-                if ldate != _FAR_PAST and recent_cutoff <= ldate <= now:
-                    recent_successes.append(l)
+            # ⚡ Bolt: Use database filtering to prevent loading all launches into memory (O(N) operation)
+            # Expected Impact: Significantly reduces database load and memory usage during Active tab loads
+            recent_successes = list(Launch.objects.filter(
+                launch_date__gte=recent_cutoff,
+                launch_date__lte=now
+            ).exclude(status__icontains='fail'))
 
             # Pre-extract existing result IDs into a set for O(1) lookup.
             # This avoids an O(N*M) nested loop when iterating over recent_successes below.
