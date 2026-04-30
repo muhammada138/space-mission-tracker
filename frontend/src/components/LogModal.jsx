@@ -48,8 +48,9 @@ export default function LogModal({ launch, existingLog = null, onClose, onSaved 
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>
-            <label style={{ display: 'block', marginBottom: 6, fontSize: 13, color: 'var(--text-secondary)' }}>Title</label>
+            <label htmlFor="log-title" style={{ display: 'block', marginBottom: 6, fontSize: 13, color: 'var(--text-secondary)' }}>Title</label>
             <input
+              id="log-title"
               className="input"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -58,8 +59,9 @@ export default function LogModal({ launch, existingLog = null, onClose, onSaved 
             />
           </div>
           <div>
-            <label style={{ display: 'block', marginBottom: 6, fontSize: 13, color: 'var(--text-secondary)' }}>Notes</label>
+            <label htmlFor="log-notes" style={{ display: 'block', marginBottom: 6, fontSize: 13, color: 'var(--text-secondary)' }}>Notes</label>
             <textarea
+              id="log-notes"
               className="input"
               value={body}
               onChange={(e) => setBody(e.target.value)}
