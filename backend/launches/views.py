@@ -1045,7 +1045,7 @@ class StarshipTestsView(APIView):
 
             # --- RSS Parsing ---
             if resp.status_code == 200:
-                import xml.etree.ElementTree as ET
+                import defusedxml.ElementTree as ET
 
                 root = ET.fromstring(resp.content)
                 ns = {
