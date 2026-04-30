@@ -17,9 +17,6 @@ from .spacex_service import get_spacex_upcoming_launches, get_spacex_past_launch
 import httpx
 import json
 import urllib.parse
-import re
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from django.utils import timezone
 from datetime import timedelta
 
 # Fallback dates for sorting when launch_date is None
@@ -964,7 +961,6 @@ class StarshipTestsView(APIView):
         # ⚡ Bolt: Pre-compile dynamic keyword regex patterns per checklist definition
         for d in checklist_defs:
             d['re'] = re.compile('|'.join(re.escape(k) for k in d['keywords']))
-
         task_status = {d['key']: 'pending' for d in checklist_defs}
         task_status['s39_static'] = 'complete' # Seed from recent known test
 
@@ -1001,6 +997,9 @@ class StarshipTestsView(APIView):
                     for d in checklist_defs:
                         all_keywords.extend(d['keywords'])
 
+                    # Pre-compile the all_keywords fast path matcher
+                    all_keywords_regex = re.compile('|'.join(re.escape(k) for k in all_keywords))
+
                     # Look for text in the timeline JSON
                     tweets = re.findall(r'\"text\":\"([^\"]+)\"', tx_resp.text)
                     for tweet in tweets:
@@ -1008,25 +1007,17 @@ class StarshipTestsView(APIView):
 
                         # Fast path: check if ANY keyword is in the raw lowercase tweet.
                         # If not, skip the expensive decode.
-                        match_found = False
-                        for k in all_keywords:
-                            if k in t_lower:
-                                match_found = True
-                                break
-
-                        if not match_found:
+                        if not all_keywords_regex.search(t_lower):
                             continue
 
                         t_lower_decoded = t_lower.encode('utf-8').decode('unicode-escape', 'ignore')
 
                         for d in checklist_defs:
-                            for k in d['keywords']:
-                                if k in t_lower_decoded:
-                                    if 'static fire' in t_lower_decoded and 'complete' in t_lower_decoded:
-                                        task_status[d['key']] = 'complete'
-                                    if 'stacked' in t_lower_decoded or 'stacking' in t_lower_decoded:
-                                        task_status[d['key']] = 'complete'
-                                    break
+                            if d['regex'].search(t_lower_decoded):
+                                if 'static fire' in t_lower_decoded and 'complete' in t_lower_decoded:
+                                    task_status[d['key']] = 'complete'
+                                if ('stacked' in t_lower_decoded) or ('stacking' in t_lower_decoded):
+                                    task_status[d['key']] = 'complete'
             except Exception:
                 pass
 
