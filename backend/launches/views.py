@@ -6,6 +6,7 @@ import re
 logger = logging.getLogger(__name__)
 
 from django.utils.dateparse import parse_datetime
+from django.utils.html import strip_tags
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -27,6 +28,8 @@ import httpx
 import json
 import urllib.parse
 from datetime import timedelta
+from django.utils import timezone
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 _GLOBAL_HISTORY_CACHE = None
 
@@ -248,123 +251,8 @@ class ActiveLaunchesView(APIView):
 
     def get(self, request):
         try:
-<<<<<<< HEAD
-            resp = httpx.get(
-                'https://ll.thespacedevs.com/2.2.0/launch/',
-                params={'status': 6, 'mode': 'detailed', 'limit': 10},
-                timeout=15,
-            )
-            if resp.status_code == 200:
-                results = resp.json().get('results', [])
-            else:
-                results = []
-            
-            # Dynamically fetch recent launches to find active spacecraft
-            # (Launch status is "Success", but Spacecraft is "Active")
-            try:
-                past_resp = httpx.get(
-                    'https://ll.thespacedevs.com/2.2.0/launch/previous/',
-                    params={'mode': 'detailed', 'limit': 20},
-                    timeout=15,
-                )
-                if past_resp.status_code == 200:
-                    past_data = past_resp.json().get('results', [])
-                    existing_ids = {r['id'] for r in results if 'id' in r}
-                    # Only include spacecraft-in-space missions launched within the last 3 days.
-                    # Older missions (like Cygnus resupply) belong in the Payloads tab.
-                    in_space_cutoff = now - timedelta(days=3)
-                    for launch in past_data:
-                        stage = launch.get('rocket', {}).get('spacecraft_stage', {})
-                        ldate_check = _to_dt(launch.get('net'), _FAR_PAST)
-                        # If the spacecraft stage indicates the craft is currently in space, route it as active
-                        if (stage and stage.get('spacecraft', {}).get('in_space') is True
-                                and ldate_check >= in_space_cutoff):
-                            if 'id' in launch and launch['id'] not in existing_ids:
-                                # Force status to 'In Flight' so frontend treats it as an active mission
-                                if 'status' in launch and isinstance(launch['status'], dict):
-                                    launch['status']['name'] = 'In Flight'
-                                    launch['status']['abbrev'] = 'In Flight'
-                                results.append(launch)
-                                existing_ids.add(launch['id'])
-            except Exception:
-                pass
-
-            now = timezone.now()
-
-            # --- Bridge the LL2 "Status 6" gap ---
-            # Fetch missions from the last 3 hours and force them to 'Active' 
-            # while they climb to orbit, even if LL2 hasn't flagged them status 6 yet.
-            recent_cutoff = now - timedelta(hours=3)
-            # ⚡ Bolt: Use database filtering to prevent loading all launches into memory (O(N) operation)
-            # Expected Impact: Significantly reduces database load and memory usage during Active tab loads
-            recent_successes = list(Launch.objects.filter(
-                launch_date__gte=recent_cutoff,
-                launch_date__lte=now
-            ).exclude(status__icontains='fail'))
-
-            # Pre-extract existing result IDs into a set for O(1) lookup.
-            # This avoids an O(N*M) nested loop when iterating over recent_successes below.
-            existing_result_ids: set[str] = set()
-            for r in results:
-                try:
-                    rid = r.get('id') if isinstance(r, dict) else (getattr(r, 'id', None) if not hasattr(r, '__getitem__') else r['id'])
-                    existing_result_ids.add(str(rid))
-                except Exception:
-                    pass
-
-            for l in recent_successes:
-                # Ensure we don't duplicate missions already in 'results'
-                api_id_str = str(l.api_id)
-                if api_id_str not in existing_result_ids:
-                    # Convert model back to a dict mimicking LL2 results for _upsert
-                    results.append({
-                        'id': l.api_id,
-                        'name': l.name,
-                        'net': l.launch_date.isoformat(),
-                        'status': {'name': 'In Flight', 'abbrev': 'In Flight'}, # Force active
-                        'rocket': {'configuration': {'name': l.rocket}},
-                        'launch_service_provider': {'name': l.launch_provider},
-                    })
-                    existing_result_ids.add(api_id_str)
-
-            # Transition to active 5 minutes before scheduled launch
-            active_threshold = now + timedelta(minutes=5)
-            results = [r for r in results if _to_dt(r.get('net') if isinstance(r, dict) else getattr(r, 'net', None), _FAR_FUTURE) <= active_threshold]
-
-            # Exclude missions launched more than 48h ago — those are long-duration missions
-            # (e.g. Cygnus resupply, Dragon crew) that belong in the "In Orbit" tab.
-            active_floor = now - timedelta(hours=48)
-            results = [r for r in results
-                       if _to_dt(r.get('net') if isinstance(r, dict) else getattr(r, 'net', None), _FAR_PAST) >= active_floor]
-
-            if results:
-                # Use local import for services to avoid circular dependency
-                from .services import _upsert_launches
-                launches = list(_upsert_launches(results))
-                
-                # --- Post-Upsert Status Enforcement ---
-                # Ensure missions we manually identified as 'active' keep their 
-                # status flag in the final response objects.
-                for l in launches:
-                    ldate = _to_dt(l.launch_date, _FAR_PAST)
-                    if ldate != _FAR_PAST and (now - timedelta(hours=3)) <= ldate <= (now + timedelta(minutes=5)):
-                        # If it's a known success/fail, don't overwrite it unless it's very recent
-                        if 'Success' not in (l.status or '') and 'Fail' not in (l.status or ''):
-                            l.status = 'In Flight'
-
-                # Combine with db cache hits to ensure nothing is lost during transition
-                result_ids = {l.api_id for l in launches}
-                for a in active:
-                    if a.api_id not in result_ids:
-                        launches.append(a)
-                
-                # Sort the combined objects by launch date descending
-                launches.sort(key=lambda x: x.launch_date if x.launch_date else x.last_fetched, reverse=True)
-                
-=======
             launches, active = get_active_launches()
             if launches:
->>>>>>> jules-code-health-active-launches-431913173759062555
                 return Response(BriefLaunchSerializer(launches, many=True).data)
             elif active:
                 return Response(BriefLaunchSerializer(active, many=True).data)
@@ -1043,7 +931,6 @@ class StarshipTestsView(APIView):
     _cache = {'data': None, 'expires': None}
 
     def get(self, request):
-<<<<<<< HEAD
         now = timezone.now()
 
         # ⚡ Bolt: Check cache first (15 minute TTL)
@@ -1054,12 +941,6 @@ class StarshipTestsView(APIView):
 
         rss_url = f'https://www.youtube.com/feeds/videos.xml?channel_id={self.CHANNEL_ID}'
         
-=======
-        rss_url = (
-            f"https://www.youtube.com/feeds/videos.xml?channel_id={self.CHANNEL_ID}"
-        )
-
->>>>>>> jules-code-health-active-launches-431913173759062555
         checklist_defs = [
             {
                 "key": "s39_static",
@@ -1087,17 +968,12 @@ class StarshipTestsView(APIView):
                 "keywords": ["faa license", "launch license"],
             },
         ]
-<<<<<<< HEAD
 
         # ⚡ Bolt: Pre-compile dynamic keyword regex patterns per checklist definition
         for d in checklist_defs:
             d['re'] = re.compile('|'.join(re.escape(k) for k in d['keywords']))
         task_status = {d['key']: 'pending' for d in checklist_defs}
         task_status['s39_static'] = 'complete' # Seed from recent known test
-=======
-        task_status = {d["key"]: "pending" for d in checklist_defs}
-        task_status["s39_static"] = "complete"  # Seed from recent known test
->>>>>>> jules-code-health-active-launches-431913173759062555
 
         entries = []
         seen_ids = set()
@@ -1155,27 +1031,11 @@ class StarshipTestsView(APIView):
                         )
 
                         for d in checklist_defs:
-<<<<<<< HEAD
                             if d['regex'].search(t_lower_decoded):
                                 if 'static fire' in t_lower_decoded and 'complete' in t_lower_decoded:
                                     task_status[d['key']] = 'complete'
                                 if ('stacked' in t_lower_decoded) or ('stacking' in t_lower_decoded):
                                     task_status[d['key']] = 'complete'
-=======
-                            for k in d["keywords"]:
-                                if k in t_lower_decoded:
-                                    if (
-                                        "static fire" in t_lower_decoded
-                                        and "complete" in t_lower_decoded
-                                    ):
-                                        task_status[d["key"]] = "complete"
-                                    if (
-                                        "stacked" in t_lower_decoded
-                                        or "stacking" in t_lower_decoded
-                                    ):
-                                        task_status[d["key"]] = "complete"
-                                    break
->>>>>>> jules-code-health-active-launches-431913173759062555
             except Exception:
                 pass
 
@@ -1197,24 +1057,15 @@ class StarshipTestsView(APIView):
                     title_elem = entry.find("atom:title", ns)
                     if title_elem is None:
                         continue
-                    title = title_elem.text
+                    title = strip_tags(title_elem.text)
                     title_lower = title.lower()
 
                     # Update checklist from titles
                     # ⚡ Bolt: Use pre-compiled regex `search` instead of `any(k in text)` for O(n) performance
                     for d in checklist_defs:
-<<<<<<< HEAD
                         if d['re'].search(title_lower):
                             if not self.NOT_COMPLETE_REGEX.search(title_lower):
                                 task_status[d['key']] = 'complete'
-=======
-                        if any(k in title_lower for k in d["keywords"]):
-                            if all(
-                                no not in title_lower
-                                for no in ["upcoming", "live", "scheduled"]
-                            ):
-                                task_status[d["key"]] = "complete"
->>>>>>> jules-code-health-active-launches-431913173759062555
 
                     if self.KEYWORDS_REGEX.search(title_lower):
                         if self.NEGATIVE_KEYWORDS_REGEX.search(title_lower):
@@ -1263,13 +1114,13 @@ class StarshipTestsView(APIView):
 
                         # Clean title properly using html unescape and handling unicode
                         try:
-                            title = (
+                            title = strip_tags(
                                 html.unescape(raw_title)
                                 .encode("utf-8")
-                                .decode("unicode-escape")
+                                .decode("unicode-escape", "ignore")
                             )
                         except Exception:
-                            title = raw_title
+                            title = strip_tags(raw_title)
 
                         title_lower = title.lower()
 
