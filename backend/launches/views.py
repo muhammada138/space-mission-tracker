@@ -17,6 +17,7 @@ from .spacex_service import get_spacex_upcoming_launches, get_spacex_past_launch
 import httpx
 import json
 import urllib.parse
+import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from django.utils import timezone
 from datetime import timedelta
@@ -959,6 +960,11 @@ class StarshipTestsView(APIView):
             {'key': 'wdr', 'label': 'Flight 12 Wet Dress Rehearsal', 'keywords': ['wdr', 'wet dress']},
             {'key': 'faa', 'label': 'FAA Flight 12 Launch License', 'keywords': ['faa license', 'launch license']},
         ]
+
+        # ⚡ Bolt: Pre-compile dynamic keyword regex patterns per checklist definition
+        for d in checklist_defs:
+            d['re'] = re.compile('|'.join(re.escape(k) for k in d['keywords']))
+
         task_status = {d['key']: 'pending' for d in checklist_defs}
         task_status['s39_static'] = 'complete' # Seed from recent known test
 
@@ -1039,8 +1045,9 @@ class StarshipTestsView(APIView):
                     title_lower = title.lower()
                     
                     # Update checklist from titles
+                    # ⚡ Bolt: Use pre-compiled regex `search` instead of `any(k in text)` for O(n) performance
                     for d in checklist_defs:
-                        if any(k in title_lower for k in d['keywords']):
+                        if d['re'].search(title_lower):
                             if not self.NOT_COMPLETE_REGEX.search(title_lower):
                                 task_status[d['key']] = 'complete'
 
@@ -1086,8 +1093,9 @@ class StarshipTestsView(APIView):
                         title_lower = title.lower()
                         
                         # Update checklist from scraped titles
+                        # ⚡ Bolt: Use pre-compiled regex `search` instead of `any(k in text)` for O(n) performance
                         for d in checklist_defs:
-                            if any(k in title_lower for k in d['keywords']):
+                            if d['re'].search(title_lower):
                                 if not self.NOT_COMPLETE_REGEX.search(title_lower):
                                     task_status[d['key']] = 'complete'
 
