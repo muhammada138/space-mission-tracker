@@ -216,8 +216,9 @@ export default function Home({ tab = 'upcoming' }) {
               boxShadow: 'inset 0 0 30px rgba(0,0,0,0.2)'
             }}>
               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <label className="filter-label">Mission Type</label>
+                <label htmlFor="filter-mission" className="filter-label">Mission Type</label>
                 <select 
+                  id="filter-mission"
                   value={missionFilter} 
                   onChange={(e) => setMissionFilter(e.target.value)}
                   className="filter-select"
@@ -228,8 +229,9 @@ export default function Home({ tab = 'upcoming' }) {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <label className="filter-label">Target Orbit</label>
+                <label htmlFor="filter-orbit" className="filter-label">Target Orbit</label>
                 <select 
+                  id="filter-orbit"
                   value={orbitFilter} 
                   onChange={(e) => setOrbitFilter(e.target.value)}
                   className="filter-select"
@@ -240,8 +242,9 @@ export default function Home({ tab = 'upcoming' }) {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <label className="filter-label">Rocket Vehicle</label>
+                <label htmlFor="filter-rocket" className="filter-label">Rocket Vehicle</label>
                 <select 
+                  id="filter-rocket"
                   value={rocketFilter} 
                   onChange={(e) => setRocketFilter(e.target.value)}
                   className="filter-select"
@@ -252,8 +255,9 @@ export default function Home({ tab = 'upcoming' }) {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <label className="filter-label">Agency / Provider</label>
+                <label htmlFor="filter-agency" className="filter-label">Agency / Provider</label>
                 <select 
+                  id="filter-agency"
                   value={agencyFilter} 
                   onChange={(e) => setAgencyFilter(e.target.value)}
                   className="filter-select"

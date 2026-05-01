@@ -538,8 +538,9 @@ export default function Rockets() {
                   marginBottom: 16
                 }}>
                   <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <label className="filter-label">Mission Category</label>
+                    <label htmlFor="payload-mission-filter" className="filter-label">Mission Category</label>
                     <select 
+                      id="payload-mission-filter"
                       value={missionFilter} 
                       onChange={(e) => setMissionFilter(e.target.value)}
                       className="filter-select"
@@ -550,8 +551,9 @@ export default function Rockets() {
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <label className="filter-label">Target Orbit</label>
+                    <label htmlFor="payload-orbit-filter" className="filter-label">Target Orbit</label>
                     <select 
+                      id="payload-orbit-filter"
                       value={orbitFilter} 
                       onChange={(e) => setOrbitFilter(e.target.value)}
                       className="filter-select"
