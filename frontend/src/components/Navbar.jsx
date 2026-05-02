@@ -174,11 +174,11 @@ export default function Navbar() {
           <div className="mobile-drawer-backdrop" onClick={close} />
           <div className="mobile-drawer">
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-              <button onClick={close} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+              <button onClick={close} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }} aria-label="Close menu">
                 <X size={22} />
               </button>
             </div>
-            {links.map(l => (
+            {[...mainLinks, ...moreLinks].map(l => (
               <NavLink
                 key={l.to}
                 to={l.to}
