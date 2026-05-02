@@ -1,0 +1,4 @@
+## YYYY-MM-DD - [Hardcoded NASA_API_KEY Fallback Removed]
+**Vulnerability:** A hardcoded default API key ("DEMO_KEY") was embedded in `backend/launches/views.py` as a fallback for the `NASA_API_KEY` environment variable.
+**Learning:** Hardcoded default secrets are a security risk as they bypass environment-based configuration, leak credentials into source control, and can lead to unexpected rate limiting or blocking if widely shared. In this context, it violates the rule that keys must be managed exclusively via environment variables.
+**Prevention:** Ensure secrets are only loaded via environment variables (e.g., `os.environ.get("NASA_API_KEY")`). If the key is missing, handle the error gracefully—such as logging a warning and skipping the dependent API call—instead of using a hardcoded fallback.
