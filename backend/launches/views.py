@@ -1192,7 +1192,7 @@ class SpaceWeatherView(APIView):
             return Response(self._cache["data"])
 
         try:
-            api_key = os.environ.get("NASA_API_KEY", "DEMO_KEY")
+            api_key = os.environ.get("NASA_API_KEY")
             today = now.strftime("%Y-%m-%d")
             week_ago = (now - timedelta(days=7)).strftime("%Y-%m-%d")
 
@@ -1216,22 +1216,25 @@ class SpaceWeatherView(APIView):
 
             # 2. Fetch recent solar flares from NASA DONKI
             flares = []
-            try:
-                flr_resp = httpx.get(
-                    "https://api.nasa.gov/DONKI/FLR",
-                    params={
-                        "startDate": week_ago,
-                        "endDate": today,
-                        "api_key": api_key,
-                    },
-                    timeout=10,
-                )
-                if flr_resp.status_code == 200:
-                    flares = flr_resp.json()
-                    if not isinstance(flares, list):
-                        flares = []
-            except Exception:
-                pass
+            if api_key:
+                try:
+                    flr_resp = httpx.get(
+                        "https://api.nasa.gov/DONKI/FLR",
+                        params={
+                            "startDate": week_ago,
+                            "endDate": today,
+                            "api_key": api_key,
+                        },
+                        timeout=10,
+                    )
+                    if flr_resp.status_code == 200:
+                        flares = flr_resp.json()
+                        if not isinstance(flares, list):
+                            flares = []
+                except Exception:
+                    pass
+            else:
+                logger.warning("NASA_API_KEY not set. Skipping DONKI solar flare fetch.")
 
             # Determine severity level
             if kp >= 7 or len(flares) > 5:
