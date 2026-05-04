@@ -195,6 +195,7 @@ export default function LaunchMap() {
                 }}
                 className="btn-ghost"
                 style={{ position: 'absolute', top: 12, right: 12, padding: 4, borderRadius: '50%', color: 'var(--text-muted)' }}
+                aria-label="Close" title="Close"
               >
                 <X size={18} />
               </button>

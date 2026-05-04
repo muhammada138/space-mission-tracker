@@ -84,7 +84,7 @@ export default function Spaceports() {
 
                 {selectedPad && (
                     <div className="glass fade-in" style={{ position: 'absolute', top: 24, right: 24, width: 320, padding: 24, zIndex: 10 }}>
-                        <button onClick={() => setSelectedPad(null)} style={{ position: 'absolute', top: 12, right: 12, background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 18 }}>×</button>
+                        <button onClick={() => setSelectedPad(null)} style={{ position: 'absolute', top: 12, right: 12, background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 18 }} aria-label="Close" title="Close">×</button>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, color: 'var(--accent)' }}>
                             <MapPin size={20} />
                             <h3 style={{ margin: 0, fontSize: 18, color: 'var(--text-primary)', lineHeight: 1.2 }}>{selectedPad.name}</h3>
