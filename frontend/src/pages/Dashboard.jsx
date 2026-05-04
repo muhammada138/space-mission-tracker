@@ -186,7 +186,8 @@ function WatchlistTab({ watchlist, sortedWatchlist, navigate, removeFromWatchlis
                 </div>
               )}
               <button className="btn btn-danger" style={{ padding: '6px 10px', flexShrink: 0 }}
-                onClick={e => { e.stopPropagation(); removeFromWatchlist(entry.id) }}>
+                onClick={e => { e.stopPropagation(); removeFromWatchlist(entry.id) }}
+                aria-label="Remove from watchlist" title="Remove from watchlist">
                 <Trash2 size={13} />
               </button>
             </div>
@@ -246,11 +247,13 @@ function LogsTab({ logs, navigate, setEditLog, setShowLogModal, deleteLog }) {
               </div>
               <div style={{ display: 'flex', gap: 6, flexShrink: 0, paddingTop: 4 }}>
                 <button className="btn btn-ghost" style={{ padding: '6px 10px', fontSize: 11 }}
-                  onClick={() => { setEditLog(log); setShowLogModal(true) }}>
+                  onClick={() => { setEditLog(log); setShowLogModal(true) }}
+                  aria-label="Edit log" title="Edit log">
                   <NotebookPen size={13} />
                 </button>
                 <button className="btn btn-danger" style={{ padding: '6px 10px' }}
-                  onClick={() => deleteLog(log.id)}>
+                  onClick={() => deleteLog(log.id)}
+                  aria-label="Delete log" title="Delete log">
                   <Trash2 size={13} />
                 </button>
               </div>
@@ -351,6 +354,7 @@ export default function Dashboard() {
   }, [])
 
   const removeFromWatchlist = async (id) => {
+    if (!window.confirm('Are you sure you want to remove this mission from your watchlist?')) return
     try {
       await api.delete(`/watchlist/${id}/`)
       setWatchlist(w => w.filter(e => e.id !== id))
@@ -359,6 +363,7 @@ export default function Dashboard() {
   }
 
   const deleteLog = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this log?')) return
     try {
       await api.delete(`/watchlist/logs/${id}/`)
       setLogs(l => l.filter(e => e.id !== id))
