@@ -45,6 +45,7 @@ def mock_httpx_get_responses(
 
 
 @pytest.mark.django_db
+@patch.dict('os.environ', {'NASA_API_KEY': 'testkey'})
 class TestSpaceWeatherView:
 
     def test_caching(self, api_client):
