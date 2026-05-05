@@ -55,6 +55,7 @@ const LaunchCard = memo(({ launch, showCountdown = true, isPayload = false }) =>
       onClick={() => navigate(isActive ? `/live/${launch.api_id}` : `/launch/${launch.api_id}`)}
       style={{ display: 'flex', flexDirection: 'column', height: '100%' }}
       role="button"
+      aria-label={`View details for ${displayName}`}
       tabIndex={0}
       onKeyDown={(e) => e.key === 'Enter' && navigate(isActive ? `/live/${launch.api_id}` : `/launch/${launch.api_id}`)}
     >
